@@ -183,9 +183,9 @@ model UserRole {
 model ActivityLog {
   id          Int      @id @default(autoincrement())
   action      String   // The action performed (e.g., "create", "update", "delete")
-  details     String?  // Additional details about the activity
+  details     String?  
   entityType  String   // The type of entity affected (e.g., "user", "role", "asignatura")
-  entityId    String?  // The ID of the affected entity
+  entityId    String?  
 
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
