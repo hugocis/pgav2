@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       if (!body || (typeof body === 'object' && Object.keys(body).length === 0)) {
         isAutomaticMode = true;
       }
-    } catch (e) {
+    } catch {
       // Si hay error al parsear JSON (cuerpo vacío), activar el modo automático
       isAutomaticMode = true;
     }
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
           }
 
           // Crear nuevo curso académico
-          const nuevoCurso = await prisma.cursoAcademico.create({
+          await prisma.cursoAcademico.create({
             data: {
               denominacion: anyAnyaca,
               activo: false, // Por defecto no está activo
@@ -184,8 +184,8 @@ export async function POST(request: NextRequest) {
             cursoAnterior,
             cursoSiguiente
           });
-        } catch (error: any) {
-          resultados.errores.push(`Error al crear el curso ${anyAnyaca}: ${error.message}`);
+        } catch (error: unknown) {
+          resultados.errores.push(`Error al crear el curso ${anyAnyaca}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
