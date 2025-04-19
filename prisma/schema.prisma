@@ -158,6 +158,7 @@ model User {
   HorariosProfesor HorariosProfesor[]
   Matricula Matricula[]
   SolicitudDispensa SolicitudDispensa[]
+  Asignatura Asignatura[]
 }
 
 model Role {
@@ -219,7 +220,8 @@ model Escuela {
 model Carrera{
   id            Int      @id @default(autoincrement())
   denominacion  String
-
+  codigo      String
+  
   escuelaId     Int
   escuela       Escuela  @relation(fields: [escuelaId], references: [id], onDelete: Cascade)
 
@@ -271,14 +273,14 @@ model Asignatura{
   carrera       Carrera  @relation(fields: [carreraId], references: [id], onDelete: Cascade)
   cursoAcademicoId Int
   cursoAcademico CursoAcademico @relation(fields: [cursoAcademicoId], references: [id], onDelete: Cascade)
+  profesorId    String
+  user        User @relation(fields: [profesorId], references: [id], onDelete: Cascade)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   Docencia Docencia[]
-
   Grupo Grupo[]
-
   Matricula Matricula[]
 }
 
