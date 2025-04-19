@@ -220,7 +220,6 @@ model Escuela {
 model Carrera{
   id            Int      @id @default(autoincrement())
   denominacion  String
-  codigo      String
   
   escuelaId     Int
   escuela       Escuela  @relation(fields: [escuelaId], references: [id], onDelete: Cascade)
