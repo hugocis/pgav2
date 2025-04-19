@@ -13,3 +13,121 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model OfertaAcademica {
+  id              Int     @id @default(autoincrement()) // Auto-incrementing ID to identify each record
+  ANY_ANYACA      String? // Academic year
+  DENOMINACION    String? // Denomination
+  ID_BOLONIA      String? // Bologna process ID
+  BOLONIA         String? // Bologna information
+  CARRERAS        String? // Associated careers
+  DEN_GUIAS_DOC   String? // Denomination in teaching guides
+  CURSOS          String? // Courses
+  CURSO_PLAN      String? // Course plan
+  COD_AGORA       String? // Agora code
+  MATERIA         String? // Subject
+  MATERIA_PLAN    String? // Subject in plan
+  GRUPOS          String? // Available groups
+  CREDITOS        Float?  // Subject credits
+  CUATRIMESTRE    String? // Term in which it's taught
+  TIPODEMATERIA   String? // Subject type
+  HORAS_SEMANA_1C Float?  // Weekly hours in first term
+  HORAS_SEMANA_2C Float?  // Weekly hours in second term
+  PORC_DOC        String? // Teaching percentage
+  MODULO_PLAN     String? // Plan module
+  AREA            String? // Knowledge area
+  COD_MATERIA     String? // Subject code
+ 
+  @@unique([ANY_ANYACA, COD_MATERIA]) // Make these fields unique
+}
+ 
+model ProfesoresDetalle {
+  id                    Int     @id @default(autoincrement()) //
+  CODPROF               String? // Código del profesor
+  ID_ASIGNACION         Int? // ID de asignación
+  PORCENTAJE_DOCENCIA   String? // Porcentaje de docencia
+  CODASIGNATURA         String? // Código de la asignatura
+  MATERIA               String? // Materia
+  AREA                  String? // Área de conocimiento
+  GRUPO_GA              String? // Grupo GA
+  GRUPOS_UXXI           String? // Grupos UXXI
+  HORARIOS_1C_LUNES     String? // Horarios del 1er cuatrimestre - Lunes
+  HORARIOS_1C_MARTES    String? // Horarios del 1er cuatrimestre - Martes
+  HORARIOS_1C_MIERCOLES String? // Horarios del 1er cuatrimestre - Miércoles
+  HORARIOS_1C_JUEVES    String? // Horarios del 1er cuatrimestre - Jueves
+  HORARIOS_1C_VIERNES   String? // Horarios del 1er cuatrimestre - Viernes
+  HORARIOS_1C_SABADO    String? // Horarios del 1er cuatrimestre - Sábado
+  HORARIOS_2C_LUNES     String? // Horarios del 2do cuatrimestre - Lunes
+  HORARIOS_2C_MARTES    String? // Horarios del 2do cuatrimestre - Martes
+  HORARIOS_2C_MIERCOLES String? // Horarios del 2do cuatrimestre - Miércoles
+  HORARIOS_2C_JUEVES    String? // Horarios del 2do cuatrimestre - Jueves
+  HORARIOS_2C_VIERNES   String? // Horarios del 2do cuatrimestre - Viernes
+  HORARIOS_2C_SABADO    String? // Horarios del 2do cuatrimestre - Sábado
+  AULASL1               String? // Aulas 1er cuatrimestre - Lunes
+  AULASM1               String? // Aulas 1er cuatrimestre - Martes
+  AULASX1               String? // Aulas 1er cuatrimestre - Miércoles
+  AULASJ1               String? // Aulas 1er cuatrimestre - Jueves
+  AULASV1               String? // Aulas 1er cuatrimestre - Viernes
+  AULASS1               String? // Aulas 1er cuatrimestre - Sábado
+  AULASL2               String? // Aulas 2do cuatrimestre - Lunes
+  AULASM2               String? // Aulas 2do cuatrimestre - Martes
+  AULASX2               String? // Aulas 2do cuatrimestre - Miércoles
+  AULASJ2               String? // Aulas 2do cuatrimestre - Jueves
+  AULASV2               String? // Aulas 2do cuatrimestre - Viernes
+  AULASS2               String? // Aulas 2do cuatrimestre - Sábado
+  CODCURSO              String? // Código del curso
+  CODCURSOPLAN          String? // Código del curso en el plan
+  APELLIDO1             String? // Primer apellido
+  APELLIDO2             String? // Segundo apellido
+  NOMBRE                String? // Nombre del profesor
+  DNI                   String? // DNI del profesor
+  LETRADNI              String? // Letra del DNI
+  DOC_COMPLETO          String? // Documento completo (DNI + Letra)
+  EMAIL                 String? // Correo electrónico
+  TANDA                 String? // Tanda del profesor (diurna/nocturna)
+  ANY_ANYACA            String? // Año académico
+  COD_CARRERA           String? // Código de la carrera
+  CARRERA               String? // Nombre de la carrera
+  TITULACION            String? // Titulación
+  ID_DIRECTOR           String? // ID del director
+  DIRECTOR              String? // Nombre del director
+  RESPONSABLE           String? // Nombre del responsable
+  FACULTAD              String? // Facultad
+  ID_DECANO             String? // ID del decano
+  DECANO                String? // Nombre del decano
+  TITULOPROPIO          String? // Título propio
+  ID_TIPO_DOCENCIA      Int? // ID del tipo de docencia
+  ACTIVO                String? // Fecha de activación
+  COD_MATERIA           String? // Código de la materia
+  GENERO                String? // Género (o/a - masculino/femenino)
+ 
+  @@unique([DNI, CODASIGNATURA, ANY_ANYACA, GRUPOS_UXXI]) // No puede estar duplicado un profesor, en el mismo año, en el mismo grupo en el mismo código de asignatura  
+}
+ 
+model ExpedienteAlumno {
+  id                      Int     @id @default(autoincrement()) // ID autoincremental
+  PRS_CODNUM              Int? // Código numérico del expediente del alumno
+  DNI                     String? // DNI del alumno
+  LLENIF                  String? // LLENIF
+  APE1                    String? // Primer apellido
+  APE2                    String? // Segundo apellido
+  NOMBRE                  String? // Nombre del alumno
+  FECHA_NACIMIENTO        String? // Fecha de nacimiento
+  SEXO                    String? // Sexo del alumno
+  EMAIL                   String? // Correo electrónico
+  CARRERA                 String? // Carrera del alumno
+  MODO_ACCESO             String? // Modo de acceso a la carrera
+  CARDENOM                String? // Denominación de la carrera
+  CONVOCA                 String? // Convocatoria
+  CODIGO                  String? // Código de la asignatura
+  ASIG_DENOM              String? // Denominación de la asignatura
+  CURSO                   Float? // Curso actual
+  CURSO_PLAN              Float? // Curso en el plan
+  GRUPO                   String? // Grupo del alumno
+  DOBLE_GRADO             String? // Indica si está cursando un doble grado
+  NUMMAT                  Float? // Número de matrícula
+  BLOQUEO                 String? // Estado de bloqueo del expediente
+  FECHA_ULT_MOD_MATRICULA String? // Fecha de la última modificación de la matrícula
+ 
+  @@unique([DNI, CARRERA, CODIGO, CONVOCA, GRUPO])
+}
