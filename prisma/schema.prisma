@@ -136,20 +136,32 @@ model User {
   id            String       @id @default(cuid())
   username      String       @unique
   name          String?
-  surname       String?      // Primer apellido 
+  surname1      String?
+  surname2      String?      
   email         String       @unique
   password      String
   lockout       Boolean      @default(false)  // Campo para bloquear acceso a usuarios
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+
   userRoles     UserRole[]
   activities    ActivityLog[]
+  Docencia Docencia[]
+
+  AlumnoPlan AlumnoPlan[]
+
+  Grupo Grupo[]
+
+  AlumnoGrupo AlumnoGrupo[]
+
+  SesionClase SesionClase[]
 }
 
 model Role {
   id          Int        @id @default(autoincrement())
   name        String     @unique
   description String
+
   userRoles   UserRole[]
 }
 
@@ -166,11 +178,170 @@ model UserRole {
 
 model ActivityLog {
   id          Int      @id @default(autoincrement())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   action      String   // The action performed (e.g., "create", "update", "delete")
   details     String?  // Additional details about the activity
   entityType  String   // The type of entity affected (e.g., "user", "role", "asignatura")
   entityId    String?  // The ID of the affected entity
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   timestamp   DateTime @default(now())
+}
+
+model CursoAcademico{
+  id            Int       @id @default(autoincrement())
+  activo        Boolean   @default(false)
+  denominacion  String
+  cursoAnterior String?
+  cursoSiguiente String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  Asignatura Asignatura[]
+
+  AlumnoPlan AlumnoPlan[]
+}
+
+model Escuela {
+  id            Int      @id @default(autoincrement())
+  denominacion  String
+
+  Carrera Carrera[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Carrera{
+  id            Int      @id @default(autoincrement())
+  denominacion  String
+
+  escuelaId     Int
+  escuela       Escuela  @relation(fields: [escuelaId], references: [id], onDelete: Cascade)
+
+  ConfiguracionCarrera ConfiguracionCarrera[]
+  Asignatura Asignatura[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  PlanDeEstudios PlanDeEstudios[]
+}
+
+model ConfiguracionCarrera{
+  id            Int      @id @default(autoincrement())
+  FechaInicioDispensa DateTime? 
+  FechaFinDispensa    DateTime? 
+  SolDispensa         Boolean @default(false)
+  SolJustificacion     Boolean @default(false)
+
+  carreraId     Int
+  carrera       Carrera  @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PlanDeEstudios{
+  id            Int      @id @default(autoincrement())
+  denominacion  String
+  codPlan      String
+  
+  carreraId     Int
+  carrera       Carrera  @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  AlumnoPlan AlumnoPlan[]
+}
+
+model Asignatura{
+  id            Int      @id @default(autoincrement())
+  CodAsignatura  String
+  Denominacion  String
+  Curso       String
+  Cuatrimestre String
+
+  carreraId     Int
+  carrera       Carrera  @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+  cursoAcademicoId Int
+  cursoAcademico CursoAcademico @relation(fields: [cursoAcademicoId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  Docencia Docencia[]
+
+  Grupo Grupo[]
+}
+
+model Docencia{
+  id            Int      @id @default(autoincrement())
+  fechaalta     DateTime @default(now())
+  fechaBaja     DateTime?
+
+  asignaturaId  Int
+  asignatura    Asignatura @relation(fields: [asignaturaId], references: [id], onDelete: Cascade)
+
+  profesorId    String
+  user        User @relation(fields: [profesorId], references: [id], onDelete: Cascade)
+  
+  mostrar     Boolean @default(false) 
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AlumnoPlan{
+  id            Int      @id @default(autoincrement())
+  fechaalta     DateTime @default(now())
+  fechaBaja     DateTime?
+
+  alumno_id    String
+  user        User @relation(fields: [alumno_id], references: [id], onDelete: Cascade)
+  cursoAcademicoId Int
+  cursoAcademico CursoAcademico @relation(fields: [cursoAcademicoId], references: [id], onDelete: Cascade)
+  plandeEstudiosId Int
+  plandeEstudios PlanDeEstudios @relation(fields: [plandeEstudiosId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Grupo{
+  id            Int      @id @default(autoincrement())
+  denominacion  String
+  
+  asignaturaId  Int
+  asignatura    Asignatura @relation(fields: [asignaturaId], references: [id], onDelete: Cascade)
+
+  profesorId    String
+  user        User @relation(fields: [profesorId], references: [id], onDelete: Cascade)
+
+  AlumnoGrupo AlumnoGrupo[]
+
+  SesionClase SesionClase[]
+}
+
+model AlumnoGrupo{
+  id           Int      @id @default(autoincrement())
+  alumno_Id    String
+  user        User @relation(fields: [alumno_Id], references: [id], onDelete: Cascade)
+  grupoId      Int
+  grupo        Grupo @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+}
+
+model SesionClase{
+  id            Int      @id @default(autoincrement())
+  fecha         DateTime
+
+  grupoId       Int
+  grupo         Grupo @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  docenteId     String
+  user        User @relation(fields: [docenteId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
