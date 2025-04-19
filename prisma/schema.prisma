@@ -132,6 +132,8 @@ model ExpedienteAlumno {
   @@unique([DNI, CARRERA, CODIGO, CONVOCA, GRUPO])
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 model User {
   id            String       @id @default(cuid())
   username      String       @unique
@@ -147,14 +149,15 @@ model User {
   userRoles     UserRole[]
   activities    ActivityLog[]
   Docencia Docencia[]
-
   AlumnoPlan AlumnoPlan[]
-
   Grupo Grupo[]
-
   AlumnoGrupo AlumnoGrupo[]
-
   SesionClase SesionClase[]
+  AsistenciaAlumno AsistenciaAlumno[]
+  SolicitudJustificacion SolicitudJustificacion[]
+  HorariosProfesor HorariosProfesor[]
+  Matricula Matricula[]
+  SolicitudDispensa SolicitudDispensa[]
 }
 
 model Role {
@@ -200,7 +203,6 @@ model CursoAcademico{
   updatedAt   DateTime @updatedAt
 
   Asignatura Asignatura[]
-
   AlumnoPlan AlumnoPlan[]
 }
 
@@ -276,6 +278,26 @@ model Asignatura{
   Docencia Docencia[]
 
   Grupo Grupo[]
+
+  Matricula Matricula[]
+}
+
+model Matricula{
+  id            Int      @id @default(autoincrement())
+  fechaalta     DateTime @default(now())
+  fechaBaja     DateTime?
+  mostrar       Boolean @default(false)
+  alumno_id     String
+  
+  user        User @relation(fields: [alumno_id], references: [id], onDelete: Cascade)
+  asignaturaId  Int
+  asignatura    Asignatura @relation(fields: [asignaturaId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+
+  SolicitudDispensa SolicitudDispensa[]
 }
 
 model Docencia{
@@ -344,4 +366,141 @@ model SesionClase{
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  AsistenciaAlumno AsistenciaAlumno[]
+}
+
+model EstadoAsistencia{
+  id            Int      @id @default(autoincrement())
+  denominacion  String
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  AsistenciaAlumno AsistenciaAlumno[]
+}
+
+model AsistenciaAlumno{
+  id            Int      @id @default(autoincrement())
+  fecha         DateTime
+  estado        String
+
+  sesionClaseId Int
+  sesionClase   SesionClase @relation(fields: [sesionClaseId], references: [id], onDelete: Cascade)
+  alumnoId      String
+  user        User @relation(fields: [alumnoId], references: [id], onDelete: Cascade)
+  estadoAsistenciaId Int
+  estadoAsistencia EstadoAsistencia @relation(fields: [estadoAsistenciaId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  SolicitudJustificacion SolicitudJustificacion[]
+}
+
+model EstadoJustificacion{
+  id            Int      @id @default(autoincrement())
+  denominacion  String
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  SolicitudJustificacion SolicitudJustificacion[]
+}
+
+model SolicitudJustificacion{
+  id            Int      @id @default(autoincrement())
+  alegacion     String
+  respuesta      String?
+  fechaAlegacion        DateTime
+  fechaRespuesta        DateTime?
+
+  alumnoId      String
+  user        User @relation(fields: [alumnoId], references: [id], onDelete: Cascade)
+  estadoJustificacionId Int
+  estadoJustificacion EstadoJustificacion @relation(fields: [estadoJustificacionId], references: [id], onDelete: Cascade)
+  asistenciaAlumnoId Int
+  asistenciaAlumno AsistenciaAlumno @relation(fields: [asistenciaAlumnoId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  DocumentacionJustificacion DocumentacionJustificacion[]
+}
+
+model DocumentacionJustificacion{
+  id            Int      @id @default(autoincrement())
+  url           String
+  fechaSubida   DateTime
+  
+  solicitudJustificacionId Int
+  solicitudJustificacion SolicitudJustificacion @relation(fields: [solicitudJustificacionId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model HorariosProfesor{
+  id            Int      @id @default(autoincrement())
+  lunes         String?
+  martes        String?
+  miercoles     String?
+  jueves        String?
+  viernes       String?
+  sabado        String?
+
+  profesorId    String
+  user        User @relation(fields: [profesorId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DocumentacionDispensa{
+  id            Int      @id @default(autoincrement())
+  url           String
+  fechaSubida   DateTime
+  
+  solicitudDispensaId Int
+  solicitudDispensa SolicitudDispensa @relation(fields: [solicitudDispensaId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model EstadoDispensa{
+  id            Int      @id @default(autoincrement())
+  denominacion  String
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  SolicitudDispensaEstado SolicitudDispensa[] @relation(name: "estadoDispensaRelacion")
+  SolicitudDispensas SolicitudDispensa[] @relation(name: "dispensasEstados")
+}
+
+model SolicitudDispensa{
+  id            Int      @id @default(autoincrement())
+  alegacion     String
+  respuesta      String?
+  fechaAlegacion        DateTime
+  fechaRespuesta        DateTime?
+
+  alegacionReclamacion String?
+  respuestaReclamacion String?
+  fechaAlegacionReclamacion DateTime?
+  fechaRespuestaReclamacion DateTime?
+
+  alumnoId      String
+  user        User @relation(fields: [alumnoId], references: [id], onDelete: Cascade)
+  matriculaId Int
+  matricula Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+  estadoDispensaId Int
+  estadoDispensa EstadoDispensa @relation(name: "estadoDispensaRelacion", fields: [estadoDispensaId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  DocumentacionDispensa DocumentacionDispensa[]
+  EstadoDispensa EstadoDispensa[] @relation(name: "dispensasEstados")
 }
