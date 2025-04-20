@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
+import { logActivity } from '@/lib/activity-log';
+import { getServerSession } from 'next-auth/next';
 
 // GET - Obtener un usuario por ID
 export async function GET(
