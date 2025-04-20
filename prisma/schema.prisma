@@ -288,8 +288,8 @@ model Matricula{
   fechaalta     DateTime @default(now())
   fechaBaja     DateTime?
   mostrar       Boolean @default(false)
-  alumno_id     String
   
+  alumno_id     String
   user        User @relation(fields: [alumno_id], references: [id], onDelete: Cascade)
   asignaturaId  Int
   asignatura    Asignatura @relation(fields: [asignaturaId], references: [id], onDelete: Cascade)

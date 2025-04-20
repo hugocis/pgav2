@@ -4,17 +4,18 @@ import { Prisma } from "@prisma/client";
 
 // GET /api/asignaturas
 export async function GET(req: NextRequest) {
-  try {
-    const searchParams = req.nextUrl.searchParams;
+  try {    const searchParams = req.nextUrl.searchParams;
     const cursoAcademicoId = searchParams.get('cursoAcademicoId');
     const carreraId = searchParams.get('carreraId');
-    const profesorId = searchParams.get('profesorId') ;
+    const profesorId = searchParams.get('profesorId');
+    const codAsignatura = searchParams.get('codAsignatura');
     
     const whereClause: Prisma.AsignaturaWhereInput = {};
     
     if (cursoAcademicoId) whereClause.cursoAcademicoId = parseInt(cursoAcademicoId);
     if (carreraId) whereClause.carreraId = parseInt(carreraId);
     if (profesorId) whereClause.profesorId = profesorId;
+    if (codAsignatura) whereClause.CodAsignatura = codAsignatura;
     
     const asignaturas = await prisma.asignatura.findMany({
       where: whereClause,
