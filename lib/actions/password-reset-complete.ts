@@ -38,7 +38,8 @@ export async function completePasswordReset(token: string, newPassword: string) 
         userId: user.id,
         action: 'PASSWORD_RESET',
         details: 'Contraseña restablecida correctamente',
-        ipAddress: '',
+        entityType: 'user', 
+        entityId: user.id,   
       }
     });
 

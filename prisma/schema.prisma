@@ -135,16 +135,18 @@ model ExpedienteAlumno {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 model User {
-  id            String       @id @default(cuid())
-  username      String       @unique
-  name          String?
-  surname1      String?
-  surname2      String?      
-  email         String       @unique
-  password      String
-  lockout       Boolean      @default(false)  // Campo para bloquear acceso a usuarios
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id                   String       @id @default(cuid())
+  username             String       @unique
+  name                 String?
+  surname1             String?
+  surname2             String?      
+  email                String       @unique
+  password             String
+  resetPasswordToken   String?      // Token para restablecer contraseña
+  resetPasswordExpires DateTime?    // Fecha de expiración del token
+  lockout              Boolean      @default(false)  // Campo para bloquear acceso a usuarios
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
   userRoles     UserRole[]
   activities    ActivityLog[]

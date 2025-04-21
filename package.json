@@ -6,16 +6,24 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.6.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/nodemailer": "^6.4.17",
     "autoprefixer": "^10.4.21",
     "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.2",
     "clsx": "^2.1.1",
     "framer-motion": "^12.7.4",
     "next": "15.3.1",
     "next-auth": "^4.24.11",
+    "nodemailer": "^6.10.1",
     "postcss": "^8.5.3",
     "prisma": "^6.6.0",
     "react": "^19.0.0",
@@ -32,6 +40,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
     "tailwindcss": "^4.1.4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

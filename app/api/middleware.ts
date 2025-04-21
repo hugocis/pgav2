@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
   
   // Determinamos el tipo de entidad y posible ID
   let entityType = pathParts[1] || 'unknown';
-  let entityId = pathParts.length > 2 ? pathParts[2] : undefined;
+  const entityId = pathParts.length > 2 ? pathParts[2] : undefined;
 
   // Limpiamos la entidad si tiene paréntesis de grupo de ruta
   entityType = entityType.replace(/[\(\)]/g, '');
