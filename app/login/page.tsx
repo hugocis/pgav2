@@ -38,12 +38,68 @@ function LoginForm() {
         username,
         password,
         callbackUrl,
-      });
-
-      if (res?.error) {
+      });      if (res?.error) {
         setError('Credenciales incorrectas. Por favor, inténtalo de nuevo.');
-      } else if (res?.url) {
-        router.push(res.url);
+      } else if (res?.ok) {
+        // Get user session to determine which dashboard to redirect to
+        const response = await fetch('/api/auth/session');
+        const session = await response.json();
+        
+        console.log('Session after login:', session);
+        console.log('User roles:', session?.user?.roles);
+        
+        // Check if roles array exists
+        if (!session?.user?.roles) {
+          console.log('No roles found in session!');
+          
+          // Wait a moment for session to be fully established
+          setTimeout(async () => {
+            const retryResponse = await fetch('/api/auth/session');
+            const retrySession = await retryResponse.json();
+            console.log('Retry session data:', retrySession);
+            
+            if (retrySession?.user?.roles?.includes('Admin')) {
+              console.log('Redirecting to Admin dashboard');
+              router.push('/admin/dashboard');
+            } else if (retrySession?.user?.roles?.includes('PEC')) {
+              console.log('Redirecting to PEC dashboard');
+              router.push('/pec/dashboard');
+            } else if (retrySession?.user?.roles?.includes('Profesor')) {
+              console.log('Redirecting to Profesor dashboard');
+              router.push('/profesor/dashboard');
+            } else if (retrySession?.user?.roles?.includes('Alumno')) {
+              console.log('Redirecting to Alumno dashboard');
+              router.push('/alumno/dashboard');
+            } else if (retrySession?.user?.roles?.includes('Manager')) {
+              console.log('Redirecting to Manager dashboard');
+              router.push('/manager/dashboard');
+            } else {
+              console.log('No specific role found, redirecting to homepage');
+              router.push('/');
+            }
+          }, 1000);
+          return;
+        }
+        
+        if (session?.user?.roles?.includes('Admin')) {
+          console.log('Redirecting to Admin dashboard');
+          router.push('/admin/dashboard');
+        } else if (session?.user?.roles?.includes('PEC')) {
+          console.log('Redirecting to PEC dashboard');
+          router.push('/pec/dashboard');
+        } else if (session?.user?.roles?.includes('Profesor')) {
+          console.log('Redirecting to Profesor dashboard');
+          router.push('/profesor/dashboard');
+        } else if (session?.user?.roles?.includes('Alumno')) {
+          console.log('Redirecting to Alumno dashboard');
+          router.push('/alumno/dashboard');
+        } else if (session?.user?.roles?.includes('Manager')) {
+          console.log('Redirecting to Manager dashboard');
+          router.push('/manager/dashboard');
+        } else {
+          console.log('No specific role found, redirecting to homepage');
+          router.push('/');
+        }
       }
     } catch {
       setError('Ocurrió un error al iniciar sesión. Por favor, inténtalo más tarde.');

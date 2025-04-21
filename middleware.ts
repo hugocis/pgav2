@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import { withAuth } from 'next-auth/middleware';
 import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
 // Este middleware se ejecuta en cada petición a las rutas protegidas
 export default withAuth(
-  function middleware(req: NextRequest) {
+  async function middleware(req: NextRequest) {
     const { pathname } = req.nextUrl;
-    const token = req.headers.get('next-auth.token') ? 
-      JSON.parse(req.headers.get('next-auth.token') || '{}') : 
-      undefined;
+    
+    // Get token properly using getToken
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     const userRoles = token?.roles as string[] || [];
     
     // Redirección después del login basada en el rol del usuario
@@ -52,15 +53,15 @@ export default withAuth(
     }
 
     return NextResponse.next();
-  },
-  {
+  },  {
     callbacks: {
-      // Solo ejecuta este middleware en las rutas protegidas
+      // Only run this middleware on protected routes
       authorized: ({ token }) => !!token,
     },
     pages: {
-      // Configuramos la página de login personalizada
-      signIn: '/login'
+      // Configure custom login page
+      signIn: '/login',
+      error: '/login'
     }
   }
 );

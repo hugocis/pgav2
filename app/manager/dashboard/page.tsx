@@ -5,25 +5,17 @@ import DashboardLayout from '@/components/DashboardLayout';
 export default function ManagerDashboard() {
   return (
     <DashboardLayout roleName="Manager">
-      <div>
-        <h3 className="text-xl font-semibold mb-4">Panel de Gestión</h3>
-        <p className="mb-4">Bienvenido al panel de Manager. Desde aquí podrás gestionar la configuración y operación académica.</p>
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h1 className="text-3xl font-bold text-gray-800 mb-4">Hola, Manager</h1>
+        <p className="text-gray-600 mb-6">
+          Bienvenido a tu portal de gestión. Aquí podrás supervisar y gestionar la actividad académica,
+          revisar informes y coordinar al equipo docente.
+        </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <h4 className="font-semibold text-blue-700">Asignaciones Docentes</h4>
-            <p className="text-sm text-gray-600 mt-1">Gestiona asignaciones de profesores a asignaturas</p>
-          </div>
-          
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <h4 className="font-semibold text-green-700">Gestión de Grupos</h4>
-            <p className="text-sm text-gray-600 mt-1">Configura los grupos académicos y sus horarios</p>
-          </div>
-          
-          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-            <h4 className="font-semibold text-purple-700">Reportes Académicos</h4>
-            <p className="text-sm text-gray-600 mt-1">Visualiza informes de asistencia y rendimiento</p>
-          </div>
+        <div className="bg-purple-50 border-l-4 border-purple-500 p-4 rounded-md">
+          <p className="text-purple-700 font-medium">
+            Este es tu dashboard personalizado. Próximamente tendrás acceso a más funcionalidades.
+          </p>
         </div>
       </div>
     </DashboardLayout>
