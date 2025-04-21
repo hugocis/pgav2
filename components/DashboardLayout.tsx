@@ -53,41 +53,20 @@ export default function DashboardLayout({ roleName, children }: DashboardProps) 
   if (status === 'unauthenticated' || !session?.user?.roles.includes(roleName)) {
     return null; // No renderizar nada mientras se redirige
   }
-
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="bg-blue-600 text-white p-4 shadow-md">
-        <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Portal de Gestión de Asistencias</h1>
-          <div className="flex items-center space-x-4">
-            <div>
-              <span className="font-medium">{fullName}</span>
-              <span className="text-sm ml-2 bg-blue-500 px-2 py-0.5 rounded">
-                {roleName}
-              </span>
-            </div>
-            <button
-              onClick={() => signOut({ callbackUrl: '/login' })}
-              className="bg-blue-700 hover:bg-blue-800 px-3 py-1 rounded-md"
-            >
-              Cerrar sesión
-            </button>
-          </div>
-        </div>
-      </header>
+      {/* Header - Ya no necesitamos este header porque importaremos el componente Navbar */}
+      {/* Quitamos esta sección y usaremos el componente Navbar en su lugar */}
 
       {/* Content */}
-      <main className="flex-grow container mx-auto p-6">
-        <h2 className="text-3xl font-bold mb-8">Dashboard de {roleName}</h2>
-        
-        <div className="bg-white rounded-lg shadow-lg p-6">
+      <main className="flex-grow bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {children}
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-100 text-center p-4 mt-auto border-t">
+      <footer className="bg-white text-center p-4 mt-auto border-t">
         <p className="text-gray-600">
           © {new Date().getFullYear()} Universidad Francisco de Vitoria. Todos los derechos reservados.
         </p>
