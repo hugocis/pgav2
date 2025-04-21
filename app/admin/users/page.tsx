@@ -3,7 +3,6 @@
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useEffect, useState, useMemo, useRef } from 'react';
-import Link from 'next/link';
 import DashboardContainer from '@/components/DashboardContainer';
 import { 
   FaUserPlus, 
@@ -20,7 +19,9 @@ import {
   FaLockOpen,
   FaTrash,
   FaSortAmountDown,
-  FaSortAmountUp
+  FaSortAmountUp,
+  FaPlus,
+  FaSave
 } from 'react-icons/fa';
 
 // Definir interfaces para tipado
@@ -33,11 +34,11 @@ interface User {
   email: string;
   createdAt: string;
   lockout: boolean;
-  userRoles: { role: { id: string; name: string } }[];
+  userRoles: { role: { id: number; name: string } }[];
 }
 
 interface Role {
-  id: string;
+  id: number;
   name: string;
 }
 
@@ -55,15 +56,41 @@ export default function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [roles, setRoles] = useState<Role[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [sortField, setSortField] = useState<string>('username');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  // Estados para el diálogo de edición
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  
+  // Estados para el diálogo de creación
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createMessage, setCreateMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  
+  // Referencias para los campos del formulario de edición
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const surname1Ref = useRef<HTMLInputElement>(null);
+  const surname2Ref = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const userRolesRef = useRef<HTMLSelectElement>(null);
+  const lockoutRef = useRef<HTMLInputElement>(null);
+  
+  // Referencias para los campos del formulario de creación
+  const newUsernameRef = useRef<HTMLInputElement>(null);
+  const newNameRef = useRef<HTMLInputElement>(null);
+  const newSurname1Ref = useRef<HTMLInputElement>(null);
+  const newSurname2Ref = useRef<HTMLInputElement>(null);
+  const newEmailRef = useRef<HTMLInputElement>(null);
+  const newPasswordRef = useRef<HTMLInputElement>(null);
+  const newUserRolesRef = useRef<HTMLSelectElement>(null);
   
   // Referencia para el contenedor de scroll
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -186,61 +213,54 @@ export default function AdminUsers() {
   // Funciones para la paginación
   const totalPages = Math.ceil(totalUsers / pageSize);
   
-  // Manejo de scroll para paginación
-  useEffect(() => {
-    const handleScroll = () => {
-      if (scrollContainerRef.current) {
-        const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-        
-        if (scrollWidth <= clientWidth) return; // No scroll necesario
-        
-        // Calcular la página actual basado en la posición del scroll
-        const scrollPercentage = scrollLeft / (scrollWidth - clientWidth);
-        const newPage = Math.max(1, Math.min(totalPages, Math.ceil(scrollPercentage * totalPages)));
-        
-        if (newPage !== currentPage) {
-          setCurrentPage(newPage);
-        }
-      }
-    };
-
-    const scrollContainer = scrollContainerRef.current;
-    if (scrollContainer) {
-      scrollContainer.addEventListener('scroll', handleScroll);
-      return () => scrollContainer.removeEventListener('scroll', handleScroll);
+  const changePage = (direction: 'prev' | 'next') => {
+    if (direction === 'prev' && currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    } else if (direction === 'next' && currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
     }
-  }, [currentPage, totalPages]);
-  
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    
+
     // Animación de scroll suave
     if (scrollContainerRef.current) {
-      const scrollContainer = scrollContainerRef.current;
-      const totalWidth = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+      const newPage = direction === 'prev' ? currentPage - 1 : currentPage + 1;
+      const scrollAmount = ((newPage - 1) / (totalPages - 1)) * 
+                          (scrollContainerRef.current.scrollWidth - scrollContainerRef.current.clientWidth);
       
-      if (totalWidth > 0) { // Solo si hay scroll
-        const scrollPosition = ((page - 1) / (totalPages - 1 || 1)) * totalWidth;
-        
-        scrollContainer.scrollTo({
-          left: scrollPosition,
-          behavior: 'smooth'
-        });
+      scrollContainerRef.current.scrollTo({
+        left: scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Función para alternar estado de bloqueo
+  const toggleLockout = async (userId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ lockout: !currentStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar el estado de bloqueo');
       }
+
+      // Actualizar el estado local
+      setUsers(users.map(user => 
+        user.id === userId ? { ...user, lockout: !currentStatus } : user
+      ));
+      
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al cambiar el estado de bloqueo');
     }
   };
-
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      // Cambiar dirección si ya está ordenando por este campo
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      // Nuevo campo, ordenar ascendente por defecto
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
+  
+  // Función para eliminar usuario
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer.')) {
       return;
@@ -264,39 +284,188 @@ export default function AdminUsers() {
       console.error(error);
     }
   };
+  
+  // Función para abrir el diálogo de edición
+  const handleRowClick = (user: User) => {
+    setSelectedUser(user);
+    setIsDialogOpen(true);
+  };
 
-  const handleToggleLockout = async (user: User) => {
+  // Función para cerrar el diálogo de edición
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setSelectedUser(null);
+    setUpdateMessage(null);
+  };
+  
+  // Función para actualizar usuario
+  const handleUpdateUser = async () => {
+    if (!selectedUser) return;
+    
+    setIsUpdating(true);
+    setUpdateMessage(null);
+    
     try {
-      const response = await fetch(`/api/users/${user.id}`, {
-        method: 'PUT',
+      const selectedRoles = Array.from(
+        userRolesRef.current?.selectedOptions || []
+      ).map(option => parseInt(option.value));
+      
+      const updatedData = {
+        username: usernameRef.current?.value || selectedUser.username,
+        name: nameRef.current?.value || selectedUser.name,
+        surname1: surname1Ref.current?.value || selectedUser.surname1,
+        surname2: surname2Ref.current?.value || selectedUser.surname2,
+        email: emailRef.current?.value || selectedUser.email,
+        lockout: lockoutRef.current?.checked || false,
+        roles: selectedRoles
+      };
+      
+      const response = await fetch(`/api/users/${selectedUser.id}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...user,
-          lockout: !user.lockout
-        }),
         credentials: 'include',
+        body: JSON.stringify(updatedData),
       });
 
-      if (!response.ok) {
-        throw new Error('Error al actualizar el estado de bloqueo');
+      if (response.ok) {
+        const updatedUser = await response.json();
+        
+        // Actualizar el usuario en el estado local
+        setUsers(users.map(user => 
+          user.id === selectedUser.id ? { ...user, ...updatedUser } : user
+        ));
+        
+        setUpdateMessage({ text: 'Usuario actualizado correctamente', type: 'success' });
+        
+        // Esperar 1.5 segundos antes de cerrar el diálogo
+        setTimeout(() => {
+          handleCloseDialog();
+        }, 1500);
+      } else {
+        const errorData = await response.json();
+        setUpdateMessage({ 
+          text: errorData.message || 'Error al actualizar el usuario', 
+          type: 'error' 
+        });
       }
-
-      // Actualizar la lista de usuarios
-      setUsers(users.map(u => 
-        u.id === user.id ? { ...u, lockout: !u.lockout } : u
-      ));
     } catch (error) {
-      alert('Error al actualizar el estado de bloqueo');
-      console.error(error);
+      console.error('Error al actualizar el usuario:', error);
+      setUpdateMessage({ 
+        text: 'Error de conexión al actualizar el usuario', 
+        type: 'error' 
+      });
+    } finally {
+      setIsUpdating(false);
     }
+  };
+  
+  // Función para manejar el diálogo de creación
+  const handleCloseCreateDialog = () => {
+    setIsCreateDialogOpen(false);
+    setCreateMessage(null);
+  };
+  
+  // Función para crear un nuevo usuario
+  const handleCreateUser = async () => {
+    setIsCreating(true);
+    setCreateMessage(null);
+    
+    try {
+      // Validación básica
+      if (!newUsernameRef.current?.value || !newEmailRef.current?.value || !newPasswordRef.current?.value) {
+        setCreateMessage({ 
+          text: 'Los campos Usuario, Email y Contraseña son obligatorios', 
+          type: 'error' 
+        });
+        setIsCreating(false);
+        return;
+      }
+      
+      const selectedRoles = Array.from(
+        newUserRolesRef.current?.selectedOptions || []
+      ).map(option => parseInt(option.value));
+      
+      if (selectedRoles.length === 0) {
+        setCreateMessage({ 
+          text: 'Debe seleccionar al menos un rol', 
+          type: 'error' 
+        });
+        setIsCreating(false);
+        return;
+      }
+      
+      const newUserData = {
+        username: newUsernameRef.current?.value,
+        name: newNameRef.current?.value || '',
+        surname1: newSurname1Ref.current?.value || '',
+        surname2: newSurname2Ref.current?.value || '',
+        email: newEmailRef.current?.value,
+        password: newPasswordRef.current?.value,
+        roles: selectedRoles
+      };
+      
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(newUserData),
+      });
+
+      if (response.ok) {
+        // Añadir el nuevo usuario al estado local
+        const createdUser = await response.json();
+        setUsers([...users, createdUser]);
+        
+        setCreateMessage({ text: 'Usuario creado correctamente', type: 'success' });
+        
+        // Esperar 1.5 segundos antes de cerrar el diálogo
+        setTimeout(() => {
+          handleCloseCreateDialog();
+        }, 1500);
+      } else {
+        const errorData = await response.json();
+        setCreateMessage({ 
+          text: errorData.message || 'Error al crear el usuario', 
+          type: 'error' 
+        });
+      }
+    } catch (error) {
+      console.error('Error al crear el usuario:', error);
+      setCreateMessage({ 
+        text: 'Error de conexión al crear el usuario', 
+        type: 'error' 
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // Función para alternar la dirección de ordenación
+  const toggleSortDirection = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Renderizar icono de ordenación
+  const renderSortIcon = (field: string) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' 
+      ? <FaSortAmountUp className="ml-1 inline text-blue-500" /> 
+      : <FaSortAmountDown className="ml-1 inline text-blue-500" />;
   };
 
   return (
     <DashboardContainer roleName="Admin">
       <div className="bg-gray-50 min-h-full pb-8">      
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 relative">
           {/* Panel de bienvenida mejorado */}
           <div className="mb-6 bg-white rounded-lg shadow-sm overflow-hidden">
             <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-5 text-white">
@@ -306,10 +475,18 @@ export default function AdminUsers() {
                     <FaUsers className="mr-3" /> 
                     Administración de Usuarios
                   </h1>
-                  <p className="text-blue-100 text-sm">Panel centralizado para la gestión de usuarios y roles del sistema</p>
+                  <p className="text-blue-100 text-sm">Gestiona los usuarios y sus roles en el sistema</p>
                 </div>
-                <div className="bg-white/10 rounded-full p-3">
-                  <FaUsers className="h-8 w-8 text-white" />
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => history.back()}
+                    className="bg-white/10 hover:bg-white/20 transition-colors duration-200 rounded-lg px-3 py-2 flex items-center"
+                  >
+                    <FaChevronLeft className="mr-2" /> Volver
+                  </button>
+                  <div className="bg-white/10 rounded-full p-3">
+                    <FaUsers className="h-8 w-8 text-white" />
+                  </div>
                 </div>
               </div>
               
@@ -317,108 +494,55 @@ export default function AdminUsers() {
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
             </div>
           </div>
-
-          {/* Dashboard stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-            <div className="bg-white overflow-hidden rounded-lg shadow-sm hover:shadow transition-all duration-300">
-              <div className="p-5 relative">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full p-3">
-                    <FaUsers className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="ml-5">
-                    <p className="text-sm font-medium text-gray-500">Total Usuarios</p>
-                    <p className="text-2xl font-semibold text-gray-900">{users.length}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white overflow-hidden rounded-lg shadow-sm hover:shadow transition-all duration-300">
-              <div className="p-5 relative">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full p-3">
-                    <FaUserGraduate className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="ml-5">
-                    <p className="text-sm font-medium text-gray-500">Total Roles</p>
-                    <p className="text-2xl font-semibold text-gray-900">{roles.length}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white overflow-hidden rounded-lg shadow-sm hover:shadow transition-all duration-300">
-              <div className="p-5 relative">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 bg-gradient-to-br from-red-400 to-red-600 rounded-full p-3">
-                    <FaUserTimes className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="ml-5">
-                    <p className="text-sm font-medium text-gray-500">Cuentas Bloqueadas</p>
-                    <p className="text-2xl font-semibold text-gray-900">{users.filter(user => user.lockout).length}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
+      
           {/* Filtros y búsqueda */}
           <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Buscar y filtrar usuarios</h2>
-              <Link href="/admin/users/create">
-                <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg flex items-center gap-2 shadow-sm transition-colors">
-                  <FaUserPlus /> Nuevo Usuario
-                </button>
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2">
-                <div className="relative rounded-md shadow-sm">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-grow">
+                <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <FaSearch className="text-gray-400" />
                   </div>
                   <input
                     type="text"
-                    className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-                    placeholder="Buscar por nombre, email o username..."
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Buscar por nombre, email o usuario..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
-                  {searchTerm && (
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                      <button
-                        onClick={() => setSearchTerm("")}
-                        className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                      >
-                        &times;
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
-              <div>
-                <div className="relative rounded-md shadow-sm">
+              <div className="w-full md:w-64">
+                <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <FaFilter className="text-gray-400" />
                   </div>
                   <select
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     value={selectedRole}
                     onChange={(e) => setSelectedRole(e.target.value)}
                   >
                     <option value="">Todos los roles</option>
                     {roles.map(role => (
-                      <option key={role.id} value={role.name}>{role.name}</option>
+                      <option key={role.id} value={role.name}>
+                        {role.name}
+                      </option>
                     ))}
                   </select>
                 </div>
               </div>
+              <div>
+                <button
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded flex items-center"
+                >
+                  <FaUserPlus className="mr-2" /> Nuevo Usuario
+                </button>
+              </div>
             </div>
           </div>
-          
-          {/* Tabla de usuarios con paginación por scroll */}
+
+          {/* Tabla de usuarios con paginación */}
           {isLoading ? (
             <div className="bg-white rounded-lg shadow-sm p-6 flex justify-center">
               <div className="text-center">
@@ -432,235 +556,166 @@ export default function AdminUsers() {
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              {filteredUsers.length === 0 ? (
-                <div className="p-8 text-center">
-                  <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gray-100">
-                    <FaSearch className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <h3 className="mt-4 text-lg font-medium text-gray-900">No se encontraron usuarios</h3>
-                  <p className="mt-2 text-sm text-gray-500">
-                    No hay usuarios que coincidan con tus criterios de búsqueda.
-                  </p>
-                  <div className="mt-6">
-                    <button
-                      onClick={() => {
-                        setSearchTerm('');
-                        setSelectedRole('');
-                      }}
-                      className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      Limpiar filtros
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div 
-                  ref={scrollContainerRef}
-                  className="overflow-x-auto scroll-container"
-                  style={{ scrollbarWidth: 'thin', scrollBehavior: 'smooth' }}
-                >
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => toggleSortDirection('username')}
+                      >
+                        Usuario {renderSortIcon('username')}
+                      </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => toggleSortDirection('fullName')}
+                      >
+                        Nombre completo {renderSortIcon('fullName')}
+                      </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => toggleSortDirection('email')}
+                      >
+                        Email {renderSortIcon('email')}
+                      </th>
+                      <th 
+                        scope="col" 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => toggleSortDirection('roles')}
+                      >
+                        Roles {renderSortIcon('roles')}
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Acciones
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {paginatedUsers.length === 0 ? (
                       <tr>
-                        <th 
-                          scope="col" 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('username')}
-                        >
-                          <div className="flex items-center">
-                            Usuario
-                            {sortField === 'username' && (
-                              <span className="ml-1">
-                                {sortDirection === 'asc' ? <FaSortAmountUp className="h-3 w-3" /> : <FaSortAmountDown className="h-3 w-3" />}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                        <th 
-                          scope="col" 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('email')}
-                        >
-                          <div className="flex items-center">
-                            Email
-                            {sortField === 'email' && (
-                              <span className="ml-1">
-                                {sortDirection === 'asc' ? <FaSortAmountUp className="h-3 w-3" /> : <FaSortAmountDown className="h-3 w-3" />}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                        <th 
-                          scope="col" 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('roles')}
-                        >
-                          <div className="flex items-center">
-                            Roles
-                            {sortField === 'roles' && (
-                              <span className="ml-1">
-                                {sortDirection === 'asc' ? <FaSortAmountUp className="h-3 w-3" /> : <FaSortAmountDown className="h-3 w-3" />}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                        <th 
-                          scope="col" 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('lockout')}
-                        >
-                          <div className="flex items-center">
-                            Estado
-                            {sortField === 'lockout' && (
-                              <span className="ml-1">
-                                {sortDirection === 'asc' ? <FaSortAmountUp className="h-3 w-3" /> : <FaSortAmountDown className="h-3 w-3" />}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                        <th 
-                          scope="col" 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('createdAt')}
-                        >
-                          <div className="flex items-center">
-                            Fecha Creación
-                            {sortField === 'createdAt' && (
-                              <span className="ml-1">
-                                {sortDirection === 'asc' ? <FaSortAmountUp className="h-3 w-3" /> : <FaSortAmountDown className="h-3 w-3" />}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Acciones
-                        </th>
+                        <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                          No se encontraron usuarios con los criterios de búsqueda.
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {paginatedUsers.map(user => (
-                        <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg mr-3">
-                                {(user.name?.charAt(0) || user.username?.charAt(0) || "").toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {user.username}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {[user.name, user.surname1, user.surname2].filter(Boolean).join(' ')}
-                                </div>
-                              </div>
-                            </div>
+                    ) : (
+                      paginatedUsers.map(user => (
+                        <tr key={user.id} className={`hover:bg-gray-50 ${user.lockout ? 'bg-red-50' : ''}`}>
+                          <td 
+                            className="px-6 py-4 whitespace-nowrap text-sm font-medium cursor-pointer"
+                            onClick={() => handleRowClick(user)}
+                          >
+                            {user.username}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <a className="text-sm text-blue-600 hover:underline" href={`mailto:${user.email}`}>
-                              {user.email}
-                            </a>
+                          <td 
+                            className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
+                            onClick={() => handleRowClick(user)}
+                          >
+                            {[user.name, user.surname1, user.surname2].filter(Boolean).join(' ')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td 
+                            className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
+                            onClick={() => handleRowClick(user)}
+                          >
+                            {user.email}
+                          </td>
+                          <td 
+                            className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
+                            onClick={() => handleRowClick(user)}
+                          >
                             <div className="flex flex-wrap gap-1">
-                              {user.userRoles.map((ur, idx) => (
+                              {user.userRoles.map(ur => (
                                 <span 
-                                  key={idx} 
-                                  className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full shadow-sm 
-                                    ${ur.role.name === 'Admin' ? 'bg-purple-100 text-purple-800' : 
-                                      ur.role.name === 'Profesor' ? 'bg-green-100 text-green-800' : 
-                                      ur.role.name === 'Alumno' ? 'bg-blue-100 text-blue-800' :
-                                      ur.role.name === 'PEC' ? 'bg-yellow-100 text-yellow-800' :
-                                      ur.role.name === 'Manager' ? 'bg-red-100 text-red-800' :
-                                      'bg-gray-100 text-gray-800'
-                                    }`}>
+                                  key={ur.role.id} 
+                                  className={`px-2 py-1 text-xs rounded-full ${
+                                    ur.role.name === 'Admin' ? 'bg-red-100 text-red-800' : 
+                                    ur.role.name === 'Profesor' ? 'bg-blue-100 text-blue-800' : 
+                                    ur.role.name === 'Alumno' ? 'bg-green-100 text-green-800' : 
+                                    'bg-gray-100 text-gray-800'
+                                  }`}
+                                >
                                   {ur.role.name}
                                 </span>
                               ))}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                              ${user.lockout ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-green-100 text-green-800 border border-green-200'}`}>
-                              {user.lockout ? 'Bloqueado' : 'Activo'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(user.createdAt).toLocaleDateString('es-ES', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric'
-                            })}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right">
-                            <div className="flex items-center justify-end space-x-3">
-                              <Link href={`/admin/users/${user.id}`} className="text-blue-600 hover:text-blue-900 transition-colors">
-                                <button className="p-1 rounded-full hover:bg-blue-100">
-                                  <FaEye className="h-5 w-5" title="Ver detalles" />
-                                </button>
-                              </Link>
-                              <button 
-                                onClick={() => handleToggleLockout(user)} 
-                                className={`p-1 rounded-full ${user.lockout ? 'text-green-600 hover:text-green-900 hover:bg-green-100' : 'text-red-600 hover:text-red-900 hover:bg-red-100'} transition-colors`}
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                onClick={() => handleRowClick(user)}
+                                className="text-indigo-600 hover:text-indigo-900"
+                                title="Editar usuario"
+                              >
+                                <FaUserEdit className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => toggleLockout(user.id, user.lockout)}
+                                className={user.lockout ? "text-green-600 hover:text-green-900" : "text-yellow-600 hover:text-yellow-900"}
                                 title={user.lockout ? "Desbloquear usuario" : "Bloquear usuario"}
                               >
-                                {user.lockout ? <FaLockOpen className="h-5 w-5" /> : <FaLock className="h-5 w-5" />}
+                                {user.lockout ? <FaLockOpen className="w-5 h-5" /> : <FaLock className="w-5 h-5" />}
                               </button>
                               <button 
-                                onClick={() => handleDeleteUser(user.id)} 
-                                className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-100 transition-colors"
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="text-red-600 hover:text-red-900"
                                 title="Eliminar usuario"
                               >
-                                <FaTrash className="h-5 w-5" />
+                                <FaTrash className="w-5 h-5" />
                               </button>
                             </div>
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
               {/* Controles de paginación */}
-              {filteredUsers.length > 0 && (
+              {totalUsers > 0 && (
                 <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 flex justify-between items-center">
                   <div className="text-sm text-gray-700">
                     Mostrando <span className="font-medium">{Math.min((currentPage - 1) * pageSize + 1, totalUsers)}</span> a{" "}
                     <span className="font-medium">{Math.min(currentPage * pageSize, totalUsers)}</span> de{" "}
                     <span className="font-medium">{totalUsers}</span> usuarios
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="flex space-x-2 items-center mr-4">
-                      <span className="text-sm text-gray-700">Filas por página:</span>
-                      <select
-                        className="border border-gray-300 rounded-md text-sm py-1 pl-2 pr-8 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        value={pageSize}
-                        onChange={(e) => setPageSize(Number(e.target.value))}
-                      >
-                        {[5, 10, 20, 50].map(size => (
-                          <option key={size} value={size}>{size}</option>
-                        ))}
-                      </select>
+                  <div className="flex items-center">
+                    <button 
+                      onClick={() => changePage('prev')} 
+                      disabled={currentPage === 1}
+                      className={`px-3 py-1 rounded ${currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-100'}`}
+                      aria-label="Página anterior"
+                    >
+                      <FaChevronLeft />
+                    </button>
+                    <div 
+                      ref={scrollContainerRef}
+                      className="flex overflow-x-auto px-1 mx-1 scroll-smooth hide-scrollbar" 
+                      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '200px' }}
+                    >
+                      {Array.from({ length: Math.min(totalPages, 20) }, (_, i) => i + 1).map(page => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`min-w-[36px] mx-1 px-2 py-1 rounded-md ${
+                            currentPage === page
+                              ? 'bg-blue-600 text-white'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
                     </div>
-                    <div className="flex space-x-1">
-                      <button 
-                        onClick={() => handlePageChange(currentPage - 1)} 
-                        disabled={currentPage === 1}
-                        className={`px-3 py-1 rounded ${currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-100'}`}
-                      >
-                        <FaChevronLeft />
-                      </button>
-                      <span className="px-3 py-1 text-sm font-medium text-gray-700">
-                        Página {currentPage} de {Math.ceil(totalUsers / pageSize)}
-                      </span>
-                      <button 
-                        onClick={() => handlePageChange(currentPage + 1)} 
-                        disabled={currentPage >= Math.ceil(totalUsers / pageSize)}
-                        className={`px-3 py-1 rounded ${currentPage >= Math.ceil(totalUsers / pageSize) ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-100'}`}
-                      >
-                        <FaChevronRight />
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => changePage('next')} 
+                      disabled={currentPage >= totalPages}
+                      className={`px-3 py-1 rounded ${currentPage >= totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-100'}`}
+                      aria-label="Página siguiente"
+                    >
+                      <FaChevronRight />
+                    </button>
                   </div>
                 </div>
               )}
@@ -668,6 +723,292 @@ export default function AdminUsers() {
           )}
         </div>
       </div>
+
+      {/* Diálogo de edición */}
+      {isDialogOpen && selectedUser && (
+        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white">
+              <h3 className="text-lg font-medium">
+                Editar Usuario: {selectedUser.username}
+              </h3>
+              <button 
+                onClick={handleCloseDialog}
+                className="text-white hover:text-gray-200 focus:outline-none"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      defaultValue={selectedUser.username}
+                      ref={usernameRef}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      defaultValue={selectedUser.email}
+                      ref={emailRef}
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      defaultValue={selectedUser.name || ''}
+                      ref={nameRef}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Primer Apellido</label>
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      defaultValue={selectedUser.surname1 || ''}
+                      ref={surname1Ref}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Segundo Apellido</label>
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      defaultValue={selectedUser.surname2 || ''}
+                      ref={surname2Ref}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Roles</label>
+                  <select
+                    multiple
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    defaultValue={selectedUser.userRoles.map(ur => ur.role.id.toString())}
+                    ref={userRolesRef}
+                  >
+                    {roles.map(role => (
+                      <option key={role.id} value={role.id.toString()}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Mantén presionado Ctrl (o Cmd en Mac) para seleccionar múltiples roles</p>
+                </div>
+                
+                <div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="lockout"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      defaultChecked={selectedUser.lockout}
+                      ref={lockoutRef}
+                    />
+                    <label htmlFor="lockout" className="ml-2 block text-sm text-gray-900">
+                      Usuario bloqueado
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {updateMessage && (
+              <div className={`mx-6 p-3 rounded ${updateMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                {updateMessage.text}
+              </div>
+            )}
+            
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={handleCloseDialog}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 mr-3"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleUpdateUser}
+                disabled={isUpdating}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none flex items-center"
+              >
+                {isUpdating ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Actualizando...
+                  </>
+                ) : (
+                  <>
+                    Guardar Cambios <FaSave className="inline ml-1" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Diálogo de creación de usuario */}
+      {isCreateDialogOpen && (
+        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white">
+              <h3 className="text-lg font-medium">
+                Crear Nuevo Usuario
+              </h3>
+              <button 
+                onClick={handleCloseCreateDialog}
+                className="text-white hover:text-gray-200 focus:outline-none"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Usuario *</label>
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Nombre de usuario"
+                      ref={newUsernameRef}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <input
+                      type="email"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="ejemplo@email.com"
+                      ref={newEmailRef}
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
+                  <input
+                    type="password"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Contraseña segura"
+                    ref={newPasswordRef}
+                    required
+                  />
+                </div>
+                
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Nombre"
+                      ref={newNameRef}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Primer Apellido</label>
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Primer apellido"
+                      ref={newSurname1Ref}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Segundo Apellido</label>
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Segundo apellido"
+                      ref={newSurname2Ref}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Roles *</label>
+                  <select
+                    multiple
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    ref={newUserRolesRef}
+                    required
+                  >
+                    {roles.map(role => (
+                      <option key={role.id} value={role.id.toString()}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Mantén presionado Ctrl (o Cmd en Mac) para seleccionar múltiples roles</p>
+                </div>
+                
+                <div>
+                  <p className="text-xs text-gray-500">Los campos marcados con * son obligatorios</p>
+                </div>
+              </div>
+            </div>
+            
+            {createMessage && (
+              <div className={`mx-6 p-3 rounded ${createMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                {createMessage.text}
+              </div>
+            )}
+            
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={handleCloseCreateDialog}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 mr-3"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleCreateUser}
+                disabled={isCreating}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none flex items-center"
+              >
+                {isCreating ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Creando...
+                  </>
+                ) : (
+                  <>
+                    Crear Usuario <FaUserPlus className="inline ml-1" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardContainer>
   );
 }
