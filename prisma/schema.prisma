@@ -188,6 +188,9 @@ model ActivityLog {
   details     String?  
   entityType  String   // The type of entity affected (e.g., "user", "role", "asignatura")
   entityId    String?  
+  prevHash    String?   
+  hash        String    
+  signature   String    
 
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
