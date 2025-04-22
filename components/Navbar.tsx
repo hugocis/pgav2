@@ -14,9 +14,17 @@ import {
   FaBriefcase, 
   FaClipboardCheck,
   FaChevronDown,
+  FaChevronUp,
   FaBars,
-  FaTimes
+  FaTimes,
+  FaUsers,
+  FaUserCog,
+  FaCalendarAlt,
+  FaGraduationCap,
+  FaUniversity,
+  FaBook
 } from 'react-icons/fa';
+
 type RoleInfo = {
   name: string;
   path: string;
@@ -57,18 +65,75 @@ const roleConfigs: Record<string, RoleInfo> = {
   }
 };
 
+// Definición de los elementos del subnavbar de administración
+const adminNavItems = [
+  { name: 'Dashboard', path: '/admin/dashboard', icon: <FaTachometerAlt className="w-4 h-4" /> },
+  { name: 'Curso Académico', path: '/admin/curso-academico', icon: <FaCalendarAlt className="w-4 h-4" /> },
+  { name: 'Matrículas', path: '/admin/matriculas', icon: <FaGraduationCap className="w-4 h-4" /> },
+  { name: 'Docencia', path: '/admin/docencia', icon: <FaBook className="w-4 h-4" /> },
+  { name: 'Usuarios', path: '/admin/users', icon: <FaUsers className="w-4 h-4" /> },
+  { name: 'Configuración', path: '/admin/configuracion-carreras', icon: <FaUniversity className="w-4 h-4" /> },
+];
+
 export default function Navbar() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSubnavCollapsed, setIsSubnavCollapsed] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const [manualToggle, setManualToggle] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const subnavRef = useRef<HTMLDivElement>(null);
 
   const roles = session?.user?.roles || [];
   const currentRole = Object.keys(roleConfigs).find(role => 
     pathname?.includes(role.toLowerCase())
   ) || (roles.includes('Admin') ? 'Admin' : roles[0]);
+
+  // Verificar si estamos en la sección de administración
+  const isAdminSection = pathname?.startsWith('/admin');
+
+  // Manejar el scroll para colapsar/expandir el subnavbar
+  useEffect(() => {
+    if (!isAdminSection) return;
+
+    const handleScroll = () => {
+      if (manualToggle) return; // No alterar el estado si el usuario acaba de hacer un toggle manual
+      
+      const currentScrollY = window.scrollY;
+      
+      if (currentScrollY > lastScrollY && currentScrollY > 80) {
+        // Scrolling down - colapsar
+        setIsSubnavCollapsed(true);
+      } else if (currentScrollY < lastScrollY - 5 || currentScrollY < 20) {
+        // Scrolling up significativamente o cerca del tope - expandir
+        setIsSubnavCollapsed(false);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY, isAdminSection, manualToggle]);
+
+  // Resetear el bloqueo de scroll automático después de un tiempo
+  useEffect(() => {
+    if (manualToggle) {
+      const timer = setTimeout(() => {
+        setManualToggle(false);
+      }, 1500); // Bloquear el toggle automático por 1.5 segundos después de un toggle manual
+      return () => clearTimeout(timer);
+    }
+  }, [manualToggle]);
+
+  // Función para toggle manual del subnavbar
+  const toggleSubnav = () => {
+    setIsSubnavCollapsed(!isSubnavCollapsed);
+    setManualToggle(true);
+  };
 
   // Cerrar menú de perfil cuando se hace clic fuera
   useEffect(() => {
@@ -102,6 +167,7 @@ export default function Navbar() {
   if (status === 'unauthenticated') {
     return null;
   }
+  
   return (
     <header className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white shadow-lg sticky top-0 z-50">
       <div className="container mx-auto py-3 px-4 md:px-6">
@@ -116,13 +182,15 @@ export default function Navbar() {
                 height={48} 
                 className="hidden md:block"
               />
-              <div className="absolute -bottom-1 -right-1 hidden md:block w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+              {/* Punto verde eliminado */}
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold tracking-tight">Portal de Gestión de Asistencias</h1>
               <p className="text-xs md:text-sm text-blue-100 opacity-90">Universidad Francisco de Vitoria</p>
             </div>
-          </div>          {/* Mobile menu button */}
+          </div>
+          
+          {/* Mobile menu button */}
           <button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="md:hidden p-2 rounded-md hover:bg-white/10 focus:bg-white/20 transition-colors"
@@ -215,7 +283,9 @@ export default function Navbar() {
               )}
             </div>
           </div>
-        </div>        {/* Mobile Menu */}
+        </div>
+        
+        {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <nav className="md:hidden pt-4 pb-3 border-t border-white/10 mt-3 animate-fadeIn">
             <div className="space-y-1">
@@ -278,6 +348,63 @@ export default function Navbar() {
               </button>
             </div>
           </nav>
+        )}        {/* Subnavbar para administración - versión simplificada */}
+        {isAdminSection && (
+          <div className="mt-1 border-t border-white/10">
+            <div className={`transition-all duration-300 overflow-hidden ${
+              isSubnavCollapsed ? 'max-h-0 opacity-0' : 'max-h-12 opacity-100'
+            }`}>
+              <nav className="flex flex-wrap items-center gap-2 overflow-x-auto pt-2 pb-2 hide-scrollbar">
+                {adminNavItems.map((item) => {
+                  const isActive = pathname === item.path;
+                  return (
+                    <Link 
+                      key={item.path} 
+                      href={item.path}
+                      className={`px-3 py-1.5 rounded-md flex items-center space-x-1.5 text-xs md:text-sm whitespace-nowrap transition-colors ${
+                        isActive 
+                          ? 'bg-white text-[#0D3C68] font-medium shadow-sm' 
+                          : 'text-blue-100 bg-white/10 hover:bg-white/20'
+                      }`}
+                    >
+                      <span>{item.icon}</span>
+                      <span>{item.name}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+            
+            {/* Versión móvil del subnavbar */}
+            {isMobileMenuOpen && (
+              <div className="md:hidden pt-1 space-y-1 animate-fadeIn">
+                <h3 className="text-xs uppercase text-blue-200 font-medium px-3 py-1 flex justify-between items-center">
+                  <span>Administración</span>
+                </h3>
+                {adminNavItems.map((item) => {
+                  const isActive = pathname === item.path;
+                  return (
+                    <Link 
+                      key={item.path} 
+                      href={item.path}
+                      className={`px-3 py-2 flex items-center space-x-2.5 ${
+                        isActive 
+                          ? 'bg-white/10 text-white relative pl-5' 
+                          : 'text-blue-50 hover:bg-white/5'
+                      }`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {isActive && (
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-400 rounded-r"></div>
+                      )}
+                      <span>{item.icon}</span>
+                      <span>{item.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </header>
