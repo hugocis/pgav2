@@ -14,11 +14,9 @@ import {
   FaBriefcase, 
   FaClipboardCheck,
   FaChevronDown,
-  FaChevronUp,
   FaBars,
   FaTimes,
   FaUsers,
-  FaUserCog,
   FaCalendarAlt,
   FaGraduationCap,
   FaUniversity,
@@ -65,7 +63,7 @@ const roleConfigs: Record<string, RoleInfo> = {
   }
 };
 
-// Definición de los elementos del subnavbar de administración
+// Definición de los elementos del menú de administración
 const adminNavItems = [
   { name: 'Dashboard', path: '/admin/dashboard', icon: <FaTachometerAlt className="w-4 h-4" /> },
   { name: 'Curso Académico', path: '/admin/curso-academico', icon: <FaCalendarAlt className="w-4 h-4" /> },
@@ -81,65 +79,28 @@ export default function Navbar() {
   const pathname = usePathname();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSubnavCollapsed, setIsSubnavCollapsed] = useState(false);
-  const [lastScrollY, setLastScrollY] = useState(0);
-  const [manualToggle, setManualToggle] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-  const subnavRef = useRef<HTMLDivElement>(null);
+
+  // Estado para el menú dropdown de admin
+  const [isAdminDropdownOpen, setIsAdminDropdownOpen] = useState(false);
+  const adminDropdownRef = useRef<HTMLDivElement>(null);
 
   const roles = session?.user?.roles || [];
-  const currentRole = Object.keys(roleConfigs).find(role => 
-    pathname?.includes(role.toLowerCase())
-  ) || (roles.includes('Admin') ? 'Admin' : roles[0]);
-
+  
   // Verificar si estamos en la sección de administración
   const isAdminSection = pathname?.startsWith('/admin');
 
-  // Manejar el scroll para colapsar/expandir el subnavbar
-  useEffect(() => {
-    if (!isAdminSection) return;
-
-    const handleScroll = () => {
-      if (manualToggle) return; // No alterar el estado si el usuario acaba de hacer un toggle manual
-      
-      const currentScrollY = window.scrollY;
-      
-      if (currentScrollY > lastScrollY && currentScrollY > 80) {
-        // Scrolling down - colapsar
-        setIsSubnavCollapsed(true);
-      } else if (currentScrollY < lastScrollY - 5 || currentScrollY < 20) {
-        // Scrolling up significativamente o cerca del tope - expandir
-        setIsSubnavCollapsed(false);
-      }
-      
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY, isAdminSection, manualToggle]);
-
-  // Resetear el bloqueo de scroll automático después de un tiempo
-  useEffect(() => {
-    if (manualToggle) {
-      const timer = setTimeout(() => {
-        setManualToggle(false);
-      }, 1500); // Bloquear el toggle automático por 1.5 segundos después de un toggle manual
-      return () => clearTimeout(timer);
-    }
-  }, [manualToggle]);
-
-  // Función para toggle manual del subnavbar
-  const toggleSubnav = () => {
-    setIsSubnavCollapsed(!isSubnavCollapsed);
-    setManualToggle(true);
-  };
-
-  // Cerrar menú de perfil cuando se hace clic fuera
+  // Cerrar menús cuando se hace clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Cerrar menú de perfil si se hace clic fuera
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
+      }
+      
+      // Cerrar dropdown de administración si se hace clic fuera
+      if (adminDropdownRef.current && !adminDropdownRef.current.contains(event.target as Node)) {
+        setIsAdminDropdownOpen(false);
       }
     };
     
@@ -182,7 +143,6 @@ export default function Navbar() {
                 height={48} 
                 className="hidden md:block"
               />
-              {/* Punto verde eliminado */}
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold tracking-tight">Portal de Gestión de Asistencias</h1>
@@ -208,6 +168,49 @@ export default function Navbar() {
                   if (!config) return null;
                   
                   const isActive = pathname?.startsWith(config.path);
+                  
+                  // Si es la sección de admin y estamos en una página de admin, mostramos un dropdown
+                  if (role === 'Admin' && isActive) {
+                    return (
+                      <div key={role} className="relative" ref={adminDropdownRef}>
+                        <button
+                          onClick={() => setIsAdminDropdownOpen(!isAdminDropdownOpen)}
+                          className={`px-3 py-2 rounded-md flex items-center space-x-2 transition-colors bg-white/20 text-white font-medium`}
+                          aria-expanded={isAdminDropdownOpen}
+                        >
+                          <span className="hidden lg:block">{config.icon}</span>
+                          <span>{config.name}</span>
+                          <FaChevronDown className={`w-3.5 h-3.5 text-blue-200 transition-transform duration-200 ml-1 ${isAdminDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {/* Menú desplegable para administración */}
+                        {isAdminDropdownOpen && (
+                          <div className="absolute left-0 mt-1 bg-white rounded-md shadow-lg overflow-hidden z-50 border border-gray-200 min-w-[220px] animate-fadeIn">
+                            {adminNavItems.map((item) => {
+                              const isItemActive = pathname === item.path;
+                              return (
+                                <Link 
+                                  key={item.path} 
+                                  href={item.path}
+                                  className={`block px-4 py-2.5 text-sm flex items-center space-x-2.5 hover:bg-gray-50 transition-colors ${
+                                    isItemActive 
+                                      ? 'bg-blue-50 text-blue-700 font-medium' 
+                                      : 'text-gray-700'
+                                  }`}
+                                  onClick={() => setIsAdminDropdownOpen(false)}
+                                >
+                                  <span className="text-blue-600">{item.icon}</span>
+                                  <span>{item.name}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  
+                  // Para el resto de roles, mostramos el enlace normal
                   return (
                     <Link 
                       key={role}
@@ -348,62 +351,37 @@ export default function Navbar() {
               </button>
             </div>
           </nav>
-        )}        {/* Subnavbar para administración - versión simplificada */}
-        {isAdminSection && (
-          <div className="mt-1 border-t border-white/10">
-            <div className={`transition-all duration-300 overflow-hidden ${
-              isSubnavCollapsed ? 'max-h-0 opacity-0' : 'max-h-12 opacity-100'
-            }`}>
-              <nav className="flex flex-wrap items-center gap-2 overflow-x-auto pt-2 pb-2 hide-scrollbar">
-                {adminNavItems.map((item) => {
-                  const isActive = pathname === item.path;
-                  return (
-                    <Link 
-                      key={item.path} 
-                      href={item.path}
-                      className={`px-3 py-1.5 rounded-md flex items-center space-x-1.5 text-xs md:text-sm whitespace-nowrap transition-colors ${
-                        isActive 
-                          ? 'bg-white text-[#0D3C68] font-medium shadow-sm' 
-                          : 'text-blue-100 bg-white/10 hover:bg-white/20'
-                      }`}
-                    >
-                      <span>{item.icon}</span>
-                      <span>{item.name}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
+        )}
+        
+        {/* Sección móvil para administración */}
+        {isAdminSection && isMobileMenuOpen && (
+          <div className="md:hidden border-t border-white/10 mt-1 pt-1">
+            <h3 className="text-xs uppercase text-blue-200 font-medium px-3 py-1 mb-1">
+              <span>Administración</span>
+            </h3>
+            <div className="space-y-1 animate-fadeIn">
+              {adminNavItems.map((item) => {
+                const isActive = pathname === item.path;
+                return (
+                  <Link 
+                    key={item.path} 
+                    href={item.path}
+                    className={`px-3 py-2 flex items-center space-x-2.5 ${
+                      isActive 
+                        ? 'bg-white/10 text-white relative pl-5' 
+                        : 'text-blue-50 hover:bg-white/5'
+                    }`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    {isActive && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-400 rounded-r"></div>
+                    )}
+                    <span>{item.icon}</span>
+                    <span>{item.name}</span>
+                  </Link>
+                );
+              })}
             </div>
-            
-            {/* Versión móvil del subnavbar */}
-            {isMobileMenuOpen && (
-              <div className="md:hidden pt-1 space-y-1 animate-fadeIn">
-                <h3 className="text-xs uppercase text-blue-200 font-medium px-3 py-1 flex justify-between items-center">
-                  <span>Administración</span>
-                </h3>
-                {adminNavItems.map((item) => {
-                  const isActive = pathname === item.path;
-                  return (
-                    <Link 
-                      key={item.path} 
-                      href={item.path}
-                      className={`px-3 py-2 flex items-center space-x-2.5 ${
-                        isActive 
-                          ? 'bg-white/10 text-white relative pl-5' 
-                          : 'text-blue-50 hover:bg-white/5'
-                      }`}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      {isActive && (
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-400 rounded-r"></div>
-                      )}
-                      <span>{item.icon}</span>
-                      <span>{item.name}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
           </div>
         )}
       </div>

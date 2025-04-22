@@ -458,7 +458,7 @@ export default function AdminDashboard() {
                         onClick={() => callApi('docencia', 'Administrar Docencias')}
                         className="inline-flex items-center hover:underline"
                       >
-                        Gestionar docencias
+                        Sincronizar docencias
                       </button>
                     </p>
                   </div>
@@ -501,7 +501,7 @@ export default function AdminDashboard() {
                         onClick={() => callApi('matriculas', 'Administrar Matrículas')}
                         className="inline-flex items-center hover:underline"
                       >
-                        Gestionar matrículas
+                        Sincronizar matrículas
                       </button>
                     </p>
                   </div>

@@ -14,15 +14,14 @@ interface DashboardContainerProps {
 export default function DashboardContainer({ roleName, children }: DashboardContainerProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
-
   // Verificar si el usuario está autenticado y tiene el rol correcto
   useEffect(() => {
     if (status === 'loading') return;
 
     if (status === 'unauthenticated') {
       router.push('/login');
-    } else if (session?.user?.roles && !session.user.roles.includes(roleName)) {
-      // Si el usuario no tiene el rol necesario, lo redirigimos a su dashboard adecuado
+    } else if (roleName !== "Perfil" && session?.user?.roles && !session.user.roles.includes(roleName)) {
+      // Si el usuario no tiene el rol necesario Y no estamos en la página de perfil, redirigimos a su dashboard adecuado
       if (session.user.roles.includes('Admin')) {
         router.push('/admin/dashboard');
       } else if (session.user.roles.includes('Manager')) {
@@ -49,8 +48,7 @@ export default function DashboardContainer({ roleName, children }: DashboardCont
       </div>
     );
   }
-
-  if (status === 'unauthenticated' || !session?.user?.roles.includes(roleName)) {
+  if (status === 'unauthenticated' || (roleName !== "Perfil" && !session?.user?.roles.includes(roleName))) {
     return null; // No renderizar nada mientras se redirige
   }
 
