@@ -134,39 +134,63 @@ export default function AdminCursoAcademico() {
         behavior: 'smooth'
       });
     }
-  };
+  };  // Estados para el diálogo de activación/desactivación
+  const [isActivateDialogOpen, setIsActivateDialogOpen] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
+  const [cursoToToggle, setCursoToToggle] = useState<{curso: CursoAcademico, currentStatus: boolean} | null>(null);
+  const [activateMessage, setActivateMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
   const handleActivateCurso = async (cursoId: number, currentStatus: boolean) => {
+    // Buscar el curso
+    const curso = cursosAcademicos.find(c => c.id === cursoId);
+    if (!curso) return;
+
+    // Si vamos a desactivar un curso, verificamos que haya al menos otro curso disponible para activar
+    if (currentStatus) {
+      // Verificar si hay otros cursos académicos disponibles
+      if (cursosAcademicos.length <= 1) {
+        setActivateMessage({
+          text: 'No se puede desactivar este curso académico porque es el único en el sistema. Debe mantener al menos un curso académico activo.',
+          type: 'error'
+        });
+        setCursoToToggle({curso, currentStatus});
+        setIsActivateDialogOpen(true);
+        return;
+      }
+      
+      // Verificar si este es el único curso activo
+      const activeCursos = cursosAcademicos.filter(curso => curso.activo);
+      if (activeCursos.length === 1 && activeCursos[0].id === cursoId) {
+        setActivateMessage({
+          text: 'No se puede desactivar este curso académico porque es el único activo. Debe activar otro curso académico primero.',
+          type: 'error'
+        });
+        setCursoToToggle({curso, currentStatus});
+        setIsActivateDialogOpen(true);
+        return;
+      }
+    }
+
+    // Preparar para mostrar diálogo de confirmación
+    setActivateMessage(null);
+    setCursoToToggle({curso, currentStatus});
+    setIsActivateDialogOpen(true);
+  };
+
+  const confirmToggleActivation = async () => {
+    if (!cursoToToggle) return;
+    
+    setIsActivating(true);
+    setActivateMessage(null);
+    
     try {
-      // Si vamos a desactivar un curso, verificamos que haya al menos otro curso disponible para activar
-      if (currentStatus) {
-        // Verificar si hay otros cursos académicos disponibles
-        if (cursosAcademicos.length <= 1) {
-          alert('No se puede desactivar este curso académico porque es el único en el sistema. Debe mantener al menos un curso académico activo.');
-          return;
-        }
-        
-        // Verificar si este es el único curso activo
-        const activeCursos = cursosAcademicos.filter(curso => curso.activo);
-        if (activeCursos.length === 1 && activeCursos[0].id === cursoId) {
-          alert('No se puede desactivar este curso académico porque es el único activo. Debe activar otro curso académico primero.');
-          return;
-        }
-      }
-
-      // Si vamos a activar un curso, confirmamos que se desactivarán los demás
-      if (!currentStatus) {
-        if (!confirm('Al activar este curso académico, se desactivarán todos los demás. ¿Desea continuar?')) {
-          return;
-        }
-      }
-
-      const response = await fetch(`/api/cursos-academicos/${cursoId}`, {
+      const response = await fetch(`/api/cursos-academicos/${cursoToToggle.curso.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ activo: !currentStatus }),
+        body: JSON.stringify({ activo: !cursoToToggle.currentStatus }),
       });
 
       if (!response.ok) {
@@ -176,37 +200,85 @@ export default function AdminCursoAcademico() {
       const updatedCurso = await response.json();
 
       // Al activar un curso, actualizar el estado de todos los demás cursos a inactivo
-      if (!currentStatus) {
+      if (!cursoToToggle.currentStatus) {
         setCursosAcademicos(cursosAcademicos.map(curso => 
-          curso.id === cursoId ? { ...curso, activo: true } : { ...curso, activo: false }
+          curso.id === cursoToToggle.curso.id ? { ...curso, activo: true } : { ...curso, activo: false }
+        ));
+        setFilteredCursos(prevFiltered => prevFiltered.map(curso => 
+          curso.id === cursoToToggle.curso.id ? { ...curso, activo: true } : { ...curso, activo: false }
         ));
       } else {
         // Solo actualizar el curso específico
         setCursosAcademicos(cursosAcademicos.map(curso => 
-          curso.id === cursoId ? { ...curso, activo: false } : curso
+          curso.id === cursoToToggle.curso.id ? { ...curso, activo: false } : curso
+        ));
+        setFilteredCursos(prevFiltered => prevFiltered.map(curso => 
+          curso.id === cursoToToggle.curso.id ? { ...curso, activo: false } : curso
         ));
       }
+      
+      setActivateMessage({
+        text: !cursoToToggle.currentStatus 
+          ? `El curso académico ${cursoToToggle.curso.denominacion} ha sido activado correctamente` 
+          : `El curso académico ${cursoToToggle.curso.denominacion} ha sido desactivado correctamente`,
+        type: 'success'
+      });
+      
+      // Cerrar el diálogo después de un tiempo
+      setTimeout(() => {
+        setIsActivateDialogOpen(false);
+        setCursoToToggle(null);
+        setActivateMessage(null);
+      }, 1500);
 
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al cambiar el estado del curso académico');
+      setActivateMessage({
+        text: 'Error al cambiar el estado del curso académico',
+        type: 'error'
+      });
+    } finally {
+      setIsActivating(false);
     }
   };
+  // Estados para el diálogo de confirmación de eliminación
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [cursoToDelete, setCursoToDelete] = useState<CursoAcademico | null>(null);
+  const [deleteMessage, setDeleteMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const handleDeleteCurso = async (cursoId: number) => {
     // Verificar si el curso está activo
     const cursoToDelete = cursosAcademicos.find(curso => curso.id === cursoId);
-    if (cursoToDelete?.activo) {
-      alert('No se puede eliminar un curso académico activo. Debe activar otro curso primero.');
+    
+    if (!cursoToDelete) {
       return;
     }
     
-    if (!confirm('¿Estás seguro de que deseas eliminar este curso académico? Esta acción no se puede deshacer.')) {
+    if (cursoToDelete.activo) {
+      setDeleteMessage({
+        text: 'No se puede eliminar un curso académico activo. Debe activar otro curso primero.',
+        type: 'error'
+      });
+      setCursoToDelete(cursoToDelete);
+      setIsDeleteDialogOpen(true);
       return;
     }
+    
+    // Abrir el diálogo de confirmación
+    setCursoToDelete(cursoToDelete);
+    setDeleteMessage(null);
+    setIsDeleteDialogOpen(true);
+  };
 
+  const confirmDeleteCurso = async () => {
+    if (!cursoToDelete) return;
+    
+    setIsDeleting(true);
+    setDeleteMessage(null);
+    
     try {
-      const response = await fetch(`/api/cursos-academicos/${cursoId}`, {
+      const response = await fetch(`/api/cursos-academicos/${cursoToDelete.id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -216,11 +288,29 @@ export default function AdminCursoAcademico() {
       }
 
       // Actualizar la lista de cursos
-      setCursosAcademicos(cursosAcademicos.filter(curso => curso.id !== cursoId));
-      alert('Curso académico eliminado correctamente');
+      setCursosAcademicos(prevCursos => prevCursos.filter(curso => curso.id !== cursoToDelete.id));
+      setFilteredCursos(prevFiltered => prevFiltered.filter(curso => curso.id !== cursoToDelete.id));
+      
+      setDeleteMessage({
+        text: 'Curso académico eliminado correctamente',
+        type: 'success'
+      });
+      
+      // Cerrar el diálogo después de un tiempo
+      setTimeout(() => {
+        setIsDeleteDialogOpen(false);
+        setCursoToDelete(null);
+        setDeleteMessage(null);
+      }, 1500);
+      
     } catch (error) {
-      alert('Error al eliminar el curso académico');
-      console.error(error);
+      console.error('Error al eliminar el curso académico:', error);
+      setDeleteMessage({
+        text: 'Error al eliminar el curso académico',
+        type: 'error'
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -326,11 +416,9 @@ export default function AdminCursoAcademico() {
         setIsCreating(false);
         return;
       }
-      
-      const newCursoData = {
+        const newCursoData = {
         denominacion: newDenominacionRef.current.value,
-        cursoAnterior: newCursoAnteriorRef.current?.value || null,
-        cursoSiguiente: newCursoSiguienteRef.current?.value || null,
+        // Los campos de cursoAnterior y cursoSiguiente los determina automáticamente la API
         activo: newActivoRef.current?.checked || false
       };
       
@@ -349,20 +437,24 @@ export default function AdminCursoAcademico() {
         },
         credentials: 'include',
         body: JSON.stringify(newCursoData),
-      });
-
-      if (response.ok) {
-        // Añadir el nuevo curso al estado local
+      });      if (response.ok) {
+        // Añadir el nuevo curso al estado local asegurándose de que tiene un id único
         const createdCurso = await response.json();
         
         // Si el curso se creó como activo, desactivar todos los demás
         if (createdCurso.activo) {
           setCursosAcademicos([
             ...cursosAcademicos.map(curso => ({ ...curso, activo: false })),
-            createdCurso
+            { ...createdCurso, id: createdCurso.id } // Aseguramos que el id existe
+          ]);
+          // Actualizar también los cursos filtrados
+          setFilteredCursos(prevFiltered => [
+            ...prevFiltered.map(curso => ({ ...curso, activo: false })),
+            { ...createdCurso, id: createdCurso.id }
           ]);
         } else {
-          setCursosAcademicos([...cursosAcademicos, createdCurso]);
+          setCursosAcademicos([...cursosAcademicos, { ...createdCurso, id: createdCurso.id }]);
+          setFilteredCursos(prevFiltered => [...prevFiltered, { ...createdCurso, id: createdCurso.id }]);
         }
         
         setCreateMessage({ text: 'Curso académico creado correctamente', type: 'success' });
@@ -388,20 +480,16 @@ export default function AdminCursoAcademico() {
       setIsCreating(false);
     }
   };
-
-  // Función para manejar la creación automática de cursos académicos
+  // Estados para la creación automática de cursos académicos
   const [isCreatingAuto, setIsCreatingAuto] = useState(false);
   const [autoCreationMessage, setAutoCreationMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [showAutoDialog, setShowAutoDialog] = useState(false);
+  const [autoCreationResult, setAutoCreationResult] = useState<any>(null);
 
+  // Función para manejar la creación automática de cursos académicos
   const handleAutoCreateCurso = async () => {
-    if (!confirm('Esta acción creará automáticamente cursos académicos basados en los datos de la oferta académica. ¿Desea continuar?')) {
-      return;
-    }
-
     setIsCreatingAuto(true);
-    setAutoCreationMessage(null);
-
-    try {
+    setAutoCreationMessage(null);    try {
       // Enviar una solicitud POST vacía para activar la creación automática
       const response = await fetch('/api/cursos-academicos', {
         method: 'POST',
@@ -411,6 +499,7 @@ export default function AdminCursoAcademico() {
 
       if (response.ok) {
         const result = await response.json();
+        setAutoCreationResult(result);
         
         // Actualizar la lista de cursos académicos
         const fetchResponse = await fetch('/api/cursos-academicos', {
@@ -425,14 +514,9 @@ export default function AdminCursoAcademico() {
         }
 
         setAutoCreationMessage({
-          text: `Cursos académicos creados automáticamente: ${Array.isArray(result) ? result.length : 'varios'}`,
+          text: result.mensaje || 'Cursos académicos creados automáticamente con éxito',
           type: 'success'
         });
-
-        // Limpiar el mensaje después de 5 segundos
-        setTimeout(() => {
-          setAutoCreationMessage(null);
-        }, 5000);
       } else {
         const errorData = await response.json();
         setAutoCreationMessage({
@@ -527,9 +611,8 @@ export default function AdminCursoAcademico() {
                   className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded flex items-center"
                 >
                   <FaPlus className="mr-2" /> Nuevo Curso
-                </button>
-                <button
-                  onClick={handleAutoCreateCurso}
+                </button>                <button
+                  onClick={() => setShowAutoDialog(true)}
                   disabled={isCreatingAuto}
                   className={`bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded flex items-center ${isCreatingAuto ? 'opacity-70 cursor-not-allowed' : ''}`}
                   title="Crear cursos académicos automáticamente desde la oferta académica"
@@ -604,28 +687,35 @@ export default function AdminCursoAcademico() {
                               {curso.activo ? 'Activo' : 'Inactivo'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                            <div className="flex justify-end space-x-2">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right">                            <div className="flex justify-end space-x-2">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleActivateCurso(curso.id, curso.activo);
                                 }}
-                                className={curso.activo ? "text-yellow-600 hover:text-yellow-900" : "text-green-600 hover:text-green-900"}
+                                className={`p-1.5 rounded-md ${
+                                  curso.activo 
+                                    ? "bg-yellow-100 text-yellow-600 hover:bg-yellow-200 hover:text-yellow-700" 
+                                    : "bg-green-100 text-green-600 hover:bg-green-200 hover:text-green-700"
+                                }`}
                                 title={curso.activo ? "Desactivar curso" : "Activar curso"}
                               >
-                                {curso.activo ? <FaTimes className="inline" /> : <FaCheck className="inline" />}
+                                {curso.activo ? <FaTimes className="text-lg" /> : <FaCheck className="text-lg" />}
                               </button>
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleDeleteCurso(curso.id);
                                 }} 
-                                className="text-red-600 hover:text-red-900"
+                                className={`p-1.5 rounded-md ${
+                                  curso.activo
+                                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                    : "bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700"
+                                }`}
                                 disabled={curso.activo}
                                 title={curso.activo ? "No se puede eliminar un curso activo" : "Eliminar curso"}
                               >
-                                <FaTrash className={`inline ${curso.activo ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                                <FaTrash className="text-lg" />
                               </button>
                             </div>
                           </td>
@@ -817,37 +907,16 @@ export default function AdminCursoAcademico() {
             </div>
             
             <div className="p-6">
-              <div className="space-y-4">
-                <div>
+              <div className="space-y-4">                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Denominación *</label>
                   <input
                     type="text"
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="Ejemplo: 2024-2025"
+                    placeholder="Ejemplo: 2024-25"
                     ref={newDenominacionRef}
                     required
                   />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Curso Anterior</label>
-                    <input
-                      type="text"
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="Ejemplo: 2023-2024"
-                      ref={newCursoAnteriorRef}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Curso Siguiente</label>
-                    <input
-                      type="text"
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="Ejemplo: 2025-2026"
-                      ref={newCursoSiguienteRef}
-                    />
-                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Formato: YYYY-YY (ejemplo: 2024-25). El sistema vinculará automáticamente este curso con los cursos anteriores y siguientes existentes.</p>
                 </div>
                 
                 <div>
@@ -906,9 +975,7 @@ export default function AdminCursoAcademico() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Mensaje de notificación para creación automática */}
+      )}      {/* Mensaje de notificación para creación automática */}
       {autoCreationMessage && (
         <div className={`mt-4 p-4 rounded-md ${autoCreationMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`} role="alert">
           <div className="flex">
@@ -943,6 +1010,304 @@ export default function AdminCursoAcademico() {
                   </svg>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}      {/* Diálogo de confirmación para activación/desactivación de curso */}
+      {isActivateDialogOpen && cursoToToggle && (
+        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+            <div className={`px-6 py-4 border-b border-gray-200 flex justify-between items-center ${
+              cursoToToggle.currentStatus 
+                ? 'bg-yellow-500 text-white' 
+                : 'bg-gradient-to-r from-green-600 to-green-700 text-white'
+            }`}>
+              <h3 className="text-lg font-medium">
+                {cursoToToggle.currentStatus ? 'Confirmar desactivación' : 'Confirmar activación'}
+              </h3>
+              <button 
+                onClick={() => setIsActivateDialogOpen(false)}
+                className="text-white hover:text-gray-200 focus:outline-none"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {activateMessage ? (
+                <div className={`p-4 mb-4 rounded-md ${activateMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      {activateMessage.type === 'success' ? (
+                        <FaCheck className="h-5 w-5 text-green-400" />
+                      ) : (
+                        <FaTimes className="h-5 w-5 text-red-400" />
+                      )}
+                    </div>
+                    <div className="ml-3">
+                      <p className={`text-sm font-medium ${activateMessage.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+                        {activateMessage.text}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center">
+                  {cursoToToggle.currentStatus ? (
+                    <>
+                      <FaTimes className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+                      <p className="text-lg font-medium text-gray-900 mb-2">
+                        ¿Desactivar curso académico?
+                      </p>
+                      <p className="text-gray-600 mb-4">
+                        Estás a punto de desactivar el curso académico <strong>{cursoToToggle.curso.denominacion}</strong>. 
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <FaCheck className="mx-auto h-12 w-12 text-green-500 mb-4" />
+                      <p className="text-lg font-medium text-gray-900 mb-2">
+                        ¿Activar curso académico?
+                      </p>
+                      <p className="text-gray-600 mb-4">
+                        Al activar el curso académico <strong>{cursoToToggle.curso.denominacion}</strong>, se desactivarán todos los demás cursos activos.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setIsActivateDialogOpen(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 mr-3"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={confirmToggleActivation}
+                disabled={isActivating || activateMessage?.type === 'error'}
+                className={`px-4 py-2 text-white rounded-md focus:outline-none flex items-center ${
+                  cursoToToggle.currentStatus
+                    ? 'bg-yellow-500 hover:bg-yellow-600'
+                    : 'bg-green-600 hover:bg-green-700'
+                } ${isActivating || activateMessage?.type === 'error' ? 'opacity-60 cursor-not-allowed' : ''}`}
+              >
+                {isActivating ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {cursoToToggle.currentStatus ? 'Desactivando...' : 'Activando...'}
+                  </>
+                ) : (
+                  <>
+                    {cursoToToggle.currentStatus ? 'Desactivar Curso' : 'Activar Curso'} {cursoToToggle.currentStatus ? <FaTimes className="inline ml-1" /> : <FaCheck className="inline ml-1" />}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Diálogo de confirmación para eliminación de curso */}
+      {isDeleteDialogOpen && cursoToDelete && (
+        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+            <div className={`px-6 py-4 border-b border-gray-200 flex justify-between items-center ${
+              cursoToDelete.activo 
+                ? 'bg-amber-600 text-white' 
+                : 'bg-gradient-to-r from-red-600 to-red-700 text-white'
+            }`}>
+              <h3 className="text-lg font-medium">
+                {cursoToDelete.activo ? 'No se puede eliminar' : 'Confirmar eliminación'}
+              </h3>
+              <button 
+                onClick={() => setIsDeleteDialogOpen(false)}
+                className="text-white hover:text-gray-200 focus:outline-none"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {deleteMessage ? (
+                <div className={`p-4 mb-4 rounded-md ${deleteMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      {deleteMessage.type === 'success' ? (
+                        <FaCheck className="h-5 w-5 text-green-400" />
+                      ) : (
+                        <FaTimes className="h-5 w-5 text-red-400" />
+                      )}
+                    </div>
+                    <div className="ml-3">
+                      <p className={`text-sm font-medium ${deleteMessage.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+                        {deleteMessage.text}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : cursoToDelete.activo ? (
+                <div className="text-center">
+                  <FaTimes className="mx-auto h-12 w-12 text-red-500 mb-4" />
+                  <p className="text-gray-600">
+                    No se puede eliminar un curso académico activo. Debe activar otro curso primero.
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <FaTrash className="mx-auto h-12 w-12 text-red-500 mb-4" />
+                  <p className="text-lg font-medium text-gray-900 mb-2">
+                    ¿Eliminar curso académico?
+                  </p>
+                  <p className="text-gray-600 mb-4">
+                    Estás a punto de eliminar el curso académico <strong>{cursoToDelete.denominacion}</strong>. Esta acción no se puede deshacer.
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setIsDeleteDialogOpen(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 mr-3"
+              >
+                Cancelar
+              </button>
+              {!cursoToDelete.activo && (
+                <button 
+                  onClick={confirmDeleteCurso}
+                  disabled={isDeleting}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none flex items-center"
+                >
+                  {isDeleting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Eliminando...
+                    </>
+                  ) : (
+                    <>
+                      Eliminar Curso <FaTrash className="inline ml-1" />
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Diálogo de confirmación para creación automática */}
+      {showAutoDialog && (
+        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white">
+              <h3 className="text-lg font-medium">
+                Creación Automática de Cursos
+              </h3>
+              <button 
+                onClick={() => setShowAutoDialog(false)}
+                className="text-white hover:text-gray-200 focus:outline-none"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="flex items-start mb-4">
+                <div className="flex-shrink-0 mt-0.5">
+                  <FaCalendarAlt className="h-5 w-5 text-blue-500" />
+                </div>
+                <div className="ml-3 text-sm">
+                  <h3 className="font-medium text-gray-900">¿Qué hace esta función?</h3>
+                  <div className="mt-2 text-gray-600 space-y-2">
+                    <p>Esta acción creará automáticamente cursos académicos basados en los datos existentes en la tabla <strong>OfertaAcademica</strong> de la base de datos.</p>
+                    <p>El sistema realizará las siguientes acciones:</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>Extraerá todos los años académicos únicos de la tabla OfertaAcademica</li>
+                      <li>Verificará que cada año tenga el formato correcto (YYYY-YY)</li>
+                      <li>Creará registros para aquellos años que no existan actualmente</li>
+                      <li>Establecerá automáticamente las relaciones entre cursos anteriores y siguientes</li>
+                    </ul>
+                    <p className="italic">Nota: Esta acción no activará automáticamente ningún nuevo curso académico.</p>
+                  </div>
+                </div>
+              </div>
+              
+              {isCreatingAuto ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-gray-600">Procesando cursos académicos...</p>
+                </div>
+              ) : autoCreationMessage ? (
+                <div className={`p-4 rounded-md ${autoCreationMessage.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      {autoCreationMessage.type === 'success' ? (
+                        <FaCheck className="h-5 w-5 text-green-400" />
+                      ) : (
+                        <FaTimes className="h-5 w-5 text-red-400" />
+                      )}
+                    </div>
+                    <div className="ml-3">
+                      <p className={`text-sm font-medium ${autoCreationMessage.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+                        {autoCreationMessage.text}
+                      </p>
+                      {autoCreationResult && (
+                        <div className="mt-2 text-sm">
+                          <p>Cursos procesados: {autoCreationResult.resultados?.procesados || 0}</p>
+                          <p>Cursos creados: {autoCreationResult.resultados?.creados || 0}</p>
+                          <p>Cursos existentes: {autoCreationResult.resultados?.yaExistentes?.length || 0}</p>
+                          {autoCreationResult.resultados?.errores?.length > 0 && (
+                            <p>Errores: {autoCreationResult.resultados.errores.length}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowAutoDialog(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleAutoCreateCurso}
+                disabled={isCreatingAuto}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none flex items-center"
+              >
+                {isCreatingAuto ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    Crear Cursos Automáticamente <FaCalendarAlt className="inline ml-1" />
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

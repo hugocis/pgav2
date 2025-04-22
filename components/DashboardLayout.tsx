@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -36,11 +36,6 @@ export default function DashboardLayout({ roleName, children }: DashboardProps) 
       }
     }
   }, [status, session, roleName, router]);
-
-  // Nombre completo del usuario
-  const fullName = session?.user ? 
-    `${session.user.name || ''} ${session.user.surname1 || ''} ${session.user.surname2 || ''}`.trim() : 
-    'Usuario';
 
   if (status === 'loading') {
     return (

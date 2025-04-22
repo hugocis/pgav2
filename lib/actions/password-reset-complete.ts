@@ -39,7 +39,9 @@ export async function completePasswordReset(token: string, newPassword: string) 
         action: 'PASSWORD_RESET',
         details: 'Contraseña restablecida correctamente',
         entityType: 'user', 
-        entityId: user.id,   
+        entityId: user.id,
+        hash: '',  
+        signature: '',  
       }
     });
 

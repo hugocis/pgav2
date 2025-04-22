@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import DashboardContainer from '@/components/DashboardContainer';
-import { FaTachometerAlt, FaUsers, FaBookOpen, FaChalkboardTeacher, FaCog } from 'react-icons/fa';
+import { FaTachometerAlt, FaCog } from 'react-icons/fa';
 
 // Definir nuevas interfaces más detalladas para estadísticas
 interface Stats {

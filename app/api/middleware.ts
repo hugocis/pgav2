@@ -58,6 +58,8 @@ export async function middleware(request: NextRequest) {
         userId: typeof userId === 'string' ? userId : 'sistema',
         details: `${action.toUpperCase()} en ${pathname}`,
         timestamp: new Date(),
+        hash: '', 
+        signature: '', 
       },
     }).catch(error => {
       console.error('Error al registrar actividad en middleware:', error);

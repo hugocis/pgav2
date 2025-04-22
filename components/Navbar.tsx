@@ -7,7 +7,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
-  FaUserCircle, 
   FaTachometerAlt, 
   FaUserGraduate, 
   FaChalkboardTeacher, 
@@ -74,8 +73,7 @@ const adminNavItems = [
 ];
 
 export default function Navbar() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+  const { data: session, status } = useSession(); useRouter();
   const pathname = usePathname();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -166,46 +164,60 @@ export default function Navbar() {
                 {roles.map(role => {
                   const config = roleConfigs[role];
                   if (!config) return null;
-                  
-                  const isActive = pathname?.startsWith(config.path);
-                  
-                  // Si es la sección de admin y estamos en una página de admin, mostramos un dropdown
-                  if (role === 'Admin' && isActive) {
+                    const isActive = pathname?.startsWith(config.path);
+                    // Si es el rol de Admin y estamos en cualquier página de admin, mostramos un dropdown
+                  if (role === 'Admin' && isAdminSection) {
                     return (
-                      <div key={role} className="relative" ref={adminDropdownRef}>
+                      <div 
+                        key={role} 
+                        className="relative group" 
+                        ref={adminDropdownRef}
+                        onMouseEnter={() => setIsAdminDropdownOpen(true)}
+                        onMouseLeave={() => setIsAdminDropdownOpen(false)}
+                      >
                         <button
                           onClick={() => setIsAdminDropdownOpen(!isAdminDropdownOpen)}
-                          className={`px-3 py-2 rounded-md flex items-center space-x-2 transition-colors bg-white/20 text-white font-medium`}
+                          className={`px-3 py-2 rounded-md flex items-center space-x-2 transition-colors bg-white/20 text-white font-medium group-hover:bg-white/30`}
                           aria-expanded={isAdminDropdownOpen}
                         >
                           <span className="hidden lg:block">{config.icon}</span>
                           <span>{config.name}</span>
-                          <FaChevronDown className={`w-3.5 h-3.5 text-blue-200 transition-transform duration-200 ml-1 ${isAdminDropdownOpen ? 'rotate-180' : ''}`} />
+                          <FaChevronDown className={`w-3.5 h-3.5 text-blue-200 transition-transform duration-200 ml-1 ${isAdminDropdownOpen ? 'rotate-180' : ''} group-hover:rotate-180`} />
                         </button>
                         
                         {/* Menú desplegable para administración */}
-                        {isAdminDropdownOpen && (
-                          <div className="absolute left-0 mt-1 bg-white rounded-md shadow-lg overflow-hidden z-50 border border-gray-200 min-w-[220px] animate-fadeIn">
+                        <div 
+                          className={`absolute left-0 mt-1 bg-white rounded-lg shadow-xl overflow-hidden z-50 border border-gray-100 min-w-[240px] transition-all duration-200 origin-top-left ${
+                            isAdminDropdownOpen 
+                              ? 'transform scale-100 opacity-100' 
+                              : 'transform scale-95 opacity-0 invisible pointer-events-none'
+                          }`}
+                        >
+                          <div className="p-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
+                            <p className="text-sm font-medium text-blue-800">Panel de Administración</p>
+                            <p className="text-xs text-blue-500">Gestión del sistema</p>
+                          </div>
+                          <div className="py-1">
                             {adminNavItems.map((item) => {
                               const isItemActive = pathname === item.path;
                               return (
                                 <Link 
                                   key={item.path} 
                                   href={item.path}
-                                  className={`block px-4 py-2.5 text-sm flex items-center space-x-2.5 hover:bg-gray-50 transition-colors ${
+                                  className={`flex items-center px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors ${
                                     isItemActive 
-                                      ? 'bg-blue-50 text-blue-700 font-medium' 
+                                      ? 'bg-blue-50 text-blue-700 font-medium border-l-4 border-blue-500 pl-3' 
                                       : 'text-gray-700'
                                   }`}
                                   onClick={() => setIsAdminDropdownOpen(false)}
                                 >
-                                  <span className="text-blue-600">{item.icon}</span>
+                                  <span className={`${isItemActive ? 'text-blue-600' : 'text-gray-500'} mr-3`}>{item.icon}</span>
                                   <span>{item.name}</span>
                                 </Link>
                               );
                             })}
                           </div>
-                        )}
+                        </div>
                       </div>
                     );
                   }
