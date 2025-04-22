@@ -13,7 +13,7 @@ export async function GET() {
 
     // Obtener los usuarios más recientes
     const recentUsers = await prisma.user.findMany({
-      take: 10,
+      take: 5,
       orderBy: {
         createdAt: 'desc',
       },
@@ -34,7 +34,9 @@ export async function GET() {
       username: user.username,
       roles: user.userRoles.map(ur => ur.role.name),
       createdAt: user.createdAt.toISOString(),
-    }));    // Obtener estadísticas de distribución de roles
+    }));    
+    
+    // Obtener estadísticas de distribución de roles
     const roleStats = await prisma.role.findMany({
       include: {
         userRoles: true,

@@ -20,8 +20,26 @@ import {
   FaChevronLeft
 } from 'react-icons/fa';
 
+// Definición de tipos para los endpoints
+interface Endpoint {
+  name: string;
+  method: string;
+  url: string;
+  requiresBody: boolean;
+  paramId?: boolean;
+  description?: string;
+  isSync?: boolean;
+  defaultBody?: string;
+}
+
+interface CategoryEndpoint {
+  category: string;
+  icon: React.ReactElement;
+  endpoints: Endpoint[];
+}
+
 // Definición de los endpoints
-const apiEndpoints = [
+const apiEndpoints: CategoryEndpoint[] = [
   {
     category: 'Usuarios',
     icon: <FaUsers className="text-blue-600" />,
@@ -147,24 +165,25 @@ const apiEndpoints = [
       { name: 'Estadísticas', method: 'GET', url: '/api/stats', requiresBody: false },
       { name: 'Carga de datos', method: 'POST', url: '/api/carga-datos', requiresBody: true }
     ]
-  },
-  {
+  },  {
     category: 'Sincronizar datos',
     icon: <FaSync className="text-blue-500" />,
     endpoints: [
-      { name: 'Sincronizar asignaturas', method: 'PUT', url: '/api/asignaturas', requiresBody: false, description: 'Crea asignaturas desde OfertaAcademica' },
-      { name: 'Sincronizar grupos', method: 'PUT', url: '/api/grupos', requiresBody: false, description: 'Sincroniza grupos de asignaturas' },
-      { name: 'Sincronizar matrículas', method: 'PUT', url: '/api/matriculas', requiresBody: false, description: 'Sincroniza información de matrículas' },
-      { name: 'Sincronizar docencia', method: 'PUT', url: '/api/docencia', requiresBody: false, description: 'Actualiza información de docencia' },
-      { name: 'Sincronizar usuarios', method: 'PUT', url: '/api/users', requiresBody: false, description: 'Actualización masiva de usuarios' },
-      { name: 'Sincronizar alumnos por plan', method: 'PUT', url: '/api/alumnos-plan', requiresBody: false, description: 'Asocia alumnos a planes de estudio' },
-      { name: 'Sincronizar escuelas', method: 'PUT', url: '/api/escuelas', requiresBody: false, description: 'Actualiza información de escuelas' }
+      { name: '1. Sincronizar cursos académicos', method: 'POST', url: '/api/cursos-academicos', requiresBody: false, description: 'Crear cursos académicos automáticamente desde OfertaAcademica', isSync: true },
+      { name: '2. Sincronizar escuelas', method: 'POST', url: '/api/escuelas', requiresBody: false, description: 'Importar escuelas desde OfertaAcademica', isSync: true },
+      { name: '3. Sincronizar carreras y planes', method: 'POST', url: '/api/carreras', requiresBody: false, description: 'Importar carreras y planes de estudio automáticamente', isSync: true },
+      { name: '4. Sincronizar estudiantes', method: 'PUT', url: '/api/users', requiresBody: true, description: 'Importar estudiantes desde OfertaAcademica', isSync: true, defaultBody: JSON.stringify({ action: "importStudents" }, null, 2) },
+      { name: '5. Sincronizar profesores', method: 'PUT', url: '/api/users', requiresBody: true, description: 'Importar profesores desde OfertaAcademica', isSync: true, defaultBody: JSON.stringify({ action: "importProfessors" }, null, 2) },
+      { name: '6. Sincronizar alumnos por plan', method: 'PUT', url: '/api/alumnos-plan', requiresBody: false, description: 'Asociar alumnos a planes de estudio', isSync: true },
+      { name: '7. Sincronizar asignaturas', method: 'PUT', url: '/api/asignaturas', requiresBody: false, description: 'Importar asignaturas desde OfertaAcademica', isSync: true },
+      { name: '8. Sincronizar matrículas', method: 'PUT', url: '/api/matriculas', requiresBody: false, description: 'Importar matrículas desde OfertaAcademica', isSync: true },
+      { name: '9. Sincronizar docencia', method: 'PUT', url: '/api/docencia', requiresBody: false, description: 'Importar información de docencia', isSync: true },
+      { name: '10. Sincronizar grupos', method: 'PUT', url: '/api/grupos', requiresBody: false, description: 'Importar grupos de asignaturas', isSync: true }
     ]
   }
 ];
 
-export default function AdminActions() {
-  const [activeEndpoint, setActiveEndpoint] = useState<any>(null);
+export default function AdminActions() {  const [activeEndpoint, setActiveEndpoint] = useState<any>(null);
   const [paramId, setParamId] = useState('');
   const [requestBody, setRequestBody] = useState('');
   const [response, setResponse] = useState<any>(null);
@@ -173,6 +192,13 @@ export default function AdminActions() {
   const [success, setSuccess] = useState('');
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{step: number, total: number, currentName: string, results: {name: string, success: boolean, message: string}[]}>({
+    step: 0,
+    total: 0,
+    currentName: '',
+    results: []
+  });
 
   // Función para ejecutar la llamada a la API
   const executeApiCall = async () => {
@@ -230,12 +256,20 @@ export default function AdminActions() {
     
     setLoading(false);
   };
-
   // Preparar un endpoint seleccionado
   const prepareEndpoint = (endpoint: any) => {
     setActiveEndpoint(endpoint);
     setParamId('');
-    setRequestBody(endpoint.method === 'POST' || endpoint.method === 'PUT' ? '{\n  \n}' : '');
+    
+    // Si el endpoint tiene un cuerpo predeterminado, usarlo
+    if (endpoint.defaultBody) {
+      setRequestBody(endpoint.defaultBody);
+    } else if (endpoint.method === 'POST' || endpoint.method === 'PUT') {
+      setRequestBody('{\n  \n}');
+    } else {
+      setRequestBody('');
+    }
+    
     setResponse(null);
     setError('');
     setSuccess('');
@@ -261,13 +295,100 @@ export default function AdminActions() {
     (selectedCategory === null || category.category === selectedCategory)
   );
   
+  // Función para ejecutar secuencialmente todos los endpoints de sincronización
+  const executeSyncSequence = async () => {
+    // Obtener todos los endpoints de sincronización
+    const syncEndpoints = apiEndpoints.find(cat => cat.category === 'Sincronizar datos')?.endpoints || [];
+    
+    if (syncEndpoints.length === 0) return;
+    
+    setSyncing(true);
+    setSyncProgress({
+      step: 1,
+      total: syncEndpoints.length,
+      currentName: syncEndpoints[0].name,
+      results: []
+    });
+    
+    // Ejecutar cada endpoint en secuencia
+    for (let i = 0; i < syncEndpoints.length; i++) {
+      const endpoint = syncEndpoints[i];
+      
+      setSyncProgress(prev => ({
+        ...prev,
+        step: i + 1,
+        currentName: endpoint.name
+      }));
+      
+      try {
+        // Construir la URL
+        let url = endpoint.url;
+        
+        // Configurar opciones de fetch
+        const options: RequestInit = {
+          method: endpoint.method,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        };
+        
+        // Añadir body si es necesario
+        if (endpoint.requiresBody && endpoint.defaultBody) {
+          options.body = endpoint.defaultBody;
+        }
+        
+        // Realizar la llamada
+        const res = await fetch(url, options);
+        const data = await res.json();
+        
+        // Actualizar resultados
+        setSyncProgress(prev => ({
+          ...prev,
+          results: [
+            ...prev.results, 
+            {
+              name: endpoint.name,
+              success: res.ok,
+              message: res.ok ? 'Operación completada con éxito' : `Error: ${res.status} ${res.statusText}`
+            }
+          ]
+        }));
+        
+        // Si falla, continuar con el siguiente pero registrar el error
+        if (!res.ok) {
+          console.error(`Error en endpoint ${endpoint.name}:`, data);
+        } else {
+          // Esperar un breve momento entre llamadas para evitar sobrecargar el servidor
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+      } catch (err) {
+        setSyncProgress(prev => ({
+          ...prev,
+          results: [
+            ...prev.results, 
+            {
+              name: endpoint.name,
+              success: false,
+              message: `Error: ${err instanceof Error ? err.message : String(err)}`
+            }
+          ]
+        }));
+        
+        console.error(`Error en endpoint ${endpoint.name}:`, err);
+      }
+    }
+    
+    setSyncing(false);
+  };
+  
   return (
     <DashboardContainer roleName="Admin">
-      <div className="bg-gray-50 min-h-full pb-8">
+      <div className="bg-gray-50 min-h-full pb-8 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           {/* Header mejorado con el nuevo estilo */}
           <div className="mb-6 bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-5 text-white">              <div className="flex justify-between items-center">
+            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-5 text-white">
+              <div className="flex justify-between items-center">
                 <div>
                   <h1 className="text-2xl font-bold mb-2 flex items-center">
                     <FaCode className="mr-3" /> 
@@ -654,6 +775,87 @@ export default function AdminActions() {
           </div>
         </div>
       </div>
+      
+      {/* Botón flotante para ejecutar la secuencia de sincronización */}
+      {selectedCategory === 'Sincronizar datos' && (
+        <div className="fixed bottom-8 right-8 z-50">
+          {/* Modal de progreso de sincronización */}
+          {syncing && (
+            <div className="absolute bottom-16 right-0 w-80 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden mb-4">
+              <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
+                <h3 className="font-medium text-gray-800 flex items-center gap-2">
+                  <FaSync className="text-blue-500" /> Sincronización en progreso
+                </h3>
+                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                  {syncProgress.step}/{syncProgress.total}
+                </span>
+              </div>
+              <div className="p-4">
+                <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                    style={{ width: `${(syncProgress.step / syncProgress.total) * 100}%` }}
+                  ></div>
+                </div>
+                
+                <div className="text-sm text-gray-700 mb-3">
+                  <span className="font-medium">Ejecutando:</span> {syncProgress.currentName}
+                </div>
+                
+                {syncProgress.results.length > 0 && (
+                  <div className="mt-3">
+                    <h5 className="text-sm font-medium text-gray-700 mb-2">Resultados:</h5>
+                    <div className="max-h-40 overflow-y-auto">
+                      <ul className="space-y-1">
+                        {syncProgress.results.map((result, idx) => (
+                          <li key={idx} className="text-sm flex items-start">
+                            {result.success ? (
+                              <FaCheckCircle className="text-green-500 mr-1.5 mt-0.5 flex-shrink-0" />
+                            ) : (
+                              <FaTimesCircle className="text-red-500 mr-1.5 mt-0.5 flex-shrink-0" />
+                            )}
+                            <div>
+                              <span className="font-medium">{result.name.replace(/^\d+\.\s+/, '')}</span>
+                              <div className={result.success ? 'text-green-600' : 'text-red-600'}>
+                                {result.message}
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Botón para ejecutar la secuencia */}
+          <button
+            onClick={executeSyncSequence}
+            disabled={syncing}
+            className={`group flex items-center gap-2 px-6 py-3 rounded-full shadow-lg text-white font-medium transition-all transform hover:scale-105 ${
+              syncing ? 'bg-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+            title="Ejecutar todos los endpoints de sincronización en secuencia"
+          >
+            {syncing ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Sincronizando...</span>
+              </>
+            ) : (
+              <>
+                <FaSync className="text-white group-hover:animate-spin" />
+                <span>Sincronizar todo</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </DashboardContainer>
   );
 }

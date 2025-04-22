@@ -297,8 +297,7 @@ export default function AdminUsers() {
     setSelectedUser(null);
     setUpdateMessage(null);
   };
-  
-  // Función para actualizar usuario
+    // Función para actualizar usuario
   const handleUpdateUser = async () => {
     if (!selectedUser) return;
     
@@ -306,9 +305,26 @@ export default function AdminUsers() {
     setUpdateMessage(null);
     
     try {
-      const selectedRoles = Array.from(
-        userRolesRef.current?.selectedOptions || []
-      ).map(option => parseInt(option.value));
+      // Obtener los roles seleccionados
+      let selectedRoles: number[] = [];
+      
+      if (userRolesRef.current) {
+        // Convertir la colección de checkboxes a un array de IDs de roles
+        const checkboxes = document.querySelectorAll('input[name="userRoles"]:checked');
+        selectedRoles = Array.from(checkboxes).map(checkbox => 
+          parseInt((checkbox as HTMLInputElement).value)
+        );
+      }
+      
+      // Asegurarse de que al menos un rol está seleccionado
+      if (selectedRoles.length === 0) {
+        setUpdateMessage({ 
+          text: 'Debe seleccionar al menos un rol para el usuario', 
+          type: 'error' 
+        });
+        setIsUpdating(false);
+        return;
+      }
       
       const updatedData = {
         username: usernameRef.current?.value || selectedUser.username,
@@ -319,36 +335,136 @@ export default function AdminUsers() {
         lockout: lockoutRef.current?.checked || false,
         roles: selectedRoles
       };
-      
-      const response = await fetch(`/api/users/${selectedUser.id}`, {
-        method: 'PATCH',
+        const response = await fetch(`/api/users/${selectedUser.id}`, {
+        method: 'PUT',  // Cambiado de PATCH a PUT para coincidir con el método que acepta la API
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify(updatedData),
-      });
+        body: JSON.stringify(updatedData),      });
 
       if (response.ok) {
-        const updatedUser = await response.json();
-        
-        // Actualizar el usuario en el estado local
-        setUsers(users.map(user => 
-          user.id === selectedUser.id ? { ...user, ...updatedUser } : user
-        ));
+        try {
+          // Intentar parsear la respuesta solo si hay contenido
+          let updatedUser: Partial<User> = {};
+          let text = "";
+          
+          try {
+            // Capturar errores específicamente al leer la respuesta
+            text = await response.text();
+          } catch (readError) {
+            console.log("Error al leer la respuesta:", readError);
+            // Continuar con texto vacío para manejar el caso como respuesta vacía
+          }
+          
+          if (text && text.trim()) {
+            // Solo intentar parsear si el texto no está vacío
+            try {
+              updatedUser = JSON.parse(text) as Partial<User>;
+              
+              // Actualizar el usuario en el estado local con datos de la respuesta
+              setUsers(users.map(user => 
+                user.id === selectedUser.id ? { ...user, ...updatedUser } : user
+              ));
+            } catch (parseError) {
+              console.error("Error al parsear JSON:", parseError, "Texto recibido:", text);
+              // Si hay error de parsing, tratar como respuesta vacía
+            }
+          } else {
+            // Si la respuesta está vacía (lo que es normal), obtener el usuario actualizado
+            try {
+              // Hacer una nueva solicitud para obtener los datos actualizados del usuario
+              const userResponse = await fetch(`/api/users/${selectedUser.id}`, {
+                credentials: 'include',
+                cache: 'no-store'
+              });
+              
+              if (userResponse.ok) {
+                updatedUser = await userResponse.json() as User;
+                
+                // Actualizar el usuario en el estado local
+                setUsers(users.map(user => 
+                  user.id === selectedUser.id ? { ...user, ...updatedUser } : user
+                ));
+              } else {
+                console.warn("No se pudo refrescar el usuario actualizado");
+                
+                // Actualizar el usuario con los datos locales y los roles seleccionados
+                setUsers(users.map(user => {
+                  if (user.id === selectedUser.id) {
+                    // Crear un objeto con los datos actualizados del formulario
+                    const userClone = { ...user };
+                    userClone.username = usernameRef.current?.value || user.username;
+                    userClone.name = nameRef.current?.value || user.name;
+                    userClone.surname1 = surname1Ref.current?.value || user.surname1;
+                    userClone.surname2 = surname2Ref.current?.value || user.surname2;
+                    userClone.email = emailRef.current?.value || user.email;
+                    userClone.lockout = lockoutRef.current?.checked || false;
+                    
+                    // Actualizar los roles basados en las selecciones
+                    userClone.userRoles = selectedRoles.map(roleId => {
+                      const role = roles.find(r => r.id === roleId);
+                      return { role: { id: roleId, name: role?.name || '' } };
+                    });
+                    
+                    return userClone;
+                  }
+                  return user;
+                }));
+              }
+            } catch (refreshError) {
+              console.error("Error al refrescar datos del usuario:", refreshError);
+            }
+          }
+        } catch (parseError) {
+          console.error("Error al parsear respuesta:", parseError);
+          
+          // A pesar del error, la actualización fue exitosa
+          // Intentar refrescar los datos del usuario
+          try {
+            const userResponse = await fetch(`/api/users/${selectedUser.id}`, {
+              credentials: 'include'
+            });
+            const updatedUser = await userResponse.json();
+            
+            setUsers(users.map(user => 
+              user.id === selectedUser.id ? { ...user, ...updatedUser } : user
+            ));
+          } catch (e) {
+            console.warn("No se pudo obtener el usuario actualizado");
+          }
+        }
         
         setUpdateMessage({ text: 'Usuario actualizado correctamente', type: 'success' });
         
         // Esperar 1.5 segundos antes de cerrar el diálogo
         setTimeout(() => {
           handleCloseDialog();
-        }, 1500);
-      } else {
-        const errorData = await response.json();
-        setUpdateMessage({ 
-          text: errorData.message || 'Error al actualizar el usuario', 
-          type: 'error' 
-        });
+        }, 1500);      } else {
+        try {
+          // Intentar obtener datos de error, pero manejar respuestas vacías
+          let errorMessage = 'Error al actualizar el usuario';
+          try {
+            const errorText = await response.text();
+            if (errorText && errorText.trim()) {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.message || errorMessage;
+            }
+          } catch (e) {
+            console.warn("Error al obtener detalles del error:", e);
+          }
+          
+          setUpdateMessage({ 
+            text: errorMessage, 
+            type: 'error' 
+          });
+        } catch (error) {
+          console.error("Error completo al procesar respuesta de error:", error);
+          setUpdateMessage({ 
+            text: 'Error al actualizar el usuario', 
+            type: 'error' 
+          });
+        }
       }
     } catch (error) {
       console.error('Error al actualizar el usuario:', error);
@@ -366,8 +482,7 @@ export default function AdminUsers() {
     setIsCreateDialogOpen(false);
     setCreateMessage(null);
   };
-  
-  // Función para crear un nuevo usuario
+    // Función para crear un nuevo usuario
   const handleCreateUser = async () => {
     setIsCreating(true);
     setCreateMessage(null);
@@ -383,9 +498,11 @@ export default function AdminUsers() {
         return;
       }
       
-      const selectedRoles = Array.from(
-        newUserRolesRef.current?.selectedOptions || []
-      ).map(option => parseInt(option.value));
+      // Obtener los roles seleccionados directamente de los checkboxes
+      const checkboxes = document.querySelectorAll('input[name="newUserRoles"]:checked');
+      const selectedRoles: number[] = Array.from(checkboxes).map(checkbox => 
+        parseInt((checkbox as HTMLInputElement).value)
+      );
       
       if (selectedRoles.length === 0) {
         setCreateMessage({ 
@@ -607,39 +724,65 @@ export default function AdminUsers() {
                             className="px-6 py-4 whitespace-nowrap text-sm font-medium cursor-pointer"
                             onClick={() => handleRowClick(user)}
                           >
-                            {user.username}
-                          </td>
-                          <td 
+                            {user.username}                          </td><td 
                             className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
                             onClick={() => handleRowClick(user)}
                           >
                             {[user.name, user.surname1, user.surname2].filter(Boolean).join(' ')}
-                          </td>
-                          <td 
+                          </td><td 
                             className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
                             onClick={() => handleRowClick(user)}
                           >
                             {user.email}
-                          </td>
-                          <td 
-                            className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
+                          </td><td 
+                            className="px-6 py-4 text-sm text-gray-500 cursor-pointer"
                             onClick={() => handleRowClick(user)}
                           >
-                            <div className="flex flex-wrap gap-1">
-                              {user.userRoles.map(ur => (
+                            {user.userRoles.length <= 2 ? (
+                              // Si hay 1 o 2 roles, mostrarlos todos en línea
+                              <div className="flex flex-wrap gap-1">
+                                {user.userRoles.map(ur => (
+                                  <span 
+                                    key={ur.role.id} 
+                                    className={`px-2 py-1 text-xs rounded-full ${
+                                      ur.role.name === 'Admin' ? 'bg-red-100 text-red-800' : 
+                                      ur.role.name === 'Profesor' ? 'bg-blue-100 text-blue-800' : 
+                                      ur.role.name === 'Alumno' ? 'bg-green-100 text-green-800' : 
+                                      ur.role.name === 'PEC' ? 'bg-purple-100 text-purple-800' :
+                                      ur.role.name === 'Manager' ? 'bg-amber-100 text-amber-800' :
+                                      'bg-gray-100 text-gray-800'
+                                    }`}
+                                  >
+                                    {ur.role.name}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              // Si hay más de 2 roles, mostrar los 2 primeros y un +X más
+                              <div className="flex items-center gap-1">
+                                {user.userRoles.slice(0, 2).map(ur => (
+                                  <span 
+                                    key={ur.role.id} 
+                                    className={`px-2 py-1 text-xs rounded-full ${
+                                      ur.role.name === 'Admin' ? 'bg-red-100 text-red-800' : 
+                                      ur.role.name === 'Profesor' ? 'bg-blue-100 text-blue-800' : 
+                                      ur.role.name === 'Alumno' ? 'bg-green-100 text-green-800' : 
+                                      ur.role.name === 'PEC' ? 'bg-purple-100 text-purple-800' :
+                                      ur.role.name === 'Manager' ? 'bg-amber-100 text-amber-800' :
+                                      'bg-gray-100 text-gray-800'
+                                    }`}
+                                  >
+                                    {ur.role.name}
+                                  </span>
+                                ))}
                                 <span 
-                                  key={ur.role.id} 
-                                  className={`px-2 py-1 text-xs rounded-full ${
-                                    ur.role.name === 'Admin' ? 'bg-red-100 text-red-800' : 
-                                    ur.role.name === 'Profesor' ? 'bg-blue-100 text-blue-800' : 
-                                    ur.role.name === 'Alumno' ? 'bg-green-100 text-green-800' : 
-                                    'bg-gray-100 text-gray-800'
-                                  }`}
+                                  className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800 cursor-pointer"
+                                  title={user.userRoles.slice(2).map(ur => ur.role.name).join(', ')}
                                 >
-                                  {ur.role.name}
+                                  +{user.userRoles.length - 2} más
                                 </span>
-                              ))}
-                            </div>
+                              </div>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex justify-end space-x-2">
@@ -794,22 +937,68 @@ export default function AdminUsers() {
                     />
                   </div>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Roles</label>
-                  <select
-                    multiple
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    defaultValue={selectedUser.userRoles.map(ur => ur.role.id.toString())}
-                    ref={userRolesRef}
-                  >
-                    {roles.map(role => (
-                      <option key={role.id} value={role.id.toString()}>
-                        {role.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">Mantén presionado Ctrl (o Cmd en Mac) para seleccionar múltiples roles</p>
+                  <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Roles</label>
+                  <div className="border border-gray-300 rounded-md p-3 bg-gray-50 flex flex-wrap gap-2">
+                    {roles.map(role => {
+                      const isChecked = selectedUser.userRoles.some(ur => ur.role.id === role.id);
+                      return (
+                        <label 
+                          key={role.id} 
+                          className={`flex items-center px-3 py-2 rounded-md cursor-pointer transition-colors border ${
+                            isChecked 
+                              ? 'bg-blue-50 border-blue-200 shadow-sm' 
+                              : 'bg-white border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            name="userRoles"
+                            value={role.id.toString()}
+                            defaultChecked={isChecked}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            ref={el => {
+                              // Crear/actualizar un array para los checkboxes
+                              if (el && !userRolesRef.current) {
+                                userRolesRef.current = document.createElement('select');
+                                userRolesRef.current.multiple = true;
+                              }
+                            }}
+                            onChange={(e) => {
+                              // Simular el comportamiento de un select múltiple
+                              if (!userRolesRef.current) return;
+                              
+                              const option = Array.from(userRolesRef.current.options).find(
+                                opt => opt.value === role.id.toString()
+                              );
+                              
+                              if (!option) {
+                                const newOption = document.createElement('option');
+                                newOption.value = role.id.toString();
+                                newOption.selected = e.target.checked;
+                                userRolesRef.current.add(newOption);
+                              } else {
+                                option.selected = e.target.checked;
+                              }
+                            }}
+                          />
+                          <span 
+                            className={`ml-2 ${
+                              role.name === 'Admin' ? 'text-red-700' : 
+                              role.name === 'Profesor' ? 'text-blue-700' : 
+                              role.name === 'Alumno' ? 'text-green-700' : 
+                              role.name === 'PEC' ? 'text-purple-700' :
+                              role.name === 'Manager' ? 'text-amber-700' :
+                              'text-gray-700'
+                            }`}
+                          >
+                            {role.name}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Selecciona todos los roles que deseas asignar a este usuario</p>
                 </div>
                 
                 <div>
@@ -949,22 +1138,60 @@ export default function AdminUsers() {
                     />
                   </div>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Roles *</label>
-                  <select
-                    multiple
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    ref={newUserRolesRef}
-                    required
-                  >
+                  <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Roles *</label>
+                  <div className="border border-gray-300 rounded-md p-3 bg-gray-50 flex flex-wrap gap-2">
                     {roles.map(role => (
-                      <option key={role.id} value={role.id.toString()}>
-                        {role.name}
-                      </option>
+                      <label 
+                        key={role.id} 
+                        className="flex items-center px-3 py-2 rounded-md cursor-pointer transition-colors border bg-white border-gray-200 hover:bg-gray-50"
+                      >
+                        <input
+                          type="checkbox"
+                          name="newUserRoles"
+                          value={role.id.toString()}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          ref={el => {
+                            // Crear/actualizar un array para los checkboxes
+                            if (el && !newUserRolesRef.current) {
+                              newUserRolesRef.current = document.createElement('select');
+                              newUserRolesRef.current.multiple = true;
+                            }
+                          }}
+                          onChange={(e) => {
+                            // Simular el comportamiento de un select múltiple
+                            if (!newUserRolesRef.current) return;
+                            
+                            const option = Array.from(newUserRolesRef.current.options).find(
+                              opt => opt.value === role.id.toString()
+                            );
+                            
+                            if (!option) {
+                              const newOption = document.createElement('option');
+                              newOption.value = role.id.toString();
+                              newOption.selected = e.target.checked;
+                              newUserRolesRef.current.add(newOption);
+                            } else {
+                              option.selected = e.target.checked;
+                            }
+                          }}
+                        />
+                        <span 
+                          className={`ml-2 ${
+                            role.name === 'Admin' ? 'text-red-700' : 
+                            role.name === 'Profesor' ? 'text-blue-700' : 
+                            role.name === 'Alumno' ? 'text-green-700' : 
+                            role.name === 'PEC' ? 'text-purple-700' :
+                            role.name === 'Manager' ? 'text-amber-700' :
+                            'text-gray-700'
+                          }`}
+                        >
+                          {role.name}
+                        </span>
+                      </label>
                     ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">Mantén presionado Ctrl (o Cmd en Mac) para seleccionar múltiples roles</p>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Selecciona todos los roles que deseas asignar a este usuario</p>
                 </div>
                 
                 <div>

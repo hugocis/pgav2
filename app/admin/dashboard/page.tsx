@@ -543,7 +543,7 @@ export default function AdminDashboard() {
                     </Link>
 
                     <Link href="/admin/configuracion-carreras"
-                      className="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-100 hover:border-[#0D3C68] hover:shadow-sm transition-all duration-200 group"
+                      className="flex flex-col items-center justify-center text-center p-4 rounded-lg border border-gray-100 hover:border-[#0D3C68] hover:shadow-sm transition-all duration-200 group"
                     >
                       <div className="bg-orange-100 p-3 rounded-full group-hover:bg-orange-200 transition-colors duration-200">
                         <svg className="h-5 w-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
