@@ -398,8 +398,7 @@ export default function AdminDashboard() {
                     <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
-                  </div>
-                  <div className="ml-5">
+                  </div>                  <div className="ml-5">
                     <p className="text-sm font-medium text-gray-500">Usuarios Registrados</p>
                     <div className="mt-1 flex items-baseline">
                       <p className="text-2xl font-semibold text-gray-900">{stats.totalUsers}</p>
@@ -417,7 +416,7 @@ export default function AdminDashboard() {
                       )}
                     </div>
                     <p className="mt-1 text-sm text-blue-600">
-                      <Link href="/admin/users/new" className="hover:underline">Añadir usuario</Link>
+                      Total usuarios del sistema
                     </p>
                   </div>
                 </div>
@@ -438,36 +437,35 @@ export default function AdminDashboard() {
                   <svg className="w-full h-full" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 005.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z"></path>
                   </svg>
-                </div>
-                <div className="flex items-center">
+                </div>                <div className="flex items-center">
                   <div className="flex-shrink-0 bg-gradient-to-br from-green-400 to-green-600 rounded-full p-3">
                     <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
                   </div>
                   <div className="ml-5">
-                    <p className="text-sm font-medium text-gray-500">Asignaturas</p>
+                    <p className="text-sm font-medium text-gray-500">Docencias</p>
                     <div className="mt-1 flex items-baseline">
                       <p className="text-2xl font-semibold text-gray-900">{stats.totalSubjects}</p>
                       {stats.subjectDistribution && stats.subjectDistribution.length > 0 && (
                         <p className="ml-2 text-xs text-gray-500">
-                          Promedio: {Math.round(stats.subjectDistribution.reduce((acc, curr) => acc + curr.students, 0) / stats.subjectDistribution.length)} estudiantes/asignatura
+                          Asignaciones activas
                         </p>
                       )}
                     </div>
                     <p className="mt-1 text-sm text-green-600">
                       <button 
-                        onClick={() => callApi('asignaturas', 'Poblar Asignaturas')}
+                        onClick={() => callApi('docencia', 'Administrar Docencias')}
                         className="inline-flex items-center hover:underline"
                       >
-                        Sincronizar asignaturas
+                        Gestionar docencias
                       </button>
                     </p>
                   </div>
                 </div>
                 <div className="mt-4 border-t border-gray-100 pt-4">
-                  <Link href="/admin/asignaturas" className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 rounded-md hover:bg-green-100 transition-colors duration-200">
-                    Ver asignaturas
+                  <Link href="/admin/docencia" className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 rounded-md hover:bg-green-100 transition-colors duration-200">
+                    Ver docencias
                     <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
                     </svg>
@@ -482,36 +480,35 @@ export default function AdminDashboard() {
                   <svg className="w-full h-full" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path>
                   </svg>
-                </div>
-                <div className="flex items-center">
+                </div>                <div className="flex items-center">
                   <div className="flex-shrink-0 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full p-3">
                     <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                     </svg>
                   </div>
                   <div className="ml-5">
-                    <p className="text-sm font-medium text-gray-500">Profesores</p>
+                    <p className="text-sm font-medium text-gray-500">Matrículas</p>
                     <div className="mt-1 flex items-baseline">
                       <p className="text-2xl font-semibold text-gray-900">{stats.totalTeachers}</p>
                       {stats.subjectDistribution && stats.subjectDistribution.length > 0 && (
                         <p className="ml-2 text-xs text-gray-500">
-                          {Math.round((stats.totalSubjects / stats.totalTeachers) * 10) / 10} asignaturas/profesor
+                          Matrículas activas
                         </p>
                       )}
                     </div>
                     <p className="mt-1 text-sm text-purple-600">
                       <button 
-                        onClick={() => callApi('user-roles', 'Poblar Roles de Usuario')}
+                        onClick={() => callApi('matriculas', 'Administrar Matrículas')}
                         className="inline-flex items-center hover:underline"
                       >
-                        Sincronizar roles
+                        Gestionar matrículas
                       </button>
                     </p>
                   </div>
                 </div>
                 <div className="mt-4 border-t border-gray-100 pt-4">
-                  <Link href="/admin/users?role=Profesor" className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-600 bg-purple-50 rounded-md hover:bg-purple-100 transition-colors duration-200">
-                    Ver profesores
+                  <Link href="/admin/matriculas" className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-600 bg-purple-50 rounded-md hover:bg-purple-100 transition-colors duration-200">
+                    Ver matrículas
                     <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
                     </svg>
@@ -532,18 +529,28 @@ export default function AdminDashboard() {
                   <Link href="/admin/actions" className="text-sm font-medium text-[#0D3C68] hover:text-opacity-75 transition-opacity">
                     Ver todas
                   </Link>
-                </div>
-                <div className="p-5">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <Link href="/admin/users/new"
+                </div>                <div className="p-5">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Link href="/admin/curso-academico"
                       className="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-100 hover:border-[#0D3C68] hover:shadow-sm transition-all duration-200 group"
                     >
-                      <div className="bg-blue-100 p-3 rounded-full group-hover:bg-blue-200 transition-colors duration-200">
-                        <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                      <div className="bg-yellow-100 p-3 rounded-full group-hover:bg-yellow-200 transition-colors duration-200">
+                        <svg className="h-5 w-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <span className="mt-2 text-sm font-medium text-gray-700 group-hover:text-[#0D3C68] transition-colors duration-200">Nuevo Usuario</span>
+                      <span className="mt-2 text-sm font-medium text-gray-700 group-hover:text-[#0D3C68] transition-colors duration-200">Curso Académico</span>
+                    </Link>
+
+                    <Link href="/admin/configuracion-carreras"
+                      className="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-100 hover:border-[#0D3C68] hover:shadow-sm transition-all duration-200 group"
+                    >
+                      <div className="bg-orange-100 p-3 rounded-full group-hover:bg-orange-200 transition-colors duration-200">
+                        <svg className="h-5 w-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                      </div>
+                      <span className="mt-2 text-sm font-medium text-gray-700 group-hover:text-[#0D3C68] transition-colors duration-200">Configuración Carreras</span>
                     </Link>
 
                     <Link href="/admin/users"

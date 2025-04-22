@@ -5,19 +5,11 @@ import prisma from '@/lib/prisma';
 export async function GET() {
   try {
     // Consultar el total de usuarios
-    const totalUsers = await prisma.user.count();
+    const totalUsers = await prisma.user.count();    // Consultar el total de docencias
+    const totalDocencias = await prisma.docencia.count();
 
-    // Consultar el total de asignaturas
-    const totalSubjects = await prisma.asignatura.count();
-
-    // Consultar el total de profesores (usuarios con rol 'Profesor')
-    const totalTeachers = await prisma.userRole.count({
-      where: {
-        role: {
-          name: 'Profesor'
-        }
-      }
-    });
+    // Consultar el total de matrículas
+    const totalMatriculas = await prisma.matricula.count();
 
     // Obtener los usuarios más recientes
     const recentUsers = await prisma.user.findMany({
@@ -42,9 +34,7 @@ export async function GET() {
       username: user.username,
       roles: user.userRoles.map(ur => ur.role.name),
       createdAt: user.createdAt.toISOString(),
-    }));
-
-    // Obtener estadísticas de distribución de roles
+    }));    // Obtener estadísticas de distribución de roles
     const roleStats = await prisma.role.findMany({
       include: {
         userRoles: true,
@@ -55,23 +45,34 @@ export async function GET() {
       role: role.name,
       count: role.userRoles.length,
     }));
-
-    // Obtener distribución de estudiantes por asignatura
-    const subjectStats = await prisma.asignatura.findMany({
-      include: {
-        Matricula: true,
-        Docencia: true,
+    
+    // Obtener distribución de docencias por asignatura
+    const subjectStats = await prisma.docencia.findMany({
+      take: 20, // Limitamos a 20 docencias
+      orderBy: { 
+        createdAt: 'desc' 
       },
-      take: 20, // Limitamos a 20 asignaturas para no sobrecargar la respuesta
-      orderBy: {
-        createdAt: 'desc'
-      }
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            surname1: true,
+            surname2: true,
+          }
+        },
+        asignatura: {
+          include: {
+            Matricula: true,
+          }
+        }
+      },
     });
 
-    const subjectDistribution = subjectStats.map(subject => ({
-      name: subject.Denominacion,
-      students: subject.Matricula.length,
-      teachers: subject.Docencia.length,
+    const subjectDistribution = subjectStats.map(docencia => ({
+      name: docencia.asignatura?.Denominacion || 'Sin nombre',
+      students: docencia.asignatura?.Matricula.length || 0,
+      teachers: 1, // Cada docencia representa un profesor
     }));
 
     // Obtener logs de actividad reciente de la tabla ActivityLog
@@ -93,13 +94,11 @@ export async function GET() {
       action: log.action,
       target: log.entityType,
       createdAt: log.timestamp.toISOString(),
-    }));
-
-    // Estructura completa de respuesta
+    }));    // Estructura completa de respuesta
     const stats = {
       totalUsers,
-      totalSubjects,
-      totalTeachers,
+      totalSubjects: totalDocencias, // Usar docencias en lugar de asignaturas
+      totalTeachers: totalMatriculas, // Usar matrículas en lugar de profesores
       recentUsers: formattedRecentUsers,
       recentActivity,
       usersByRole,

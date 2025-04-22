@@ -15,7 +15,9 @@ import {
   FaPlay,
   FaCheckCircle,
   FaTimesCircle,
-  FaCode
+  FaCode,
+  FaSync,
+  FaChevronLeft
 } from 'react-icons/fa';
 
 // Definición de los endpoints
@@ -145,6 +147,19 @@ const apiEndpoints = [
       { name: 'Estadísticas', method: 'GET', url: '/api/stats', requiresBody: false },
       { name: 'Carga de datos', method: 'POST', url: '/api/carga-datos', requiresBody: true }
     ]
+  },
+  {
+    category: 'Sincronizar datos',
+    icon: <FaSync className="text-blue-500" />,
+    endpoints: [
+      { name: 'Sincronizar asignaturas', method: 'PUT', url: '/api/asignaturas', requiresBody: false, description: 'Crea asignaturas desde OfertaAcademica' },
+      { name: 'Sincronizar grupos', method: 'PUT', url: '/api/grupos', requiresBody: false, description: 'Sincroniza grupos de asignaturas' },
+      { name: 'Sincronizar matrículas', method: 'PUT', url: '/api/matriculas', requiresBody: false, description: 'Sincroniza información de matrículas' },
+      { name: 'Sincronizar docencia', method: 'PUT', url: '/api/docencia', requiresBody: false, description: 'Actualiza información de docencia' },
+      { name: 'Sincronizar usuarios', method: 'PUT', url: '/api/users', requiresBody: false, description: 'Actualización masiva de usuarios' },
+      { name: 'Sincronizar alumnos por plan', method: 'PUT', url: '/api/alumnos-plan', requiresBody: false, description: 'Asocia alumnos a planes de estudio' },
+      { name: 'Sincronizar escuelas', method: 'PUT', url: '/api/escuelas', requiresBody: false, description: 'Actualiza información de escuelas' }
+    ]
   }
 ];
 
@@ -156,6 +171,8 @@ export default function AdminActions() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [filterQuery, setFilterQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Función para ejecutar la llamada a la API
   const executeApiCall = async () => {
@@ -223,15 +240,13 @@ export default function AdminActions() {
     setError('');
     setSuccess('');
   };
-  const [filterQuery, setFilterQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilterQuery(e.target.value.toLowerCase());
   };
   
+  // Filtrar endpoints basados en la búsqueda y categoría seleccionada
   const filteredEndpoints = apiEndpoints.map(category => {
-    // Filter endpoints based on search query
     const filtered = {
       ...category,
       endpoints: category.endpoints.filter(endpoint => 
@@ -242,349 +257,400 @@ export default function AdminActions() {
     };
     return filtered;
   }).filter(category => 
-    // Show category if it has matching endpoints or if no search is active
     category.endpoints.length > 0 && 
     (selectedCategory === null || category.category === selectedCategory)
   );
   
   return (
     <DashboardContainer roleName="Admin">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 bg-gradient-to-r from-blue-700 to-indigo-800 rounded-lg shadow-lg p-6 text-white">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <FaCog className="text-white" /> 
-            Centro de Control API
-          </h1>
-          <p className="mt-2 text-blue-100">
-            Interactúa directamente con todas las APIs del sistema de forma sencilla y efectiva
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Panel lateral de endpoints */}
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden lg:col-span-1 border border-gray-200">
-            <div className="p-4 border-b bg-gray-50">
-              <div className="relative mb-2">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaSearch className="text-gray-400" />
+      <div className="bg-gray-50 min-h-full pb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          {/* Header mejorado con el nuevo estilo */}
+          <div className="mb-6 bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-5 text-white">              <div className="flex justify-between items-center">
+                <div>
+                  <h1 className="text-2xl font-bold mb-2 flex items-center">
+                    <FaCode className="mr-3" /> 
+                    Centro de Control API
+                  </h1>
+                  <p className="text-blue-100 text-sm">Interactúa directamente con todas las APIs del sistema de forma sencilla y efectiva</p>
                 </div>
-                <input 
-                  type="text" 
-                  placeholder="Buscar endpoint..." 
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 text-sm transition duration-150 ease-in-out"
-                  onChange={handleSearch}
-                  value={filterQuery}
-                />
-              </div>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {selectedCategory ? (
+                <div className="flex items-center gap-3">
                   <button 
-                    onClick={() => setSelectedCategory(null)}
-                    className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200"
+                    onClick={() => history.back()}
+                    className="bg-white/10 hover:bg-white/20 transition-colors duration-200 rounded-lg px-3 py-2 flex items-center"
                   >
-                    {selectedCategory} ×
+                    <FaChevronLeft className="h-4 w-4 mr-2" /> 
+                    Volver
                   </button>
+                  <div className="bg-white/10 rounded-full p-3">
+                    <FaCog className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Línea decorativa */}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
+            </div>
+          </div>
+
+          {/* Panel de categorías de API */}
+          <div className="mb-6 bg-white rounded-lg shadow-sm p-4">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">Categorías de API</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {apiEndpoints.map((category, idx) => (
+                <button 
+                  key={idx}
+                  onClick={() => setSelectedCategory(selectedCategory === category.category ? null : category.category)}
+                  className={`flex items-center p-3 rounded-lg transition-all ${
+                    selectedCategory === category.category 
+                      ? 'bg-blue-100 text-blue-800 border border-blue-200 shadow-sm' 
+                      : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-blue-50 hover:border-blue-100'
+                  }`}
+                >
+                  <div className="mr-3">
+                    {category.icon}
+                  </div>
+                  <div className="text-left">
+                    <span className="font-medium text-sm">{category.category}</span>
+                    <div className="text-xs text-gray-500 mt-0.5">{category.endpoints.length} endpoints</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Panel lateral de endpoints mejorado */}
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden lg:col-span-1 border border-gray-200">
+              <div className="p-4 bg-gray-50 border-b border-gray-200">
+                <div className="relative mb-2">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaSearch className="text-gray-400" />
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder="Buscar endpoint..." 
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 text-sm transition duration-150 ease-in-out"
+                    onChange={handleSearch}
+                    value={filterQuery}
+                  />
+                </div>
+                {selectedCategory && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    <button 
+                      onClick={() => setSelectedCategory(null)}
+                      className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 hover:bg-blue-200"
+                    >
+                      {selectedCategory} <span className="ml-1">×</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 400px)' }}>
+                {filteredEndpoints.length > 0 ? (
+                  filteredEndpoints.map((category, idx) => (
+                    <div key={idx} className="border-b last:border-0">
+                      <div className="p-3 bg-gradient-to-r from-gray-50 to-white flex items-center gap-2 border-l-4 border-blue-500">
+                        {category.icon}
+                        <h3 className="font-medium text-gray-800">{category.category}</h3>
+                        <span className="ml-auto bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full">
+                          {category.endpoints.length}
+                        </span>
+                      </div>
+                      <ul className="divide-y divide-gray-100">
+                        {category.endpoints.map((endpoint, endpointIdx) => (
+                          <li 
+                            key={endpointIdx} 
+                            className={`px-3 py-2.5 hover:bg-blue-50 cursor-pointer flex items-center justify-between transition-colors ${
+                              activeEndpoint === endpoint ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                            }`}
+                            onClick={() => prepareEndpoint(endpoint)}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className={`inline-flex items-center justify-center w-16 text-xs font-medium px-2 py-1 rounded ${
+                                endpoint.method === 'GET' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                endpoint.method === 'POST' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                endpoint.method === 'PUT' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                                'bg-red-100 text-red-800 border border-red-200'
+                              }`}>{endpoint.method}</span>
+                              <span className="text-sm font-medium text-gray-700 truncate max-w-[180px]">
+                                {endpoint.name}
+                              </span>
+                            </div>
+                            {activeEndpoint === endpoint && (
+                              <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))
                 ) : (
-                  <div className="flex overflow-x-auto gap-1 py-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-                    {apiEndpoints.map((cat, idx) => (
+                  <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                    <FaSearch className="text-gray-300 text-4xl mb-3" />
+                    <p className="text-gray-500 mb-2">No se encontraron endpoints que coincidan con tu búsqueda</p>
+                    <button 
+                      onClick={() => {setFilterQuery(''); setSelectedCategory(null);}}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      Limpiar búsqueda
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Panel de detalles y ejecución mejorado */}
+            <div className="lg:col-span-2">
+              {!activeEndpoint ? (
+                <div className="bg-white rounded-lg shadow-sm p-6 text-center border border-gray-200">
+                  <div className="bg-blue-50 rounded-full w-20 h-20 mx-auto mb-5 flex items-center justify-center">
+                    <FaCode className="h-10 w-10 text-blue-500" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-800">Bienvenido al Centro de Control API</h3>
+                  <p className="text-gray-600 mt-3 max-w-md mx-auto">
+                    Selecciona un endpoint del panel izquierdo para comenzar a interactuar con la API del sistema
+                  </p>
+                  <div className="mt-6 flex flex-wrap gap-3 justify-center">
+                    {apiEndpoints.slice(0, 4).map((category, idx) => (
                       <button 
                         key={idx}
-                        onClick={() => setSelectedCategory(cat.category)}
-                        className="flex-shrink-0 px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 hover:bg-blue-100 hover:text-blue-800 transition-colors"
+                        onClick={() => setSelectedCategory(category.category)} 
+                        className="px-4 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700 transition-colors flex items-center gap-2"
                       >
-                        {cat.category}
+                        {category.icon} {category.category}
                       </button>
                     ))}
                   </div>
-                )}
-              </div>
-            </div>            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
-              {filteredEndpoints.length > 0 ? (
-                filteredEndpoints.map((category, idx) => (
-                  <div key={idx} className="border-b last:border-0">
-                    <div className="p-3 bg-gradient-to-r from-gray-50 to-gray-100 flex items-center gap-2 border-l-4 border-blue-500">
-                      {category.icon}
-                      <h3 className="font-medium text-gray-800">{category.category}</h3>
-                      <span className="ml-auto bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full">
-                        {category.endpoints.length}
-                      </span>
-                    </div>
-                    <ul className="divide-y divide-gray-100">
-                      {category.endpoints.map((endpoint, endpointIdx) => (
-                        <li 
-                          key={endpointIdx} 
-                          className={`px-3 py-2.5 hover:bg-blue-50 cursor-pointer flex items-center justify-between transition-colors ${
-                            activeEndpoint === endpoint ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-                          }`}
-                          onClick={() => prepareEndpoint(endpoint)}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <span className={`inline-flex items-center justify-center w-16 text-xs font-medium px-2 py-1 rounded ${
-                              endpoint.method === 'GET' ? 'bg-green-100 text-green-800 border border-green-200' :
-                              endpoint.method === 'POST' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
-                              endpoint.method === 'PUT' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
-                              'bg-red-100 text-red-800 border border-red-200'
-                            }`}>{endpoint.method}</span>
-                            <span className="text-sm font-medium text-gray-700 truncate max-w-[180px]">
-                              {endpoint.name}
-                            </span>
-                          </div>
-                          {activeEndpoint === endpoint && (
-                            <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))
+                </div>
               ) : (
-                <div className="flex flex-col items-center justify-center p-8 text-center">
-                  <FaSearch className="text-gray-300 text-4xl mb-2" />
-                  <p className="text-gray-500">No se encontraron endpoints que coincidan con tu búsqueda</p>
+                <div className="space-y-5">
+                  {/* Detalles del endpoint */}
+                  <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+                    <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <span className={`inline-block text-xs font-medium px-3 py-1.5 rounded-full ${
+                          activeEndpoint.method === 'GET' ? 'bg-green-100 text-green-800 border border-green-200' :
+                          activeEndpoint.method === 'POST' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                          activeEndpoint.method === 'PUT' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                          'bg-red-100 text-red-800 border border-red-200'
+                        }`}>{activeEndpoint.method}</span>
+                        <h3 className="font-semibold text-gray-800 text-lg">{activeEndpoint.name}</h3>
+                      </div>
+                      <button
+                        onClick={() => setActiveEndpoint(null)} 
+                        className="text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 p-1"
+                        title="Cerrar"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="p-5">
+                      <div className="mb-5">
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="text-sm font-medium text-gray-700">URL de la petición:</h4>
+                          <button 
+                            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition-colors"
+                            onClick={() => {
+                              let url = activeEndpoint.url;
+                              if (activeEndpoint.paramId && paramId) {
+                                url = url.replace(':id', paramId);
+                              }
+                              navigator.clipboard.writeText(url);
+                            }}
+                          >
+                            Copiar URL
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <code className="block bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm font-mono overflow-x-auto">
+                            {activeEndpoint.url}
+                          </code>
+                        </div>
+                      </div>
+
+                      {/* Campo para ID si es necesario */}
+                      {activeEndpoint.paramId && (
+                        <div className="mb-5">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">ID del recurso:</label>
+                          <div className="mt-1 relative rounded-md shadow-sm">
+                            <input
+                              type="text"
+                              value={paramId}
+                              onChange={(e) => setParamId(e.target.value)}
+                              placeholder="Introduce el ID"
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all"
+                            />
+                            {paramId && (
+                              <button
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                onClick={() => setParamId('')}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                          <p className="mt-1 text-xs text-gray-500">Este ID reemplazará el parámetro :id en la URL</p>
+                        </div>
+                      )}
+
+                      {/* Cuerpo de la petición si es necesario */}
+                      {activeEndpoint.requiresBody && (
+                        <div className="mb-5">
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="block text-sm font-medium text-gray-700">Cuerpo de la petición (JSON):</label>
+                            <div className="flex gap-2">
+                              <button 
+                                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition-colors"
+                                onClick={() => {
+                                  try {
+                                    const formatted = JSON.stringify(JSON.parse(requestBody), null, 2);
+                                    setRequestBody(formatted);
+                                  } catch (e) {}
+                                }}
+                              >
+                                Formatear
+                              </button>
+                              <button 
+                                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition-colors"
+                                onClick={() => setRequestBody('{\n  \n}')}
+                              >
+                                Limpiar
+                              </button>
+                            </div>
+                          </div>
+                          <textarea
+                            value={requestBody}
+                            onChange={(e) => setRequestBody(e.target.value)}
+                            rows={6}
+                            className="w-full p-4 border border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            spellCheck="false"
+                          />
+                        </div>
+                      )}
+
+                      <div className="mt-5 flex flex-col sm:flex-row sm:justify-end gap-3">
+                        <button
+                          onClick={() => setActiveEndpoint(null)}
+                          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={executeApiCall}
+                          disabled={loading}
+                          className="px-6 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:bg-blue-300 flex items-center justify-center gap-2"
+                        >
+                          {loading ? (
+                            <>
+                              <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Procesando...
+                            </>
+                          ) : (
+                            <>
+                              <FaPlay className="text-sm" /> Ejecutar petición
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Respuesta */}
+                  {(response || error || success) && (
+                    <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+                      <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
+                        <h3 className="font-medium text-gray-800 flex items-center gap-2">
+                          {response && (
+                            <span className={`h-2 w-2 rounded-full ${
+                              response.status >= 200 && response.status < 300 
+                                ? 'bg-green-500' 
+                                : 'bg-red-500'
+                            }`}></span>
+                          )}
+                          Respuesta
+                        </h3>
+                        <div className="text-xs text-gray-500">
+                          {new Date().toLocaleTimeString()}
+                        </div>
+                      </div>
+                      <div className="p-5">
+                        {/* Mensajes de error o éxito */}
+                        {error && (
+                          <div className="mb-5 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-start gap-3">
+                            <FaTimesCircle className="text-red-500 mt-0.5 flex-shrink-0" /> 
+                            <div>
+                              <p className="font-medium">Error en la petición</p>
+                              <p className="text-sm mt-1">{error}</p>
+                            </div>
+                          </div>
+                        )}
+                        {success && (
+                          <div className="mb-5 p-4 bg-green-50 text-green-700 rounded-lg border border-green-200 flex items-start gap-3">
+                            <FaCheckCircle className="text-green-500 mt-0.5 flex-shrink-0" /> 
+                            <div>
+                              <p className="font-medium">Petición exitosa</p>
+                              <p className="text-sm mt-1">{success}</p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Datos de la respuesta */}
+                        {response && (
+                          <div>
+                            <div className="flex justify-between items-center mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-700">Estado:</span>
+                                <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                                  response.status >= 200 && response.status < 300 
+                                    ? 'bg-green-100 text-green-800 border border-green-200' 
+                                    : 'bg-red-100 text-red-800 border border-red-200'
+                                }`}>
+                                  {response.status}
+                                </span>
+                              </div>
+                              <button 
+                                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition-colors"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(JSON.stringify(response.data, null, 2))
+                                }}
+                              >
+                                Copiar JSON
+                              </button>
+                            </div>
+                            
+                            <div>
+                              <div className="flex justify-between items-center mb-2">
+                                <h4 className="text-sm font-medium text-gray-700">Datos recibidos:</h4>
+                                {Array.isArray(response.data) && (
+                                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                    {response.data.length} elementos
+                                  </span>
+                                )}
+                              </div>
+                              <div className="relative">
+                                <pre className="bg-gray-50 p-4 rounded-lg border border-gray-200 overflow-x-auto max-h-[350px] text-sm scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                                  {JSON.stringify(response.data, null, 2)}
+                                </pre>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          </div>          {/* Panel de detalles y ejecución */}
-          <div className="lg:col-span-2">
-            {!activeEndpoint ? (
-              <div className="bg-white rounded-lg shadow-lg p-8 text-center border border-gray-200">
-                <div className="bg-blue-50 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-                  <FaCode className="h-12 w-12 text-blue-500" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-800">Bienvenido al Centro de Control API</h3>
-                <p className="text-gray-600 mt-3 max-w-md mx-auto">
-                  Selecciona un endpoint del panel izquierdo para comenzar a interactuar con la API del sistema
-                </p>
-                <div className="mt-6 flex flex-wrap gap-3 justify-center">
-                  {apiEndpoints.slice(0, 4).map((category, idx) => (
-                    <button 
-                      key={idx}
-                      onClick={() => setSelectedCategory(category.category)} 
-                      className="px-4 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700 transition-colors flex items-center gap-2"
-                    >
-                      {category.icon} {category.category}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Detalles del endpoint */}
-                <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
-                  <div className="p-4 border-b bg-gradient-to-r from-gray-50 to-gray-100 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <span className={`inline-block text-xs font-medium px-3 py-1.5 rounded-full shadow-sm ${
-                        activeEndpoint.method === 'GET' ? 'bg-green-100 text-green-800 border border-green-200' :
-                        activeEndpoint.method === 'POST' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
-                        activeEndpoint.method === 'PUT' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
-                        'bg-red-100 text-red-800 border border-red-200'
-                      }`}>{activeEndpoint.method}</span>
-                      <h3 className="font-semibold text-gray-800 text-lg">{activeEndpoint.name}</h3>
-                    </div>
-                    <button
-                      onClick={() => setActiveEndpoint(null)} 
-                      className="text-gray-400 hover:text-gray-600"
-                      title="Cerrar"
-                    >×</button>
-                  </div>
-                  <div className="p-6">
-                    <div className="mb-6">
-                      <div className="flex justify-between items-center mb-2">
-                        <p className="text-sm font-medium text-gray-700">URL de la petición:</p>
-                        <button 
-                          className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition-colors"
-                          onClick={() => {
-                            let url = activeEndpoint.url;
-                            if (activeEndpoint.paramId && paramId) {
-                              url = url.replace(':id', paramId);
-                            }
-                            navigator.clipboard.writeText(url)
-                          }}
-                        >
-                          Copiar
-                        </button>
-                      </div>
-                      <div className="relative">
-                        <code className="block bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm font-mono overflow-x-auto">
-                          {activeEndpoint.url}
-                        </code>
-                      </div>
-                    </div>
-
-                    {/* Campo para ID si es necesario */}
-                    {activeEndpoint.paramId && (
-                      <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">ID del recurso:</label>
-                        <div className="mt-1 relative rounded-md shadow-sm">
-                          <input
-                            type="text"
-                            value={paramId}
-                            onChange={(e) => setParamId(e.target.value)}
-                            placeholder="Introduce el ID"
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all"
-                          />
-                          {paramId && (
-                            <button
-                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                              onClick={() => setParamId('')}
-                            >
-                              ×
-                            </button>
-                          )}
-                        </div>
-                        <p className="mt-1 text-xs text-gray-500">Este ID reemplazará el parámetro :id en la URL</p>
-                      </div>
-                    )}
-
-                    {/* Cuerpo de la petición si es necesario */}
-                    {activeEndpoint.requiresBody && (
-                      <div className="mb-6">
-                        <div className="flex justify-between items-center mb-2">
-                          <label className="block text-sm font-medium text-gray-700">Cuerpo de la petición (JSON):</label>
-                          <div className="flex gap-2">
-                            <button 
-                              className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition-colors"
-                              onClick={() => {
-                                try {
-                                  const formatted = JSON.stringify(JSON.parse(requestBody), null, 2);
-                                  setRequestBody(formatted);
-                                } catch (e) {}
-                              }}
-                            >
-                              Formatear
-                            </button>
-                            <button 
-                              className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition-colors"
-                              onClick={() => setRequestBody('{\n  \n}')}
-                            >
-                              Limpiar
-                            </button>
-                          </div>
-                        </div>
-                        <textarea
-                          value={requestBody}
-                          onChange={(e) => setRequestBody(e.target.value)}
-                          rows={7}
-                          className="w-full p-4 border border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                          spellCheck="false"
-                        />
-                      </div>
-                    )}
-
-                    <div className="mt-6 flex flex-col sm:flex-row sm:justify-end gap-3">
-                      <button
-                        onClick={() => setActiveEndpoint(null)}
-                        className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={executeApiCall}
-                        disabled={loading}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:bg-blue-300 flex items-center justify-center gap-2"
-                      >
-                        {loading ? (
-                          <>
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Procesando...
-                          </>
-                        ) : (
-                          <>
-                            <FaPlay /> Ejecutar petición
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>                {/* Respuesta */}
-                {(response || error || success) && (
-                  <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
-                    <div className="p-4 border-b bg-gradient-to-r from-gray-50 to-gray-100 flex items-center justify-between">
-                      <h3 className="font-medium text-gray-800 flex items-center gap-2">
-                        {response && (
-                          <span className={`h-2 w-2 rounded-full ${
-                            response.status >= 200 && response.status < 300 
-                              ? 'bg-green-500' 
-                              : 'bg-red-500'
-                          }`}></span>
-                        )}
-                        Respuesta
-                      </h3>
-                      <div className="text-xs text-gray-500">
-                        {new Date().toLocaleTimeString()}
-                      </div>
-                    </div>
-                    <div className="p-6">
-                      {/* Mensajes de error o éxito */}
-                      {error && (
-                        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-start gap-3">
-                          <FaTimesCircle className="text-red-500 mt-0.5 flex-shrink-0" /> 
-                          <div>
-                            <p className="font-medium">Error en la petición</p>
-                            <p className="text-sm mt-1">{error}</p>
-                          </div>
-                        </div>
-                      )}
-                      {success && (
-                        <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg border border-green-200 flex items-start gap-3">
-                          <FaCheckCircle className="text-green-500 mt-0.5 flex-shrink-0" /> 
-                          <div>
-                            <p className="font-medium">Petición exitosa</p>
-                            <p className="text-sm mt-1">{success}</p>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Datos de la respuesta */}
-                      {response && (
-                        <div>
-                          <div className="flex justify-between items-center mb-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-gray-700">Estado:</span>
-                              <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                                response.status >= 200 && response.status < 300 
-                                  ? 'bg-green-100 text-green-800 border border-green-200' 
-                                  : 'bg-red-100 text-red-800 border border-red-200'
-                              }`}>
-                                {response.status}
-                              </span>
-                            </div>
-                            <button 
-                              className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition-colors"
-                              onClick={() => {
-                                navigator.clipboard.writeText(JSON.stringify(response.data, null, 2))
-                              }}
-                            >
-                              Copiar JSON
-                            </button>
-                          </div>
-                          
-                          <div>
-                            <div className="flex justify-between items-center mb-2">
-                              <p className="text-sm font-medium text-gray-700">Datos recibidos:</p>
-                              {Array.isArray(response.data) && (
-                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                                  {response.data.length} elementos
-                                </span>
-                              )}
-                            </div>
-                            <div className="relative">
-                              <pre className="bg-gray-50 p-4 rounded-lg border border-gray-200 overflow-x-auto max-h-[400px] text-sm scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                                {JSON.stringify(response.data, null, 2)}
-                              </pre>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>

@@ -135,9 +135,24 @@ export default function AdminCursoAcademico() {
       });
     }
   };
-
   const handleActivateCurso = async (cursoId: number, currentStatus: boolean) => {
     try {
+      // Si vamos a desactivar un curso, verificamos que haya al menos otro curso disponible para activar
+      if (currentStatus) {
+        // Verificar si hay otros cursos académicos disponibles
+        if (cursosAcademicos.length <= 1) {
+          alert('No se puede desactivar este curso académico porque es el único en el sistema. Debe mantener al menos un curso académico activo.');
+          return;
+        }
+        
+        // Verificar si este es el único curso activo
+        const activeCursos = cursosAcademicos.filter(curso => curso.activo);
+        if (activeCursos.length === 1 && activeCursos[0].id === cursoId) {
+          alert('No se puede desactivar este curso académico porque es el único activo. Debe activar otro curso académico primero.');
+          return;
+        }
+      }
+
       // Si vamos a activar un curso, confirmamos que se desactivarán los demás
       if (!currentStatus) {
         if (!confirm('Al activar este curso académico, se desactivarán todos los demás. ¿Desea continuar?')) {
@@ -374,6 +389,68 @@ export default function AdminCursoAcademico() {
     }
   };
 
+  // Función para manejar la creación automática de cursos académicos
+  const [isCreatingAuto, setIsCreatingAuto] = useState(false);
+  const [autoCreationMessage, setAutoCreationMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  const handleAutoCreateCurso = async () => {
+    if (!confirm('Esta acción creará automáticamente cursos académicos basados en los datos de la oferta académica. ¿Desea continuar?')) {
+      return;
+    }
+
+    setIsCreatingAuto(true);
+    setAutoCreationMessage(null);
+
+    try {
+      // Enviar una solicitud POST vacía para activar la creación automática
+      const response = await fetch('/api/cursos-academicos', {
+        method: 'POST',
+        credentials: 'include',
+        // No enviamos body para que el endpoint interprete que debe crear cursos automáticamente
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Actualizar la lista de cursos académicos
+        const fetchResponse = await fetch('/api/cursos-academicos', {
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        
+        if (fetchResponse.ok) {
+          const updatedCursos = await fetchResponse.json();
+          setCursosAcademicos(updatedCursos);
+          setFilteredCursos(updatedCursos);
+        }
+
+        setAutoCreationMessage({
+          text: `Cursos académicos creados automáticamente: ${Array.isArray(result) ? result.length : 'varios'}`,
+          type: 'success'
+        });
+
+        // Limpiar el mensaje después de 5 segundos
+        setTimeout(() => {
+          setAutoCreationMessage(null);
+        }, 5000);
+      } else {
+        const errorData = await response.json();
+        setAutoCreationMessage({
+          text: errorData.message || 'Error al crear cursos académicos automáticamente',
+          type: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error al crear cursos académicos automáticamente:', error);
+      setAutoCreationMessage({
+        text: 'Error de conexión al crear cursos académicos automáticamente',
+        type: 'error'
+      });
+    } finally {
+      setIsCreatingAuto(false);
+    }
+  };
+
   return (
     <DashboardContainer roleName="Admin">
       <div className="bg-gray-50 min-h-full pb-8">      
@@ -444,13 +521,29 @@ export default function AdminCursoAcademico() {
                     <option value="inactive">Cursos inactivos</option>
                   </select>
                 </div>
-              </div>
-              <div>
+              </div>              <div className="flex space-x-3">
                 <button
                   onClick={() => setIsCreateDialogOpen(true)}
                   className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded flex items-center"
                 >
                   <FaPlus className="mr-2" /> Nuevo Curso
+                </button>
+                <button
+                  onClick={handleAutoCreateCurso}
+                  disabled={isCreatingAuto}
+                  className={`bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded flex items-center ${isCreatingAuto ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  title="Crear cursos académicos automáticamente desde la oferta académica"
+                >
+                  {isCreatingAuto ? (
+                    <>
+                      <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                      Creando...
+                    </>
+                  ) : (
+                    <>
+                      <FaCalendarAlt className="mr-2" /> Auto Crear
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -810,6 +903,46 @@ export default function AdminCursoAcademico() {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mensaje de notificación para creación automática */}
+      {autoCreationMessage && (
+        <div className={`mt-4 p-4 rounded-md ${autoCreationMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`} role="alert">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              {autoCreationMessage.type === 'success' ? (
+                <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium">{autoCreationMessage.text}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <div className="-mx-1.5 -my-1.5">
+                <button 
+                  type="button"
+                  onClick={() => setAutoCreationMessage(null)}
+                  className={`inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    autoCreationMessage.type === 'success' 
+                    ? 'bg-green-50 text-green-500 hover:bg-green-100 focus:ring-green-600 focus:ring-offset-green-50' 
+                    : 'bg-red-50 text-red-500 hover:bg-red-100 focus:ring-red-600 focus:ring-offset-red-50'
+                  }`}
+                >
+                  <span className="sr-only">Cerrar</span>
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
