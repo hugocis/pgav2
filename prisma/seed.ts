@@ -56,8 +56,9 @@ async function main() {
     },
     {
       username: 'admin@pga.com',
-      name: 'Administrator',
-      surname1: 'System',
+      name: 'Hugo',
+      surname1: 'Cisneros',
+      surname2: 'Amengual',
       email: 'admin@pga.com',
       role: 'Admin',
     },
