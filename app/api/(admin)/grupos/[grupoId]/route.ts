@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { logActivity } from "@/lib/logActivity";
 
 // GET: Obtener un grupo por ID
 export async function GET(
@@ -8,17 +9,9 @@ export async function GET(
 ) {
   try {
     const { grupoId } = await params;
-    const id = parseInt(grupoId);
-
-    if (isNaN(id)) {
-      return NextResponse.json(
-        { error: "ID de grupo inválido" },
-        { status: 400 }
-      );
-    }
 
     const grupo = await prisma.grupo.findUnique({
-      where: { id },
+      where: { id: grupoId },
       include: {
         asignatura: true,
         user: {
@@ -57,17 +50,9 @@ export async function PUT(
 ) {
   try {
     const { grupoId } = await params;
-    const id = parseInt(grupoId);
-
-    if (isNaN(id)) {
-      return NextResponse.json(
-        { error: "ID de grupo inválido" },
-        { status: 400 }
-      );
-    }
 
     const grupoExistente = await prisma.grupo.findUnique({
-      where: { id },
+      where: { id: grupoId },
     });
 
     if (!grupoExistente) {
@@ -114,13 +99,23 @@ export async function PUT(
     }
 
     const grupoActualizado = await prisma.grupo.update({
-      where: { id },
+      where: { id: grupoId },
       data: {
         denominacion,
         asignaturaId,
         profesorId,
       },
     });
+
+    await logActivity({
+      req,
+      action: 'update',
+      entityType: 'grupo',
+      entityId: grupoActualizado.id,
+      details: `Grupo actualizado a denominación '${grupoActualizado.denominacion}' con asignatura ID '${grupoActualizado.asignaturaId}' y profesor ID '${grupoActualizado.profesorId}'`,
+      prevValue: grupoExistente
+    });
+
 
     return NextResponse.json({ grupo: grupoActualizado }, { status: 200 });
   } catch (error) {
@@ -139,17 +134,9 @@ export async function DELETE(
 ) {
   try {
     const { grupoId } = await params;
-    const id = parseInt(grupoId);
-
-    if (isNaN(id)) {
-      return NextResponse.json(
-        { error: "ID de grupo inválido" },
-        { status: 400 }
-      );
-    }
 
     const grupoExistente = await prisma.grupo.findUnique({
-      where: { id },
+      where: { id: grupoId },
     });
 
     if (!grupoExistente) {
@@ -160,11 +147,11 @@ export async function DELETE(
     }
 
     await prisma.alumnoGrupo.deleteMany({
-      where: { grupoId: id },
+      where: { grupoId: grupoId },
     });
 
     await prisma.grupo.delete({
-      where: { id },
+      where: { id: grupoId },
     });
 
     return NextResponse.json(

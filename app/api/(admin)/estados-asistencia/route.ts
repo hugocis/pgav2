@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todos los estados de asistencia
 export async function GET() {
@@ -26,7 +27,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { denominacion } = body;
 
-    // Validar datos obligatorios
     if (!denominacion) {
       return NextResponse.json(
         { error: 'La denominación es un campo obligatorio' },
@@ -34,7 +34,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar si ya existe un estado con la misma denominación
     const estadoExistente = await prisma.estadoAsistencia.findFirst({
       where: { denominacion }
     });
@@ -46,14 +45,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Crear el nuevo estado de asistencia
-    const nuevoEstadoAsistencia = await prisma.estadoAsistencia.create({
-      data: {
-        denominacion
-      }
+    const nuevoEstado = await prisma.estadoAsistencia.create({
+      data: { denominacion }
     });
 
-    return NextResponse.json(nuevoEstadoAsistencia, { status: 201 });
+    await logActivity({
+      req: request,
+      action: 'create',
+      entityType: 'estadoAsistencia',
+      entityId: nuevoEstado.id,
+      details: `Se creó el estado de asistencia: ${denominacion}`
+    });
+
+    return NextResponse.json(nuevoEstado, { status: 201 });
   } catch (error) {
     console.error('Error al crear el estado de asistencia:', error);
     return NextResponse.json(

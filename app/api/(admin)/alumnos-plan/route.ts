@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todos los planes de alumno
 export async function GET() {
@@ -18,7 +19,7 @@ export async function GET() {
         fechaalta: 'desc',
       },
     });
-    
+
     return NextResponse.json(alumnosPlanes, { status: 200 });
   } catch (error) {
     console.error('Error al obtener los planes de alumno:', error);
@@ -33,7 +34,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     // Validar los campos requeridos
     if (!body.alumno_id || !body.cursoAcademicoId || !body.plandeEstudiosId) {
       return NextResponse.json(
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
-    
+
     // Crear el nuevo plan de alumno
     const newAlumnoPlan = await prisma.alumnoPlan.create({
       data: {
@@ -119,6 +120,14 @@ export async function POST(request: NextRequest) {
         cursoAcademico: true,
         plandeEstudios: true
       }
+    });
+
+    await logActivity({
+      req: request,
+      action: 'create',
+      entityType: 'alumnoPlan',
+      entityId: newAlumnoPlan.id,
+      details: `Alta manual del alumno ${newAlumnoPlan.user.email} en el plan ${newAlumnoPlan.plandeEstudios.denominacion} (${newAlumnoPlan.cursoAcademico.denominacion})`
     });
 
     return NextResponse.json(newAlumnoPlan, { status: 201 });
@@ -134,19 +143,42 @@ export async function POST(request: NextRequest) {
 // POST - Crear planes de alumnos en masa desde ExpedienteAlumno
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'El cuerpo de la solicitud está vacío o no es un JSON válido' },
+        { status: 400 }
+      );
+    }
+
+    if (!body) {
+      return NextResponse.json(
+        { error: 'El cuerpo de la solicitud está vacío' },
+        { status: 400 }
+      );
+    }
+
     const { action, cursoAcademicoId } = body;
+
+    if (!action) {
+      return NextResponse.json(
+        { error: 'Falta el campo "action" en el cuerpo de la solicitud' },
+        { status: 400 }
+      );
+    }
 
     if (action !== 'importAlumnoPlan') {
       return NextResponse.json(
-        { error: 'Acción no válida' },
+        { error: 'Acción no válida. La única acción permitida es "importAlumnoPlan"' },
         { status: 400 }
       );
     }
 
     // Buscar el curso académico (por ID si se proporciona o el activo si no)
     let cursoAcademico;
-    
+
     if (cursoAcademicoId) {
       // Si se proporciona un ID, usarlo
       cursoAcademico = await prisma.cursoAcademico.findUnique({
@@ -188,14 +220,14 @@ export async function PUT(request: NextRequest) {
     for (const expediente of expedientes) {
       try {
         if (!expediente.EMAIL || !expediente.DNI || !expediente.CARRERA) {
-          errors.push({ 
-            dni: expediente.DNI, 
+          errors.push({
+            dni: expediente.DNI,
             carrera: expediente.CARRERA,
-            error: 'Datos incompletos' 
+            error: 'Datos incompletos'
           });
           continue;
         }
-        
+
         // Buscar al usuario por email completo
         const user = await prisma.user.findFirst({
           where: {
@@ -204,8 +236,8 @@ export async function PUT(request: NextRequest) {
         });
 
         if (!user) {
-          errors.push({ 
-            dni: expediente.DNI, 
+          errors.push({
+            dni: expediente.DNI,
             carrera: expediente.CARRERA,
             error: 'Usuario no encontrado para email: ' + expediente.EMAIL
           });
@@ -235,10 +267,10 @@ export async function PUT(request: NextRequest) {
           });
 
           if (existingAlumnoPlan) {
-            errors.push({ 
-              dni: expediente.DNI, 
+            errors.push({
+              dni: expediente.DNI,
               carrera: expediente.CARRERA,
-              error: 'El alumno ya está asignado a este plan' 
+              error: 'El alumno ya está asignado a este plan'
             });
             continue;
           }
@@ -255,7 +287,15 @@ export async function PUT(request: NextRequest) {
               plandeEstudios: true
             }
           });
-          
+
+          await logActivity({
+            req: request,
+            action: 'create',
+            entityType: 'alumnoPlan',
+            entityId: newAlumnoPlan.id,
+            details: `Importación masiva: alumno ${newAlumnoPlan.user.email} asignado al plan ${newAlumnoPlan.plandeEstudios.denominacion} (${cursoAcademico.denominacion})`
+          });
+
           createdPlans.push(newAlumnoPlan);
           continue;
         }
@@ -288,10 +328,10 @@ export async function PUT(request: NextRequest) {
         });
 
         if (!carrera || carrera.PlanDeEstudios.length === 0) {
-          errors.push({ 
-            dni: expediente.DNI, 
+          errors.push({
+            dni: expediente.DNI,
             carrera: expediente.CARRERA,
-            error: 'Carrera o plan de estudios no encontrado para código: ' + expediente.CARRERA 
+            error: 'Carrera o plan de estudios no encontrado para código: ' + expediente.CARRERA
           });
           continue;
         }
@@ -310,10 +350,10 @@ export async function PUT(request: NextRequest) {
         });
 
         if (existingAlumnoPlan) {
-          errors.push({ 
-            dni: expediente.DNI, 
+          errors.push({
+            dni: expediente.DNI,
             carrera: expediente.CARRERA,
-            error: 'El alumno ya está asignado a este plan' 
+            error: 'El alumno ya está asignado a este plan'
           });
           continue;
         }
@@ -331,12 +371,20 @@ export async function PUT(request: NextRequest) {
           }
         });
 
+        await logActivity({
+          req: request,
+          action: 'create',
+          entityType: 'alumnoPlan',
+          entityId: newAlumnoPlan.id,
+          details: `Importación masiva: alumno ${newAlumnoPlan.user.email} asignado al plan ${newAlumnoPlan.plandeEstudios.denominacion} (${cursoAcademico.denominacion})`
+        });
+
         createdPlans.push(newAlumnoPlan);
       } catch (error) {
-        errors.push({ 
-          dni: expediente.DNI, 
+        errors.push({
+          dni: expediente.DNI,
           carrera: expediente.CARRERA,
-          error: `Error: ${(error as Error).message}` 
+          error: `Error: ${(error as Error).message}`
         });
       }
     }

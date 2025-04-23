@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener un rol por ID
 export async function GET(
@@ -93,6 +94,16 @@ export async function PUT(
       }
     });
 
+    await logActivity({
+      req: request,
+      action: 'update',
+      entityType: 'role',
+      entityId: updatedRole.id.toString(),
+      details: `Actualización del rol "${updatedRole.name}"`,
+      prevValue: existingRole
+    });
+
+
     return NextResponse.json(updatedRole, { status: 200 });
   } catch (error) {
     console.error('Error al actualizar el rol:', error);
@@ -130,6 +141,16 @@ export async function DELETE(
     }
 
     await prisma.role.delete({ where: { id: idNum } });
+
+    await logActivity({
+      req: request,
+      action: 'delete',
+      entityType: 'role',
+      entityId: existingRole.id.toString(),
+      details: `Eliminación del rol "${existingRole.name}"`,
+      prevValue: existingRole
+    });
+
 
     return NextResponse.json(
       { message: 'Rol eliminado correctamente' },

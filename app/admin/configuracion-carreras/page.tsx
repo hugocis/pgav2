@@ -223,9 +223,8 @@ export default function AdminConfiguracionCarreras() {
         SolDispensa: solDispensaRef.current?.checked || false,
         SolJustificacion: solJustificacionRef.current?.checked || false
       };
-      
-      const response = await fetch(`/api/configuracion-carrera/${selectedConfiguracion.id}`, {
-        method: 'PATCH',
+        const response = await fetch(`/api/configuracion-carrera/${selectedConfiguracion.id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },

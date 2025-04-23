@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { logActivity } from "@/lib/logActivity";
 
 // GET /api/docencia
 export async function GET(req: NextRequest) {
@@ -9,13 +10,13 @@ export async function GET(req: NextRequest) {
     const asignaturaId = searchParams.get('asignaturaId');
     const profesorId = searchParams.get('profesorId');
     const mostrar = searchParams.get('mostrar');
-    
+
     const whereClause: Prisma.DocenciaWhereInput = {};
-    
-    if (asignaturaId) whereClause.asignaturaId = parseInt(asignaturaId);
+
+    if (asignaturaId) whereClause.asignaturaId = asignaturaId;
     if (profesorId) whereClause.profesorId = profesorId;
     if (mostrar) whereClause.mostrar = mostrar === 'true';
-    
+
     const docencias = await prisma.docencia.findMany({
       where: whereClause,
       include: {
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
         user: {
           select: {
             id: true,
-            name: true, 
+            name: true,
             surname1: true,
             surname2: true,
             email: true
@@ -52,8 +53,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { 
-      asignaturaId, 
+    const {
+      asignaturaId,
       profesorId,
       mostrar
     } = body;
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest) {
 
     // Verificar que el usuario es un profesor (rol 2)
     const esProfesor = profesor.userRoles.some(role => role.roleId === 2);
-    
+
     if (!esProfesor) {
       return NextResponse.json(
         { error: "El usuario especificado no tiene el rol de profesor" },
@@ -123,6 +124,15 @@ export async function POST(req: NextRequest) {
         }
       }
     });
+
+    await logActivity({
+      req,
+      action: 'create',
+      entityType: 'docencia',
+      entityId: nuevaDocencia.id,
+      details: `Docencia creada para asignatura ${asignaturaId} y profesor ${profesorId}`
+    });
+
 
     return NextResponse.json(nuevaDocencia, { status: 201 });
 
@@ -154,11 +164,11 @@ export async function PUT(req: NextRequest) {
           });
           return response;
         }
-      } catch{
+      } catch {
         // Si no se puede analizar como JSON, procedemos con la operación de poblar
       }
     }
-    
+
     // Operación predeterminada: poblar docencia desde ProfesoresDetalle
     // Obtener todos los profesores con rol 2 (profesor)
     const profesores = await prisma.user.findMany({
@@ -173,7 +183,7 @@ export async function PUT(req: NextRequest) {
         userRoles: true
       }
     });
-      // Mapear profesores por EMAIL para acceso rápido
+    // Mapear profesores por EMAIL para acceso rápido
     const profesoresPorEmail = new Map();
     for (const profesor of profesores) {
       if (profesor.email) {
@@ -183,7 +193,7 @@ export async function PUT(req: NextRequest) {
 
     // Obtener todos los datos de ProfesoresDetalle
     const detallesProfesores = await prisma.profesoresDetalle.findMany();
-    
+
     // Obtener asignaturas para mapeo
     const asignaturas = await prisma.asignatura.findMany();
     const asignaturasPorCodigo = new Map();
@@ -202,26 +212,26 @@ export async function PUT(req: NextRequest) {
     // Procesar cada detalle de profesor
     for (const detalle of detallesProfesores) {
       resultados.procesados++;
-        try {
+      try {
         if (!detalle.EMAIL || !detalle.CODASIGNATURA) {
           resultados.detalles.push(`Registro sin EMAIL o código de asignatura: ${detalle.id}`);
           continue;
         }
-        
+
         // Buscar profesor por EMAIL
         const profesor = profesoresPorEmail.get(detalle.EMAIL.toLowerCase());
         if (!profesor) {
           resultados.detalles.push(`No se encontró profesor con EMAIL: ${detalle.EMAIL}`);
           continue;
         }
-        
+
         // Buscar asignatura por código
         const asignatura = asignaturasPorCodigo.get(detalle.CODASIGNATURA);
         if (!asignatura) {
           resultados.detalles.push(`No se encontró asignatura con código: ${detalle.CODASIGNATURA}`);
           continue;
         }
-        
+
         // Verificar si ya existe esta relación
         const docenciaExistente = await prisma.docencia.findFirst({
           where: {
@@ -229,11 +239,11 @@ export async function PUT(req: NextRequest) {
             asignaturaId: asignatura.id
           }
         });
-          if (docenciaExistente) {
+        if (docenciaExistente) {
           resultados.detalles.push(`Docencia ya existe para profesor con EMAIL ${detalle.EMAIL} y asignatura ${detalle.CODASIGNATURA}`);
           continue;
         }
-        
+
         // Crear nueva docencia
         await prisma.docencia.create({
           data: {
@@ -242,17 +252,26 @@ export async function PUT(req: NextRequest) {
             mostrar: true
           }
         });
-        
+
+        await logActivity({
+          req,
+          action: 'create',
+          entityType: 'docencia',
+          entityId: `${profesor.id}-${asignatura.id}`, // si no tienes un ID único de la docencia
+          details: `Docencia importada desde detalle para profesor ${profesor.email} y asignatura ${asignatura.CodAsignatura}`
+        });
+
+
         resultados.creados++;
-        
+
       } catch (error) {
         resultados.errores++;
         resultados.detalles.push(`Error al procesar registro ${detalle.id}: ${error}`);
       }
     }
-    
+
     return NextResponse.json(resultados, { status: 200 });
-    
+
   } catch (error) {
     console.error("Error al poblar docencia:", error);
     return NextResponse.json(

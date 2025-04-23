@@ -20,7 +20,7 @@ export async function GET(
     }
 
     const alumnosGrupo = await prisma.alumnoGrupo.findMany({
-      where: { grupoId: grupoIdNum },
+      where: { grupoId: grupoId },
       include: {
         user: {
           select: {

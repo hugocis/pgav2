@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener una asignación de rol por ID
 export async function GET(
@@ -8,17 +9,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const idNum = parseInt(id, 10);
-
-    if (isNaN(idNum)) {
-      return NextResponse.json(
-        { error: 'ID de asignación inválido' },
-        { status: 400 }
-      );
-    }
-
     const userRole = await prisma.userRole.findUnique({
-      where: { id: idNum },
+      where: { id },
       include: {
         user: true,
         role: true
@@ -49,18 +41,14 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const idNum = parseInt(id, 10);
-
-    if (isNaN(idNum)) {
-      return NextResponse.json(
-        { error: 'ID de asignación inválido' },
-        { status: 400 }
-      );
-    }
 
     // Verificar si la asignación de rol existe
     const existingUserRole = await prisma.userRole.findUnique({
-      where: { id: idNum }
+      where: { id },
+      include: {
+        user: true,
+        role: true
+      }
     });
 
     if (!existingUserRole) {
@@ -72,8 +60,18 @@ export async function DELETE(
 
     // Eliminar la asignación de rol
     await prisma.userRole.delete({
-      where: { id: idNum }
+      where: { id }
     });
+
+    await logActivity({
+      req: request,
+      action: 'delete',
+      entityType: 'userRole',
+      entityId: existingUserRole.id,
+      details: `Eliminación del rol "${existingUserRole.role.name}" del usuario ${existingUserRole.user.email}`,
+      prevValue: existingUserRole
+    });
+
 
     return NextResponse.json(
       { message: 'Asignación de rol eliminada correctamente' },

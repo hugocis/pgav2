@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { ExpedienteAlumno, Grupo} from "@prisma/client";
+import { ExpedienteAlumno, Grupo } from "@prisma/client";
+import { logActivity } from "@/lib/logActivity";
 
 type GrupoCreado = {
-  id: number;
+  id: string;
   denominacion: string;
   asignatura: string;
   profesor: string;
@@ -130,6 +131,15 @@ export async function PUT() {
               profesorId: profesorId,
             },
           });
+          await logActivity({
+            req: {} as NextRequest,
+            action: 'create',
+            entityType: 'grupo',
+            entityId: grupoDB.id,
+            details: `Grupo '${grupoDB.denominacion}' creado para asignatura '${asignatura.Denominacion}'`
+          });
+
+
           totalGruposCreados++;
           gruposCreados.push({
             id: grupoDB.id,
@@ -170,6 +180,15 @@ export async function PUT() {
                 grupoId: grupoDB.id,
               },
             });
+
+            await logActivity({
+              req: {} as NextRequest,
+              action: 'create',
+              entityType: 'alumnoGrupo',
+              details: `Alumno ${alumno.email} asignado al grupo '${grupoDB.denominacion}'`,
+              entityId: grupoDB.id
+            });
+
             totalAlumnosAsignados++;
           }
         }
@@ -261,6 +280,15 @@ export async function POST(req: NextRequest) {
         profesorId,
       },
     });
+
+    await logActivity({
+      req,
+      action: 'create',
+      entityType: 'grupo',
+      entityId: grupo.id,
+      details: `Grupo '${grupo.denominacion}' creado manualmente para asignatura ID: ${asignaturaId}`
+    });
+
 
     return NextResponse.json({ grupo }, { status: 201 });
   } catch (error) {

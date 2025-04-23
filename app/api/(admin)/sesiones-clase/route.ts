@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todas las sesiones de clase
 export async function GET(request: NextRequest) {
@@ -12,11 +13,11 @@ export async function GET(request: NextRequest) {
 
     // Construir el filtro de búsqueda
     const where: Prisma.SesionClaseWhereInput = {};
-    
+
     if (grupoId) {
-      where.grupoId = parseInt(grupoId, 10);
+      where.grupoId = grupoId;
     }
-    
+
     if (docenteId) {
       where.docenteId = docenteId;
     }
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si el grupo existe
     const grupoExistente = await prisma.grupo.findUnique({
-      where: { id: parseInt(grupoId, 10) }
+      where: { id: grupoId }
     });
 
     if (!grupoExistente) {
@@ -93,10 +94,19 @@ export async function POST(request: NextRequest) {
     const nuevaSesionClase = await prisma.sesionClase.create({
       data: {
         fecha: new Date(fecha),
-        grupoId: parseInt(grupoId, 10),
+        grupoId: grupoId,
         docenteId
       }
     });
+
+    await logActivity({
+      req: request,
+      action: 'create',
+      entityType: 'sesionClase',
+      entityId: nuevaSesionClase.id,
+      details: `Creación de sesión de clase para el grupo ${grupoExistente.denominacion} el día ${new Date(fecha).toLocaleDateString()}`
+    });
+
 
     return NextResponse.json(nuevaSesionClase, { status: 201 });
   } catch (error) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener una solicitud de justificación específica por ID
 export async function GET(
@@ -18,7 +19,7 @@ export async function GET(
         }
 
         const solicitud = await prisma.solicitudJustificacion.findUnique({
-            where: { id: parseInt(id, 10) },
+            where: { id },
             include: {
                 user: {
                     select: {
@@ -97,7 +98,7 @@ export async function PUT(
 
         // Verificar si la solicitud existe
         const solicitudExistente = await prisma.solicitudJustificacion.findUnique({
-            where: { id: parseInt(id, 10) }
+            where: { id }
         });
 
         if (!solicitudExistente) {
@@ -136,7 +137,7 @@ export async function PUT(
         if (estadoJustificacionId !== undefined) {
             // Verificar si el estado de justificación existe
             const estadoExistente = await prisma.estadoJustificacion.findUnique({
-                where: { id: parseInt(estadoJustificacionId, 10) }
+                where: { id: estadoJustificacionId }
             });
 
             if (!estadoExistente) {
@@ -147,14 +148,14 @@ export async function PUT(
             }
 
             dataToUpdate.estadoJustificacion = {
-                connect: { id: parseInt(estadoJustificacionId, 10) }
+                connect: { id: estadoJustificacionId }
             };
         }
 
         if (asistenciaAlumnoId !== undefined) {
             // Verificar si la asistencia existe
             const asistenciaExistente = await prisma.asistenciaAlumno.findUnique({
-                where: { id: parseInt(asistenciaAlumnoId, 10) }
+                where: { id: asistenciaAlumnoId }
             });
 
             if (!asistenciaExistente) {
@@ -165,15 +166,25 @@ export async function PUT(
             }
 
             dataToUpdate.asistenciaAlumno = {
-                connect: { id: parseInt(asistenciaAlumnoId, 10) }
+                connect: { id: asistenciaAlumnoId }
             };
         }
 
         // Actualizar la solicitud de justificación
         const solicitudActualizada = await prisma.solicitudJustificacion.update({
-            where: { id: parseInt(id, 10) },
+            where: { id },
             data: dataToUpdate
         });
+
+        await logActivity({
+            req: request,
+            action: 'update',
+            entityType: 'solicitudJustificacion',
+            entityId: solicitudActualizada.id,
+            details: `Actualización de la solicitud de justificación del alumno con ID ${solicitudActualizada.alumnoId}`,
+            prevValue: solicitudExistente
+        });
+
 
         return NextResponse.json(solicitudActualizada, { status: 200 });
     } catch (error) {
@@ -202,7 +213,14 @@ export async function DELETE(
 
         // Verificar si la solicitud existe
         const solicitudExistente = await prisma.solicitudJustificacion.findUnique({
-            where: { id: parseInt(id, 10) }
+            where: { id: id },
+            include: {
+                user: {
+                    select: {
+                        email: true
+                    }
+                }
+            }
         });
 
         if (!solicitudExistente) {
@@ -214,20 +232,30 @@ export async function DELETE(
 
         // Verificar si hay documentos de justificación asociados
         const documentosAsociados = await prisma.documentacionJustificacion.findFirst({
-            where: { solicitudJustificacionId: parseInt(id, 10) }
+            where: { solicitudJustificacionId: id }
         });
 
         if (documentosAsociados) {
             // Eliminar todos los documentos de justificación asociados
             await prisma.documentacionJustificacion.deleteMany({
-                where: { solicitudJustificacionId: parseInt(id, 10) }
+                where: { solicitudJustificacionId: id }
             });
         }
 
         // Eliminar la solicitud de justificación
         await prisma.solicitudJustificacion.delete({
-            where: { id: parseInt(id, 10) }
+            where: { id: id }
         });
+
+        await logActivity({
+            req: request,
+            action: 'delete',
+            entityType: 'solicitudJustificacion',
+            entityId: solicitudExistente.id,
+            details: `Eliminación de solicitud de justificación del alumno ${solicitudExistente.user.email}`,
+            prevValue: solicitudExistente
+        });
+
 
         return NextResponse.json({ message: 'Solicitud de justificación eliminada correctamente' }, { status: 200 });
     } catch (error) {

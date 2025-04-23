@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todos los documentos de justificación
 export async function GET(request: NextRequest) {
@@ -11,9 +12,9 @@ export async function GET(request: NextRequest) {
 
     // Construir el filtro de búsqueda
     const where: Prisma.DocumentacionJustificacionWhereInput = {};
-    
+
     if (solicitudJustificacionId) {
-      where.solicitudJustificacionId = parseInt(solicitudJustificacionId, 10);
+      where.solicitudJustificacionId = solicitudJustificacionId;
     }
 
     const documentos = await prisma.documentacionJustificacion.findMany({
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si la solicitud de justificación existe
     const solicitudExistente = await prisma.solicitudJustificacion.findUnique({
-      where: { id: parseInt(solicitudJustificacionId, 10) }
+      where: { id: solicitudJustificacionId }
     });
 
     if (!solicitudExistente) {
@@ -80,8 +81,16 @@ export async function POST(request: NextRequest) {
       data: {
         url,
         fechaSubida: new Date(fechaSubida),
-        solicitudJustificacionId: parseInt(solicitudJustificacionId, 10)
+        solicitudJustificacionId: solicitudJustificacionId
       }
+    });
+
+    await logActivity({
+      req: request,
+      action: 'create',
+      entityType: 'documentacionJustificacion',
+      entityId: nuevoDocumento.id,
+      details: `Documento subido para solicitud ${solicitudJustificacionId}`
     });
 
     return NextResponse.json(nuevoDocumento, { status: 201 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todos los registros de asistencia de alumnos
 export async function GET(request: NextRequest) {
@@ -13,17 +14,17 @@ export async function GET(request: NextRequest) {
 
     // Construir el filtro de búsqueda
     const where: Prisma.AsistenciaAlumnoWhereInput = {};
-    
+
     if (alumnoId) {
       where.alumnoId = alumnoId;
     }
-    
+
     if (sesionClaseId) {
-      where.sesionClaseId = parseInt(sesionClaseId, 10);
+      where.sesionClaseId = sesionClaseId;
     }
 
     if (estadoAsistenciaId) {
-      where.estadoAsistenciaId = parseInt(estadoAsistenciaId, 10);
+      where.estadoAsistenciaId = estadoAsistenciaId;
     }
 
     const asistencias = await prisma.asistenciaAlumno.findMany({
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si la sesión de clase existe
     const sesionExistente = await prisma.sesionClase.findUnique({
-      where: { id: parseInt(sesionClaseId, 10) }
+      where: { id: sesionClaseId }
     });
 
     if (!sesionExistente) {
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si el estado de asistencia existe
     const estadoExistente = await prisma.estadoAsistencia.findUnique({
-      where: { id: parseInt(estadoAsistenciaId, 10) }
+      where: { id: estadoAsistenciaId }
     });
 
     if (!estadoExistente) {
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
     // Verificar si ya existe un registro para este alumno en esta sesión
     const asistenciaExistente = await prisma.asistenciaAlumno.findFirst({
       where: {
-        sesionClaseId: parseInt(sesionClaseId, 10),
+        sesionClaseId: sesionClaseId,
         alumnoId
       }
     });
@@ -131,10 +132,18 @@ export async function POST(request: NextRequest) {
       data: {
         fecha: new Date(fecha),
         estado: estado || estadoExistente.denominacion, // Si no se proporciona estado, usar la denominación del estadoAsistencia
-        sesionClaseId: parseInt(sesionClaseId, 10),
+        sesionClaseId: sesionClaseId,
         alumnoId,
-        estadoAsistenciaId: parseInt(estadoAsistenciaId, 10)
+        estadoAsistenciaId: estadoAsistenciaId
       }
+    });
+
+    await logActivity({
+      req: request,
+      action: 'create',
+      entityType: 'asistenciaAlumno',
+      entityId: nuevaAsistencia.id,
+      details: `Registro de asistencia creado para alumno ID '${alumnoId}' en sesión '${sesionClaseId}' con estado '${estado || estadoExistente.denominacion}'`
     });
 
     return NextResponse.json(nuevaAsistencia, { status: 201 });

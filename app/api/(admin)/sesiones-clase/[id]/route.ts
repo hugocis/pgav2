@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener una sesión de clase específica por ID
 export async function GET(
@@ -17,7 +18,7 @@ export async function GET(
     }
 
     const sesionClase = await prisma.sesionClase.findUnique({
-      where: { id: parseInt(id, 10) },
+      where: { id: id },
       include: {
         grupo: true,
         user: {
@@ -90,7 +91,10 @@ export async function PUT(
 
     // Verificar si la sesión existe
     const sesionExistente = await prisma.sesionClase.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id },
+      include: {
+        grupo: true
+      }
     });
 
     if (!sesionExistente) {
@@ -102,7 +106,7 @@ export async function PUT(
 
     // Verificar si el grupo existe
     const grupoExistente = await prisma.grupo.findUnique({
-      where: { id: parseInt(grupoId, 10) }
+      where: { id: grupoId }
     });
 
     if (!grupoExistente) {
@@ -126,13 +130,23 @@ export async function PUT(
 
     // Actualizar la sesión de clase
     const sesionActualizada = await prisma.sesionClase.update({
-      where: { id: parseInt(id, 10) },
+      where: { id },
       data: {
         fecha: new Date(fecha),
-        grupoId: parseInt(grupoId, 10),
+        grupoId: grupoId,
         docenteId
       }
     });
+
+    await logActivity({
+      req: request,
+      action: 'update',
+      entityType: 'sesionClase',
+      entityId: sesionActualizada.id,
+      details: `Actualización de sesión de clase para el grupo ${grupoExistente.denominacion} el día ${new Date(fecha).toLocaleDateString()}`,
+      prevValue: sesionExistente
+    });
+
 
     return NextResponse.json(sesionActualizada, { status: 200 });
   } catch (error) {
@@ -161,7 +175,10 @@ export async function DELETE(
 
     // Verificar si la sesión existe
     const sesionExistente = await prisma.sesionClase.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id },
+      include: {
+        grupo: true
+      }
     });
 
     if (!sesionExistente) {
@@ -173,20 +190,30 @@ export async function DELETE(
 
     // Verificar si hay registros de asistencia asociados
     const asistenciasAsociadas = await prisma.asistenciaAlumno.findFirst({
-      where: { sesionClaseId: parseInt(id, 10) }
+      where: { sesionClaseId: id }
     });
 
     if (asistenciasAsociadas) {
       // Eliminar todos los registros de asistencia asociados
       await prisma.asistenciaAlumno.deleteMany({
-        where: { sesionClaseId: parseInt(id, 10) }
+        where: { sesionClaseId: id }
       });
     }
 
     // Eliminar la sesión de clase
     await prisma.sesionClase.delete({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
+
+    await logActivity({
+      req: request,
+      action: 'delete',
+      entityType: 'sesionClase',
+      entityId: sesionExistente.id,
+      details: `Eliminación de sesión de clase para el grupo ${sesionExistente.grupo?.denominacion ?? 'desconocido'}`,
+      prevValue: sesionExistente
+    });
+
 
     return NextResponse.json({ message: 'Sesión de clase eliminada correctamente' }, { status: 200 });
   } catch (error) {

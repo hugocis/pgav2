@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener un documento de justificación específico por ID
 export async function GET(
@@ -17,7 +18,7 @@ export async function GET(
     }
 
     const documento = await prisma.documentacionJustificacion.findUnique({
-      where: { id: parseInt(id, 10) },
+      where: { id: id },
       include: {
         solicitudJustificacion: {
           include: {
@@ -86,7 +87,7 @@ export async function PUT(
 
     // Verificar si el documento existe
     const documentoExistente = await prisma.documentacionJustificacion.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
 
     if (!documentoExistente) {
@@ -98,7 +99,7 @@ export async function PUT(
 
     // Verificar si la solicitud de justificación existe
     const solicitudExistente = await prisma.solicitudJustificacion.findUnique({
-      where: { id: parseInt(solicitudJustificacionId, 10) }
+      where: { id: solicitudJustificacionId }
     });
 
     if (!solicitudExistente) {
@@ -110,13 +111,22 @@ export async function PUT(
 
     // Actualizar el documento de justificación
     const documentoActualizado = await prisma.documentacionJustificacion.update({
-      where: { id: parseInt(id, 10) },
+      where: { id: id },
       data: {
         url,
         fechaSubida: new Date(fechaSubida),
-        solicitudJustificacionId: parseInt(solicitudJustificacionId, 10)
+        solicitudJustificacionId: solicitudJustificacionId
       }
     });
+
+    await logActivity({
+      req: request,
+      action: 'update',
+      entityType: 'documentacionJustificacion',
+      entityId: documentoActualizado.id,
+      details: `Documento actualizado para solicitud ${solicitudJustificacionId}`
+    });
+
 
     return NextResponse.json(documentoActualizado, { status: 200 });
   } catch (error) {
@@ -145,7 +155,7 @@ export async function DELETE(
 
     // Verificar si el documento existe
     const documentoExistente = await prisma.documentacionJustificacion.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
 
     if (!documentoExistente) {
@@ -157,8 +167,17 @@ export async function DELETE(
 
     // Eliminar el documento de justificación
     await prisma.documentacionJustificacion.delete({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
+
+    await logActivity({
+      req: request,
+      action: 'delete',
+      entityType: 'documentacionJustificacion',
+      entityId: id,
+      details: `Documento eliminado`
+    });
+
 
     return NextResponse.json({ message: 'Documento de justificación eliminado correctamente' }, { status: 200 });
   } catch (error) {

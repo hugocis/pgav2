@@ -79,7 +79,7 @@ export async function GET() {
 
     // Obtener logs de actividad reciente de la tabla ActivityLog
     const activityLogs = await prisma.activityLog.findMany({
-      take: 10,
+      take: 3,
       orderBy: {
         timestamp: 'desc',
       },

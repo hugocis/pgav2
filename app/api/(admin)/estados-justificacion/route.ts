@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todos los estados de justificación
 export async function GET() {
@@ -52,6 +53,15 @@ export async function POST(request: NextRequest) {
         denominacion
       }
     });
+
+    await logActivity({
+      req: request,
+      action: 'create',
+      entityType: 'estadoJustificacion',
+      entityId: nuevoEstadoJustificacion.id,
+      details: `Estado de justificación creado con denominación '${nuevoEstadoJustificacion.denominacion}'`
+    });
+
 
     return NextResponse.json(nuevoEstadoJustificacion, { status: 201 });
   } catch (error) {

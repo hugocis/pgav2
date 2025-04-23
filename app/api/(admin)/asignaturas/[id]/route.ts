@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { logActivity } from '@/lib/logActivity';
 
 // GET /api/asignaturas/[id]
 export async function GET(
@@ -10,16 +11,9 @@ export async function GET(
   try {
     // Await params antes de leer id
     const { id } = await params;
-    const idNum = parseInt(id);
-    if (isNaN(idNum)) {
-      return NextResponse.json(
-        { error: "ID de asignatura inválido" },
-        { status: 400 }
-      );
-    }
 
     const asignatura = await prisma.asignatura.findUnique({
-      where: { id: idNum },
+      where: { id: id },
       include: {
         carrera: true,
         cursoAcademico: true,
@@ -97,17 +91,10 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const idNum = parseInt(id);
-    if (isNaN(idNum)) {
-      return NextResponse.json(
-        { error: "ID de asignatura inválido" },
-        { status: 400 }
-      );
-    }
 
     // Verificar que la asignatura existe
     const asignaturaExistente = await prisma.asignatura.findUnique({
-      where: { id: idNum },
+      where: { id: id },
     });
     if (!asignaturaExistente) {
       return NextResponse.json(
@@ -181,8 +168,17 @@ export async function PATCH(
     }
 
     const asignaturaActualizada = await prisma.asignatura.update({
-      where: { id: idNum },
+      where: { id: id },
       data: updateData,
+    });
+
+    await logActivity({
+      req,
+      action: 'update',
+      entityType: 'asignatura',
+      entityId: asignaturaActualizada.id,
+      details: `Actualización de la asignatura ${asignaturaActualizada.Denominacion}`,
+      prevValue: asignaturaExistente
     });
 
     return NextResponse.json(asignaturaActualizada, { status: 200 });
@@ -202,16 +198,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const idNum = parseInt(id);
-    if (isNaN(idNum)) {
-      return NextResponse.json(
-        { error: "ID de asignatura inválido" },
-        { status: 400 }
-      );
-    }
 
     const asignaturaExistente = await prisma.asignatura.findUnique({
-      where: { id: idNum },
+      where: { id: id },
     });
     if (!asignaturaExistente) {
       return NextResponse.json(
@@ -221,7 +210,16 @@ export async function DELETE(
     }
 
     await prisma.asignatura.delete({
-      where: { id: idNum },
+      where: { id: id },
+    });
+
+    await logActivity({
+      req,
+      action: 'delete',
+      entityType: 'asignatura',
+      entityId: asignaturaExistente.id,
+      details: `Eliminación de la asignatura ${asignaturaExistente.Denominacion}`,
+      prevValue: asignaturaExistente
     });
 
     return NextResponse.json(

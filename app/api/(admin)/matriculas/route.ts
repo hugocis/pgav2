@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { logActivity } from "@/lib/logActivity";
 
 // GET /api/matriculas
 export async function GET(req: NextRequest) {
@@ -9,11 +10,11 @@ export async function GET(req: NextRequest) {
     const asignaturaId = searchParams.get('asignaturaId');
     const alumnoId = searchParams.get('alumno_id');
     const mostrar = searchParams.get('mostrar');
-    
+
     // Verificar si es una solicitud específica para alumno o asignatura
     const porAlumno = searchParams.get('porAlumno');
     const porAsignatura = searchParams.get('porAsignatura');
-    
+
     // Caso especial para obtener todas las matrículas de un alumno con detalle
     if (alumnoId && porAlumno === 'true') {
       const matriculasAlumno = await prisma.matricula.findMany({
@@ -53,15 +54,15 @@ export async function GET(req: NextRequest) {
           }
         }
       });
-      
+
       return NextResponse.json(matriculasAlumno, { status: 200 });
     }
-    
+
     // Caso especial para obtener todos los alumnos de una asignatura
     if (asignaturaId && porAsignatura === 'true') {
       const alumnosMatriculados = await prisma.matricula.findMany({
         where: {
-          asignaturaId: parseInt(asignaturaId),
+          asignaturaId: asignaturaId,
           mostrar: mostrar === 'true' ? true : undefined
         },
         include: {
@@ -82,17 +83,17 @@ export async function GET(req: NextRequest) {
           }
         }
       });
-      
+
       return NextResponse.json(alumnosMatriculados, { status: 200 });
     }
-    
+
     // Consulta estándar con filtros opcionales
     const whereClause: Prisma.MatriculaWhereInput = {};
-    
-    if (asignaturaId) whereClause.asignaturaId = parseInt(asignaturaId);
+
+    if (asignaturaId) whereClause.asignaturaId = asignaturaId;
     if (alumnoId) whereClause.alumno_id = alumnoId;
     if (mostrar) whereClause.mostrar = mostrar === 'true';
-    
+
     const matriculas = await prisma.matricula.findMany({
       where: whereClause,
       include: {
@@ -105,7 +106,7 @@ export async function GET(req: NextRequest) {
         user: {
           select: {
             id: true,
-            name: true, 
+            name: true,
             surname1: true,
             surname2: true,
             email: true
@@ -129,8 +130,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { 
-      alumno_id, 
+    const {
+      alumno_id,
       asignaturaId,
       mostrar
     } = body;
@@ -172,7 +173,7 @@ export async function POST(req: NextRequest) {
 
     // Verificar que el usuario es un alumno (rol 1)
     const esAlumno = alumno.userRoles.some(role => role.roleId === 1);
-    
+
     if (!esAlumno) {
       return NextResponse.json(
         { error: "El usuario especificado no tiene el rol de alumno" },
@@ -200,6 +201,16 @@ export async function POST(req: NextRequest) {
         }
       }
     });
+
+    await logActivity({
+      req,
+      action: 'create',
+      entityType: 'matricula',
+      entityId: nuevaMatricula.id,
+      details: `Matrícula creada para alumno ${alumno.name} ${alumno.surname1} en asignatura ${asignatura.Denominacion}`,
+      prevValue: null
+    });
+
 
     return NextResponse.json(nuevaMatricula, { status: 201 });
 
@@ -235,7 +246,7 @@ export async function PUT(req: NextRequest) {
         // Si no se puede analizar como JSON, procedemos con la operación de poblar
       }
     }
-    
+
     // Operación predeterminada: poblar matrículas desde ExpedienteAlumno
     // Obtener todos los alumnos con rol 1 (alumno)
     const alumnos = await prisma.user.findMany({
@@ -250,7 +261,7 @@ export async function PUT(req: NextRequest) {
         userRoles: true
       }
     });
-      // Mapear alumnos por EMAIL para acceso rápido
+    // Mapear alumnos por EMAIL para acceso rápido
     const alumnosPorEmail = new Map();
     for (const alumno of alumnos) {
       if (alumno.email) {
@@ -260,7 +271,7 @@ export async function PUT(req: NextRequest) {
 
     // Obtener todos los datos de ExpedienteAlumno
     const expedientesAlumnos = await prisma.expedienteAlumno.findMany();
-    
+
     // Obtener asignaturas para mapeo
     const asignaturas = await prisma.asignatura.findMany();
     const asignaturasPorCodigo = new Map();
@@ -279,27 +290,27 @@ export async function PUT(req: NextRequest) {
     // Procesar cada expediente de alumno
     for (const expediente of expedientesAlumnos) {
       resultados.procesados++;
-      
+
       try {
         if (!expediente.EMAIL || !expediente.CODIGO) {
           resultados.detalles.push(`Registro sin EMAIL o código de asignatura: ${expediente.id}`);
           continue;
         }
-        
+
         // Buscar alumno por EMAIL
         const alumno = alumnosPorEmail.get(expediente.EMAIL.toLowerCase());
         if (!alumno) {
           resultados.detalles.push(`No se encontró alumno con EMAIL: ${expediente.EMAIL}`);
           continue;
         }
-        
+
         // Buscar asignatura por código
         const asignatura = asignaturasPorCodigo.get(expediente.CODIGO);
         if (!asignatura) {
           resultados.detalles.push(`No se encontró asignatura con código: ${expediente.CODIGO}`);
           continue;
         }
-        
+
         // Verificar si ya existe esta matrícula
         const matriculaExistente = await prisma.matricula.findFirst({
           where: {
@@ -307,11 +318,11 @@ export async function PUT(req: NextRequest) {
             asignaturaId: asignatura.id
           }
         });
-          if (matriculaExistente) {
+        if (matriculaExistente) {
           resultados.detalles.push(`Matrícula ya existe para alumno con EMAIL ${expediente.EMAIL} y asignatura ${expediente.CODIGO}`);
           continue;
         }
-        
+
         // Crear nueva matrícula
         await prisma.matricula.create({
           data: {
@@ -320,17 +331,26 @@ export async function PUT(req: NextRequest) {
             mostrar: true
           }
         });
-        
+
+        await logActivity({
+          req,
+          action: 'create',
+          entityType: 'matricula',
+          details: `Importación masiva de ${resultados.creados} matrículas desde expediente.`,
+          prevValue: resultados
+        });
+
+
         resultados.creados++;
-        
+
       } catch (error) {
         resultados.errores++;
         resultados.detalles.push(`Error al procesar registro ${expediente.id}: ${error}`);
       }
     }
-    
+
     return NextResponse.json(resultados, { status: 200 });
-    
+
   } catch (error) {
     console.error("Error al poblar matrículas:", error);
     return NextResponse.json(

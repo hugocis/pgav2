@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todas las solicitudes de justificación
 export async function GET(request: NextRequest) {
@@ -13,17 +14,17 @@ export async function GET(request: NextRequest) {
 
     // Construir el filtro de búsqueda
     const where: Prisma.SolicitudJustificacionWhereInput = {};
-    
+
     if (alumnoId) {
       where.alumnoId = alumnoId;
     }
-    
+
     if (estadoJustificacionId) {
-      where.estadoJustificacionId = parseInt(estadoJustificacionId, 10);
+      where.estadoJustificacionId = estadoJustificacionId;
     }
 
     if (asistenciaAlumnoId) {
-      where.asistenciaAlumnoId = parseInt(asistenciaAlumnoId, 10);
+      where.asistenciaAlumnoId = asistenciaAlumnoId;
     }
 
     const solicitudes = await prisma.solicitudJustificacion.findMany({
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si el estado de justificación existe
     const estadoExistente = await prisma.estadoJustificacion.findUnique({
-      where: { id: parseInt(estadoJustificacionId, 10) }
+      where: { id: estadoJustificacionId }
     });
 
     if (!estadoExistente) {
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si la asistencia existe
     const asistenciaExistente = await prisma.asistenciaAlumno.findUnique({
-      where: { id: parseInt(asistenciaAlumnoId, 10) }
+      where: { id: asistenciaAlumnoId }
     });
 
     if (!asistenciaExistente) {
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest) {
     // Verificar si ya existe una solicitud para esta asistencia
     const solicitudExistente = await prisma.solicitudJustificacion.findFirst({
       where: {
-        asistenciaAlumnoId: parseInt(asistenciaAlumnoId, 10),
+        asistenciaAlumnoId: asistenciaAlumnoId,
         alumnoId
       }
     });
@@ -137,10 +138,19 @@ export async function POST(request: NextRequest) {
         alegacion,
         fechaAlegacion: new Date(fechaAlegacion),
         alumnoId,
-        estadoJustificacionId: parseInt(estadoJustificacionId, 10),
-        asistenciaAlumnoId: parseInt(asistenciaAlumnoId, 10)
+        estadoJustificacionId: estadoJustificacionId,
+        asistenciaAlumnoId: asistenciaAlumnoId
       }
     });
+
+    await logActivity({
+      req: request,
+      action: 'create',
+      entityType: 'solicitudJustificacion',
+      entityId: nuevaSolicitud.id,
+      details: `Creación de solicitud de justificación del alumno ${alumnoExistente.email}`
+    });
+
 
     return NextResponse.json(nuevaSolicitud, { status: 201 });
   } catch (error) {

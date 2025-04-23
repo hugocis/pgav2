@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity'; // Asegúrate de tener esto creado
 
 // GET - Obtener una escuela específica por ID
 export async function GET(
@@ -17,7 +18,7 @@ export async function GET(
     }
 
     const escuela = await prisma.escuela.findUnique({
-      where: { id: parseInt(id, 10) },
+      where: { id: id },
       include: { Carrera: true }
     });
 
@@ -63,7 +64,7 @@ export async function PUT(
     }
 
     const escuelaExistente = await prisma.escuela.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
 
     if (!escuelaExistente) {
@@ -76,7 +77,7 @@ export async function PUT(
     const escuelaConMismaDenom = await prisma.escuela.findFirst({
       where: {
         denominacion,
-        id: { not: parseInt(id, 10) }
+        id: { not: id }
       }
     });
 
@@ -88,8 +89,17 @@ export async function PUT(
     }
 
     const escuelaActualizada = await prisma.escuela.update({
-      where: { id: parseInt(id, 10) },
+      where: { id: id },
       data: { denominacion }
+    });
+
+    await logActivity({
+      req: request,
+      action: 'update',
+      entityType: 'escuela',
+      entityId: id,
+      prevValue: escuelaExistente,
+      details: `Actualización de escuela: ${escuelaExistente.denominacion} → ${denominacion}`
     });
 
     return NextResponse.json(
@@ -124,7 +134,7 @@ export async function DELETE(
     }
 
     const escuela = await prisma.escuela.findUnique({
-      where: { id: parseInt(id, 10) },
+      where: { id: id },
       include: { Carrera: true }
     });
 
@@ -146,7 +156,16 @@ export async function DELETE(
     }
 
     await prisma.escuela.delete({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
+    });
+
+    await logActivity({
+      req: request,
+      action: 'delete',
+      entityType: 'escuela',
+      entityId: id,
+      prevValue: escuela,
+      details: `Escuela eliminada: ${escuela.denominacion}`
     });
 
     return NextResponse.json(

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcrypt';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todos los usuarios
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
         createdAt: 'desc',
       },
     });
-    
+
     return NextResponse.json(users, { status: 200 });
   } catch (error) {
     console.error('Error al obtener los usuarios:', error);
@@ -32,7 +33,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     // Validar los campos requeridos
     if (!body.username || !body.email || !body.password) {
       return NextResponse.json(
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     // Hash de la contraseña
     const hashedPassword = await bcrypt.hash(body.password, 10);
-    
+
     // Crear el nuevo usuario
     const newUser = await prisma.user.create({
       data: {
@@ -83,6 +84,15 @@ export async function POST(request: NextRequest) {
         }
       });
     }
+
+    await logActivity({
+      req: request,
+      action: 'create',
+      entityType: 'user',
+      entityId: newUser.id,
+      details: `Creación manual del usuario ${newUser.email} (${body.roleId ? 'con rol asignado' : 'sin rol'})`
+    });
+
 
     return NextResponse.json(newUser, { status: 201 });
   } catch (error) {
@@ -141,7 +151,7 @@ export async function PUT(request: NextRequest) {
 
           // Extraer username del email
           const username = expediente.EMAIL.split('@')[0];
-          
+
           // Verificar si el usuario ya existe
           const existingUser = await prisma.user.findFirst({
             where: {
@@ -182,10 +192,19 @@ export async function PUT(request: NextRequest) {
           });
 
           createdUsers.push(newUser);
+
+          await logActivity({
+            req: request,
+            action: 'create',
+            entityType: 'user',
+            entityId: newUser.id,
+            details: `Importación automática de estudiante ${newUser.email}`
+          });
+
         } catch (error) {
-          errors.push({ 
-            dni: expediente.DNI, 
-            error: `Error: ${(error as Error).message}` 
+          errors.push({
+            dni: expediente.DNI,
+            error: `Error: ${(error as Error).message}`
           });
         }
       }
@@ -237,7 +256,7 @@ export async function PUT(request: NextRequest) {
 
           // Extraer username del email
           const username = profesor.EMAIL.split('@')[0];
-          
+
           // Verificar si el usuario ya existe
           const existingUser = await prisma.user.findFirst({
             where: {
@@ -277,11 +296,20 @@ export async function PUT(request: NextRequest) {
             }
           });
 
+          await logActivity({
+            req: request,
+            action: 'create',
+            entityType: 'user',
+            entityId: newUser.id,
+            details: `Importación automática de profesor ${newUser.email}`
+          });
+
+
           createdUsers.push(newUser);
         } catch (error) {
-          errors.push({ 
-            dni: profesor.DNI, 
-            error: `Error: ${(error as Error).message}` 
+          errors.push({
+            dni: profesor.DNI,
+            error: `Error: ${(error as Error).message}`
           });
         }
       }

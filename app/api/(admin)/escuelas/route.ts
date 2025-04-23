@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todas las escuelas
 export async function GET() {
@@ -103,11 +104,15 @@ export async function POST(request: NextRequest) {
 
         try {
           // Crear nueva escuela
-          await prisma.escuela.create({
-            data: {
-              denominacion: denominacion
-            }
+          await prisma.escuela.create({ data: { denominacion } });
+
+          await logActivity({
+            req: request,
+            action: 'create',
+            entityType: 'escuela',
+            details: `Escuela creada automáticamente: ${denominacion}`
           });
+
 
           resultados.creados++;
           resultados.detalles.push({
@@ -157,12 +162,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear nueva escuela
+    const nuevaEscuela = await prisma.escuela.create({ data: { denominacion } });
+
+    await logActivity({
+      req: request,
+      action: 'create',
+      entityType: 'escuela',
+      entityId: nuevaEscuela.id,
+      details: `Escuela creada manualmente: ${denominacion}`
+    });
 
     return NextResponse.json({
       message: 'Escuela creada correctamente',
-      escuela: await prisma.escuela.create({
-        data: { denominacion }
-      })
+      escuela: nuevaEscuela
     }, { status: 201 });
 
   } catch (error) {
@@ -198,7 +210,7 @@ export async function PUT(request: NextRequest) {
     // Verificar si la escuela existe
     const escuelaExistente = await prisma.escuela.findUnique({
       where: {
-        id: parseInt(id)
+        id: id
       }
     });
 
@@ -213,7 +225,7 @@ export async function PUT(request: NextRequest) {
     const escuelaConMismaDenom = await prisma.escuela.findFirst({
       where: {
         denominacion: denominacion,
-        id: { not: parseInt(id) }
+        id: { not: id }
       }
     });
 
@@ -227,12 +239,22 @@ export async function PUT(request: NextRequest) {
     // Actualizar la escuela
     const escuelaActualizada = await prisma.escuela.update({
       where: {
-        id: parseInt(id)
+        id: id
       },
       data: {
         denominacion
       }
     });
+
+    await logActivity({
+      req: request,
+      action: 'update',
+      entityType: 'escuela',
+      entityId: id,
+      prevValue: escuelaExistente,
+      details: `Escuela actualizada: ${escuelaExistente.denominacion} → ${denominacion}`
+    });
+
 
     return NextResponse.json({
       message: 'Escuela actualizada correctamente',
@@ -265,7 +287,7 @@ export async function DELETE(request: NextRequest) {
     // Verificar si la escuela existe
     const escuela = await prisma.escuela.findUnique({
       where: {
-        id: parseInt(id)
+        id: id
       },
       include: {
         Carrera: true
@@ -293,9 +315,19 @@ export async function DELETE(request: NextRequest) {
     // Eliminar la escuela
     await prisma.escuela.delete({
       where: {
-        id: parseInt(id)
+        id: id
       }
     });
+
+    await logActivity({
+      req: request,
+      action: 'delete',
+      entityType: 'escuela',
+      entityId: id,
+      prevValue: escuela,
+      details: `Escuela eliminada: ${escuela.denominacion}`
+    });
+
 
     return NextResponse.json({
       message: 'Escuela eliminada correctamente'

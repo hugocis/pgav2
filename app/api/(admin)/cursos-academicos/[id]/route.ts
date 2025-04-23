@@ -1,20 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id: idString } = await params;
-        const id = parseInt(idString, 10);
-
-        if (isNaN(id)) {
-            return NextResponse.json(
-                { error: 'ID de curso académico inválido' },
-                { status: 400 }
-            );
-        }
+        const { id } = await params;
 
         const cursoAcademico = await prisma.cursoAcademico.findUnique({
             where: { id },
@@ -42,15 +35,7 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id: idString } = await params;
-        const id = parseInt(idString, 10);
-
-        if (isNaN(id)) {
-            return NextResponse.json(
-                { error: 'ID de curso académico inválido' },
-                { status: 400 }
-            );
-        }
+        const { id } = await params;
 
         const body = await request.json();
         const { denominacion, activo, cursoAnterior, cursoSiguiente } = body;
@@ -101,6 +86,14 @@ export async function PUT(
             },
         });
 
+        await logActivity({
+            req: request,
+            action: 'update',
+            entityType: 'cursoAcademico',
+            entityId: id,
+            details: `Curso académico actualizado a ${denominacion}${activo ? ' (activado)' : ''}`
+        });
+
         return NextResponse.json(cursoActualizado, { status: 200 });
     } catch (error) {
         console.error('Error al actualizar el curso académico:', error);
@@ -116,15 +109,7 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id: idString } = await params;
-        const id = parseInt(idString, 10);
-
-        if (isNaN(id)) {
-            return NextResponse.json(
-                { error: 'ID de curso académico inválido' },
-                { status: 400 }
-            );
-        }
+        const { id } = await params;
 
         const cursoExistente = await prisma.cursoAcademico.findUnique({
             where: { id },
@@ -159,6 +144,15 @@ export async function DELETE(
         await prisma.cursoAcademico.delete({
             where: { id },
         });
+
+        await logActivity({
+            req: request,
+            action: 'delete',
+            entityType: 'cursoAcademico',
+            entityId: id,
+            details: `Curso académico eliminado: ${cursoExistente.denominacion}`
+        });
+
 
         return NextResponse.json(
             { message: 'Curso académico eliminado correctamente' },

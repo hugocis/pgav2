@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // Función para extraer denominación de carrera y códigos de plan de estudios
 function extraerDenominacionYCodigoPlan(carreraTexto: string): { denominacion: string; codigos: string[] } {
@@ -12,7 +13,7 @@ function extraerDenominacionYCodigoPlan(carreraTexto: string): { denominacion: s
     const denominacion = match[1].trim();
     // Separar los códigos que pueden venir como "GMA2, GMA0, GMA9"
     const codigos = match[2].split(',').map(codigo => codigo.trim());
-    
+
     return {
       denominacion: denominacion,
       codigos: codigos
@@ -24,7 +25,7 @@ function extraerDenominacionYCodigoPlan(carreraTexto: string): { denominacion: s
   if (ultimoEspacio !== -1) {
     const posibleCodigo = carreraTexto.substring(ultimoEspacio + 1).trim();
     const posibleDenom = carreraTexto.substring(0, ultimoEspacio).trim();
-    
+
     // Si el posible código parece un código de plan de estudios (letras y números)
     if (/^[A-Z0-9]+$/.test(posibleCodigo)) {
       return {
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
 
       // Verificar que la escuela existe
       const escuelaExistente = await prisma.escuela.findUnique({
-        where: { id: parseInt(escuelaId, 10) }
+        where: { id: escuelaId }
       });
 
       if (!escuelaExistente) {
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
         where: {
           AND: [
             { denominacion },
-            { escuelaId: parseInt(escuelaId, 10) }
+            { escuelaId: escuelaId }
           ]
         }
       });
@@ -128,8 +129,16 @@ export async function POST(request: NextRequest) {
       const nuevaCarrera = await prisma.carrera.create({
         data: {
           denominacion,
-          escuelaId: parseInt(escuelaId, 10),
+          escuelaId: escuelaId,
         }
+      });
+
+      await logActivity({
+        req: request,
+        action: 'create',
+        entityType: 'carrera',
+        entityId: nuevaCarrera.id,
+        details: `Creación manual de carrera '${denominacion}' en escuela '${escuelaExistente?.denominacion}'`
       });
 
       // Crear automáticamente la configuración de carrera
@@ -141,17 +150,33 @@ export async function POST(request: NextRequest) {
         }
       });
 
+      await logActivity({
+        req: request,
+        action: 'create',
+        entityType: 'configuracionCarrera',
+        entityId: nuevaCarrera.id,
+        details: `Configuración de carrera creada para '${denominacion}'`
+      });
+
+
       // Crear planes de estudio si se proporcionan
       if (planesDeEstudio && Array.isArray(planesDeEstudio) && planesDeEstudio.length > 0) {
         for (const plan of planesDeEstudio) {
           if (!plan.denominacion || !plan.codPlan) continue;
-          
+
           await prisma.planDeEstudios.create({
             data: {
               denominacion: plan.denominacion,
               codPlan: plan.codPlan,
               carreraId: nuevaCarrera.id
             }
+          });
+
+          await logActivity({
+            req: request,
+            action: 'create',
+            entityType: 'planDeEstudios',
+            details: `Plan de estudios '${plan.codPlan}' creado para carrera '${denominacion}'`
           });
         }
       } else {
@@ -162,6 +187,13 @@ export async function POST(request: NextRequest) {
             codPlan: denominacion.substring(0, 5).toUpperCase().replace(/\s+/g, ''),
             carreraId: nuevaCarrera.id
           }
+        });
+
+        await logActivity({
+          req: request,
+          action: 'create',
+          entityType: 'planDeEstudios',
+          details: `Plan de estudios por defecto creado para carrera '${denominacion}'`
         });
       }
 
@@ -246,7 +278,7 @@ export async function POST(request: NextRequest) {
             },
             body: JSON.stringify({ denominacion: nombreEscuela })
           });
-          
+
           if (!response.ok) {
             // Si hay error al crear la escuela, intentar buscarla
             escuela = await prisma.escuela.findFirst({
@@ -254,7 +286,7 @@ export async function POST(request: NextRequest) {
                 denominacion: nombreEscuela
               }
             });
-            
+
             if (!escuela) {
               resultados.errores.push(`No se pudo crear ni encontrar la escuela ${nombreEscuela}`);
               continue;
@@ -270,7 +302,7 @@ export async function POST(request: NextRequest) {
               denominacion: nombreEscuela
             }
           });
-          
+
           if (!escuela) {
             try {
               escuela = await prisma.escuela.create({
@@ -278,6 +310,15 @@ export async function POST(request: NextRequest) {
                   denominacion: nombreEscuela
                 }
               });
+
+              await logActivity({
+                req: request,
+                action: 'create',
+                entityType: 'escuela',
+                entityId: escuela.id,
+                details: `Escuela creada automáticamente con nombre '${nombreEscuela}' desde OfertaAcademica`
+              });
+
             } catch (e) {
               resultados.errores.push(`Error al crear la escuela ${nombreEscuela}: ${e}`);
               continue;
@@ -313,13 +354,13 @@ export async function POST(request: NextRequest) {
         if (carreraExistente) {
           resultados.yaExistentes.push(denominacion);
           detalle.accion = "Ya existente";
-          
+
           // Verificar y crear planes de estudio que no existan
           for (const codigo of codigos) {
             const planExistente = carreraExistente.PlanDeEstudios.find(
               plan => plan.codPlan === codigo
             );
-            
+
             if (!planExistente) {
               try {
                 await prisma.planDeEstudios.create({
@@ -329,6 +370,14 @@ export async function POST(request: NextRequest) {
                     carreraId: carreraExistente.id
                   }
                 });
+
+                await logActivity({
+                  req: request,
+                  action: 'create',
+                  entityType: 'planDeEstudios',
+                  details: `Plan de estudios '${codigo}' creado automáticamente para carrera '${denominacion}'`
+                });
+
                 resultados.creados.planes++;
                 detalle.planes.push({
                   codigo: codigo,
@@ -354,6 +403,14 @@ export async function POST(request: NextRequest) {
               }
             });
 
+            await logActivity({
+              req: request,
+              action: 'create',
+              entityType: 'carrera',
+              entityId: nuevaCarrera.id,
+              details: `Importación automática de carrera '${denominacion}' desde OfertaAcademica en escuela '${escuela.denominacion}'`
+            });
+
             // Crear automáticamente la configuración de carrera
             await prisma.configuracionCarrera.create({
               data: {
@@ -361,6 +418,14 @@ export async function POST(request: NextRequest) {
                 SolJustificacion: false,
                 carreraId: nuevaCarrera.id
               }
+            });
+
+            await logActivity({
+              req: request,
+              action: 'create',
+              entityType: 'configuracionCarrera',
+              entityId: nuevaCarrera.id,
+              details: `Configuración de carrera creada automáticamente para '${denominacion}'`
             });
 
             resultados.creados.carreras++;
@@ -376,6 +441,14 @@ export async function POST(request: NextRequest) {
                     carreraId: nuevaCarrera.id
                   }
                 });
+
+                await logActivity({
+                  req: request,
+                  action: 'create',
+                  entityType: 'planDeEstudios',
+                  details: `Plan de estudios '${codigo}' creado automáticamente para carrera '${denominacion}'`
+                });
+                
                 resultados.creados.planes++;
                 detalle.planes.push({
                   codigo: codigo,
@@ -389,7 +462,7 @@ export async function POST(request: NextRequest) {
             resultados.errores.push(`Error al crear la carrera ${denominacion}: ${error}`);
           }
         }
-        
+
         resultados.detalles.push(detalle);
       }
 

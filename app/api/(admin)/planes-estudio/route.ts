@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todos los planes de estudio
 export async function GET() {
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar que la carrera existe
     const carreraExistente = await prisma.carrera.findUnique({
-      where: { id: parseInt(carreraId, 10) }
+      where: { id: carreraId }
     });
 
     if (!carreraExistente) {
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
     const planExistente = await prisma.planDeEstudios.findFirst({
       where: {
         codPlan,
-        carreraId: parseInt(carreraId, 10)
+        carreraId: carreraId
       }
     });
 
@@ -74,9 +75,18 @@ export async function POST(request: NextRequest) {
       data: {
         denominacion,
         codPlan,
-        carreraId: parseInt(carreraId, 10)
+        carreraId: carreraId
       }
     });
+
+    await logActivity({
+      req: request,
+      action: 'create',
+      entityType: 'planDeEstudios',
+      entityId: nuevoPlan.id,
+      details: `Creación del plan de estudios "${nuevoPlan.denominacion}" con código "${nuevoPlan.codPlan}" en la carrera ${carreraExistente.denominacion}`
+    });
+
 
     return NextResponse.json({
       message: 'Plan de estudios creado correctamente',

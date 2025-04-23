@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener una configuración de carrera específica por ID
 export async function GET(
@@ -17,8 +18,8 @@ export async function GET(
     }
 
     const configuracion = await prisma.configuracionCarrera.findUnique({
-      where: { id: parseInt(id, 10) },
-      include: { 
+      where: { id: id },
+      include: {
         carrera: true
       }
     });
@@ -67,7 +68,7 @@ export async function PUT(
 
     // Verificar que la configuración existe
     const configuracionExistente = await prisma.configuracionCarrera.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
 
     if (!configuracionExistente) {
@@ -81,14 +82,14 @@ export async function PUT(
     if (FechaInicioDispensa && FechaFinDispensa) {
       const fechaInicio = new Date(FechaInicioDispensa);
       const fechaFin = new Date(FechaFinDispensa);
-      
+
       if (isNaN(fechaInicio.getTime()) || isNaN(fechaFin.getTime())) {
         return NextResponse.json(
           { error: 'Los formatos de fecha no son válidos' },
           { status: 400 }
         );
       }
-      
+
       if (fechaInicio > fechaFin) {
         return NextResponse.json(
           { error: 'La fecha de inicio no puede ser posterior a la fecha de fin' },
@@ -99,13 +100,21 @@ export async function PUT(
 
     // Actualizar la configuración
     const configuracionActualizada = await prisma.configuracionCarrera.update({
-      where: { id: parseInt(id, 10) },
-      data: { 
+      where: { id: id },
+      data: {
         SolDispensa,
         SolJustificacion,
         FechaInicioDispensa: FechaInicioDispensa ? new Date(FechaInicioDispensa) : null,
         FechaFinDispensa: FechaFinDispensa ? new Date(FechaFinDispensa) : null
       }
+    });
+
+    await logActivity({
+      req: request,
+      action: 'update',
+      entityType: 'configuracionCarrera',
+      entityId: id,
+      details: `Actualización de configuración: SolDispensa=${SolDispensa}, SolJustificacion=${SolJustificacion}`
     });
 
     return NextResponse.json(
@@ -141,7 +150,7 @@ export async function DELETE(
 
     // Verificar que la configuración existe
     const configuracion = await prisma.configuracionCarrera.findUnique({
-      where: { id: parseInt(id, 10) },
+      where: { id: id },
       include: { carrera: true }
     });
 
@@ -154,13 +163,21 @@ export async function DELETE(
 
     // Eliminar la configuración
     await prisma.configuracionCarrera.delete({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
+    });
+
+    await logActivity({
+      req: request,
+      action: 'delete',
+      entityType: 'configuracionCarrera',
+      entityId: id,
+      details: `Configuración de carrera eliminada para la carrera: ${configuracion.carrera?.denominacion ?? 'desconocida'}`
     });
 
     return NextResponse.json(
-      { 
+      {
         message: 'Configuración de carrera eliminada correctamente',
-        id: parseInt(id, 10)
+        id: id
       },
       { status: 200 }
     );

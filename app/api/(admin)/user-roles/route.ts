@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todas las asignaciones de rol
 export async function GET() {
@@ -13,7 +14,7 @@ export async function GET() {
         assignedAt: 'desc',
       },
     });
-    
+
     return NextResponse.json(userRoles, { status: 200 });
   } catch (error) {
     console.error('Error al obtener las asignaciones de rol:', error);
@@ -28,7 +29,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     // Validar los campos requeridos
     if (!body.userId || !body.roleId) {
       return NextResponse.json(
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
-    
+
     // Crear la nueva asignación de rol
     const newUserRole = await prisma.userRole.create({
       data: {
@@ -87,6 +88,15 @@ export async function POST(request: NextRequest) {
         role: true
       }
     });
+
+    await logActivity({
+      req: request,
+      action: 'create',
+      entityType: 'userRole',
+      entityId: newUserRole.id,
+      details: `Asignación del rol "${newUserRole.role.name}" al usuario ${newUserRole.user.email}`
+    });
+
 
     return NextResponse.json(newUserRole, { status: 201 });
   } catch (error) {

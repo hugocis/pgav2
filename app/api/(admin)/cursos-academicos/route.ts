@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todos los cursos académicos
 export async function GET() {
@@ -149,16 +150,23 @@ export async function POST(request: NextRequest) {
                 (!cursoSiguiente || parseInt(cursoSiguiente.split('-')[0]) > añoInicioCurso)) {
               cursoSiguiente = curso.denominacion;
             }
-          }
-
-          // Crear nuevo curso académico
-          await prisma.cursoAcademico.create({
+          }          // Crear nuevo curso académico
+          const nuevoCursoAuto = await prisma.cursoAcademico.create({
             data: {
               denominacion: anyAnyaca,
               activo: false, // Por defecto no está activo
               cursoAnterior,
               cursoSiguiente
             }
+          });
+          
+          // Registrar la creación del curso académico en el log de actividades
+          await logActivity({
+            req: request,
+            action: 'create',
+            entityType: 'cursoAcademico',
+            entityId: nuevoCursoAuto.id,
+            details: `Creación automática del curso académico ${anyAnyaca}`
           });
 
           // Si existe un curso anterior, actualizarlo para que su cursoSiguiente sea el nuevo curso
@@ -307,8 +315,7 @@ export async function POST(request: NextRequest) {
         data: { activo: false },
       });
     }
-    
-    // Crear nuevo curso académico
+      // Crear nuevo curso académico
     const nuevoCurso = await prisma.cursoAcademico.create({
       data: {
         denominacion,
@@ -316,6 +323,15 @@ export async function POST(request: NextRequest) {
         cursoAnterior: cursoAnteriorFinal,
         cursoSiguiente: cursoSiguienteFinal,
       },
+    });
+    
+    // Registrar la creación manual del curso académico
+    await logActivity({
+      req: request,
+      action: 'create',
+      entityType: 'cursoAcademico',
+      entityId: nuevoCurso.id,
+      details: `Creación manual del curso académico ${denominacion}${activo ? ' (activado)' : ''}`
     });
     
     // Si existe un curso anterior, actualizarlo para que su cursoSiguiente sea el nuevo curso

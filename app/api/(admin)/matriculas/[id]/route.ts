@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { logActivity } from "@/lib/logActivity";
 
 // GET /api/matriculas/[id]
 export async function GET(
@@ -7,12 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: paramId } = await params;
-    const id = parseInt(paramId);
-
-    if (isNaN(id)) {
-      return NextResponse.json({ error: "ID no válido" }, { status: 400 });
-    }
+    const { id } = await params;
 
     const matricula = await prisma.matricula.findUnique({
       where: { id },
@@ -58,13 +54,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: idStr } = await params;
-    const id = parseInt(idStr);
-
-    if (isNaN(id)) {
-      return NextResponse.json({ error: "ID no válido" }, { status: 400 });
-    }
-
+    const { id } = await params;
     const body = await req.json();
     const { alumno_id, asignaturaId, mostrar, fechaBaja } = body;
 
@@ -139,6 +129,15 @@ export async function PUT(
       }
     });
 
+    await logActivity({
+      req,
+      action: 'update',
+      entityType: 'matricula',
+      entityId: id,
+      details: `Matrícula actualizada para alumno ${matriculaActualizada.user.name} ${matriculaActualizada.user.surname1}`,
+      prevValue: matriculaExistente
+    });
+
     return NextResponse.json(matriculaActualizada, { status: 200 });
   } catch (error) {
     console.error("Error al actualizar matrícula:", error);
@@ -155,12 +154,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: idStr } = await params;
-    const id = parseInt(idStr);
-
-    if (isNaN(id)) {
-      return NextResponse.json({ error: "ID no válido" }, { status: 400 });
-    }
+    const { id } = await params;
 
     const matricula = await prisma.matricula.findUnique({
       where: { id }
@@ -177,10 +171,20 @@ export async function DELETE(
       where: { id }
     });
 
+    await logActivity({
+      req,
+      action: 'delete',
+      entityType: 'matricula',
+      entityId: id,
+      details: `Matrícula eliminada del alumno con ID ${matricula.alumno_id} en asignatura ID ${matricula.asignaturaId}`,
+      prevValue: matricula
+    });
+
     return NextResponse.json(
       { message: "Matrícula eliminada correctamente" },
       { status: 200 }
     );
+
   } catch (error) {
     console.error("Error al eliminar matrícula:", error);
     return NextResponse.json(

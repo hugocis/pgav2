@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener un estado de asistencia específico por ID
 export async function GET(
@@ -17,7 +18,7 @@ export async function GET(
     }
 
     const estadoAsistencia = await prisma.estadoAsistencia.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
 
     if (!estadoAsistencia) {
@@ -54,7 +55,6 @@ export async function PUT(
       );
     }
 
-    // Validar datos obligatorios
     if (!denominacion) {
       return NextResponse.json(
         { error: 'La denominación es un campo obligatorio' },
@@ -62,9 +62,8 @@ export async function PUT(
       );
     }
 
-    // Verificar si el estado existe
     const estadoExistente = await prisma.estadoAsistencia.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
 
     if (!estadoExistente) {
@@ -74,10 +73,18 @@ export async function PUT(
       );
     }
 
-    // Actualizar el estado de asistencia
     const estadoActualizado = await prisma.estadoAsistencia.update({
-      where: { id: parseInt(id, 10) },
+      where: { id: id },
       data: { denominacion }
+    });
+
+    await logActivity({
+      req: request,
+      action: 'update',
+      entityType: 'estadoAsistencia',
+      entityId: id,
+      prevValue: estadoExistente,
+      details: `Actualización del estado de asistencia: ${estadoExistente.denominacion} → ${denominacion}`
     });
 
     return NextResponse.json(estadoActualizado, { status: 200 });
@@ -105,9 +112,8 @@ export async function DELETE(
       );
     }
 
-    // Verificar si el estado existe
     const estadoExistente = await prisma.estadoAsistencia.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
 
     if (!estadoExistente) {
@@ -117,9 +123,8 @@ export async function DELETE(
       );
     }
 
-    // Verificar si hay registros de asistencia asociados
     const asistenciasAsociadas = await prisma.asistenciaAlumno.findFirst({
-      where: { estadoAsistenciaId: parseInt(id, 10) }
+      where: { estadoAsistenciaId: id }
     });
 
     if (asistenciasAsociadas) {
@@ -129,9 +134,17 @@ export async function DELETE(
       );
     }
 
-    // Eliminar el estado de asistencia
     await prisma.estadoAsistencia.delete({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
+    });
+
+    await logActivity({
+      req: request,
+      action: 'delete',
+      entityType: 'estadoAsistencia',
+      entityId: id,
+      prevValue: estadoExistente,
+      details: `Eliminación del estado de asistencia: ${estadoExistente.denominacion}`
     });
 
     return NextResponse.json({ message: 'Estado de asistencia eliminado correctamente' }, { status: 200 });

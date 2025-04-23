@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener un usuario por ID
 export async function GET(
@@ -48,12 +49,12 @@ export async function PUT(
   // 1) Preparar los datos de usuario que no sean roles
   const updateData: Prisma.UserUpdateInput = {};
   if (body.username !== undefined) updateData.username = body.username;
-  if (body.name      !== undefined) updateData.name     = body.name;
-  if (body.surname1  !== undefined) updateData.surname1 = body.surname1;
-  if (body.surname2  !== undefined) updateData.surname2 = body.surname2;
-  if (body.email     !== undefined) updateData.email    = body.email;
-  if (body.lockout   !== undefined) updateData.lockout  = body.lockout;
-  if (body.password  !== undefined) {
+  if (body.name !== undefined) updateData.name = body.name;
+  if (body.surname1 !== undefined) updateData.surname1 = body.surname1;
+  if (body.surname2 !== undefined) updateData.surname2 = body.surname2;
+  if (body.email !== undefined) updateData.email = body.email;
+  if (body.lockout !== undefined) updateData.lockout = body.lockout;
+  if (body.password !== undefined) {
     updateData.password = await bcrypt.hash(body.password, 10);
   }
 
@@ -63,7 +64,7 @@ export async function PUT(
     relationUpdate = {
       userRoles: {
         deleteMany: { userId: id },                     // elimina viejas asignaciones
-        create:    body.roles.map((roleId: number) => ({ roleId })),
+        create: body.roles.map((roleId: number) => ({ roleId })),
       }
     };
   }
@@ -78,6 +79,15 @@ export async function PUT(
     include: {
       userRoles: { include: { role: true } }           // devuelve el usuario con sus roles
     }
+  });
+
+  await logActivity({
+    req: request,
+    action: 'update',
+    entityType: 'user',
+    entityId: updatedUser.id,
+    details: `Actualización de datos del usuario ${updatedUser.email}`,
+    prevValue: await prisma.user.findUnique({ where: { id } }) // ideal: guardar antes
   });
 
   return NextResponse.json(updatedUser, { status: 200 });
@@ -101,6 +111,16 @@ export async function DELETE(
     }
 
     await prisma.user.delete({ where: { id } });
+
+    await logActivity({
+      req: request,
+      action: 'delete',
+      entityType: 'user',
+      entityId: existingUser.id,
+      details: `Eliminación del usuario ${existingUser.email}`,
+      prevValue: existingUser
+    });
+
     return NextResponse.json(
       { message: 'Usuario eliminado correctamente' },
       { status: 200 }

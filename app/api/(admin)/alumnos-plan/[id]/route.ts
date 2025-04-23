@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener un plan de alumno por ID
 export async function GET(
@@ -9,17 +10,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const idNum = parseInt(id, 10);
-
-    if (isNaN(idNum)) {
-      return NextResponse.json(
-        { error: 'ID de plan de alumno inválido' },
-        { status: 400 }
-      );
-    }
 
     const alumnoPlan = await prisma.alumnoPlan.findUnique({
-      where: { id: idNum },
+      where: { id },
       include: {
         user: true,
         cursoAcademico: true,
@@ -53,21 +46,17 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const idNum = parseInt(id, 10);
-
-    if (isNaN(idNum)) {
-      return NextResponse.json(
-        { error: 'ID de plan de alumno inválido' },
-        { status: 400 }
-      );
-    }
-
     const body = await request.json();
 
-    // Verificar que el plan de alumno exista
     const existingAlumnoPlan = await prisma.alumnoPlan.findUnique({
-      where: { id: idNum }
+      where: { id },
+      include: {
+        user: true,
+        cursoAcademico: true,
+        plandeEstudios: true
+      }
     });
+
     if (!existingAlumnoPlan) {
       return NextResponse.json(
         { error: 'Plan de alumno no encontrado' },
@@ -75,14 +64,12 @@ export async function PUT(
       );
     }
 
-    // Preparar los datos para la actualización
     const updateData: Prisma.AlumnoPlanUpdateInput = {};
 
     if (body.fechaBaja !== undefined) {
       updateData.fechaBaja = body.fechaBaja ? new Date(body.fechaBaja) : null;
     }
     if (body.alumno_id !== undefined) {
-      // comprobar que el usuario existe
       const alumno = await prisma.user.findUnique({ where: { id: body.alumno_id } });
       if (!alumno) {
         return NextResponse.json(
@@ -114,13 +101,23 @@ export async function PUT(
     }
 
     const updatedAlumnoPlan = await prisma.alumnoPlan.update({
-      where: { id: idNum },
+      where: { id },
       data: updateData,
       include: {
         user: true,
         cursoAcademico: true,
         plandeEstudios: true
       }
+    });
+
+    // Registrar la actividad
+    await logActivity({
+      req: request,
+      action: 'update',
+      entityType: 'alumnoPlan',
+      entityId: id,
+      details: `Actualización del plan de alumno ${updatedAlumnoPlan.user?.email || ''}`,
+      prevValue: existingAlumnoPlan
     });
 
     return NextResponse.json(updatedAlumnoPlan, { status: 200 });
@@ -140,18 +137,16 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const idNum = parseInt(id, 10);
-
-    if (isNaN(idNum)) {
-      return NextResponse.json(
-        { error: 'ID de plan de alumno inválido' },
-        { status: 400 }
-      );
-    }
 
     const existingAlumnoPlan = await prisma.alumnoPlan.findUnique({
-      where: { id: idNum }
+      where: { id },
+      include: {
+        user: true,
+        cursoAcademico: true,
+        plandeEstudios: true
+      }
     });
+
     if (!existingAlumnoPlan) {
       return NextResponse.json(
         { error: 'Plan de alumno no encontrado' },
@@ -159,7 +154,17 @@ export async function DELETE(
       );
     }
 
-    await prisma.alumnoPlan.delete({ where: { id: idNum } });
+    await prisma.alumnoPlan.delete({ where: { id } });
+
+    // Registrar la actividad
+    await logActivity({
+      req: request,
+      action: 'delete',
+      entityType: 'alumnoPlan',
+      entityId: id,
+      details: `Eliminación del plan de alumno ${existingAlumnoPlan.user?.email || ''}`,
+      prevValue: existingAlumnoPlan
+    });
 
     return NextResponse.json(
       { message: 'Plan de alumno eliminado correctamente' },

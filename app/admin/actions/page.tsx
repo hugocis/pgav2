@@ -174,7 +174,7 @@ const apiEndpoints: CategoryEndpoint[] = [
       { name: '3. Sincronizar carreras y planes', method: 'POST', url: '/api/carreras', requiresBody: false, description: 'Importar carreras y planes de estudio automáticamente', isSync: true },
       { name: '4. Sincronizar estudiantes', method: 'PUT', url: '/api/users', requiresBody: true, description: 'Importar estudiantes desde OfertaAcademica', isSync: true, defaultBody: JSON.stringify({ action: "importStudents" }, null, 2) },
       { name: '5. Sincronizar profesores', method: 'PUT', url: '/api/users', requiresBody: true, description: 'Importar profesores desde OfertaAcademica', isSync: true, defaultBody: JSON.stringify({ action: "importProfessors" }, null, 2) },
-      { name: '6. Sincronizar alumnos por plan', method: 'PUT', url: '/api/alumnos-plan', requiresBody: false, description: 'Asociar alumnos a planes de estudio', isSync: true },
+      { name: '6. Sincronizar alumnos por plan', method: 'PUT', url: '/api/alumnos-plan', requiresBody: true, description: 'Asociar alumnos a planes de estudio', isSync: true, defaultBody: JSON.stringify({ action: "importAlumnoPlan" }, null, 2) },
       { name: '7. Sincronizar asignaturas', method: 'PUT', url: '/api/asignaturas', requiresBody: false, description: 'Importar asignaturas desde OfertaAcademica', isSync: true },
       { name: '8. Sincronizar matrículas', method: 'PUT', url: '/api/matriculas', requiresBody: false, description: 'Importar matrículas desde OfertaAcademica', isSync: true },
       { name: '9. Sincronizar docencia', method: 'PUT', url: '/api/docencia', requiresBody: false, description: 'Importar información de docencia', isSync: true },

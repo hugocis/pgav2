@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener una carrera específica por ID
 export async function GET(
@@ -17,8 +18,8 @@ export async function GET(
     }
 
     const carrera = await prisma.carrera.findUnique({
-      where: { id: parseInt(id, 10) },
-      include: { 
+      where: { id: id },
+      include: {
         escuela: true,
         ConfiguracionCarrera: true,
         PlanDeEstudios: true
@@ -69,7 +70,7 @@ export async function PUT(
 
     // Verificar que la carrera existe
     const carreraExistente = await prisma.carrera.findUnique({
-      where: { id: parseInt(id, 10) },
+      where: { id: id },
       include: {
         PlanDeEstudios: true
       }
@@ -84,7 +85,7 @@ export async function PUT(
 
     // Verificar que la escuela existe
     const escuelaExistente = await prisma.escuela.findUnique({
-      where: { id: parseInt(escuelaId, 10) }
+      where: { id: escuelaId }
     });
 
     if (!escuelaExistente) {
@@ -98,8 +99,8 @@ export async function PUT(
     const otraCarreraMismoDenom = await prisma.carrera.findFirst({
       where: {
         denominacion,
-        escuelaId: parseInt(escuelaId, 10),
-        id: { not: parseInt(id, 10) }
+        escuelaId: escuelaId,
+        id: { not: id }
       }
     });
 
@@ -112,10 +113,22 @@ export async function PUT(
 
     // Actualizar la carrera
     await prisma.carrera.update({
-      where: { id: parseInt(id, 10) },
-      data: { 
+      where: { id: id },
+      data: {
         denominacion,
-        escuelaId: parseInt(escuelaId, 10)
+        escuelaId: escuelaId
+      }
+    });
+
+    await logActivity({
+      req: request,
+      action: 'update',
+      entityType: 'carrera',
+      entityId: id,
+      details: `Actualización de carrera '${denominacion}' con nueva escuela ID: '${escuelaId}'`,
+      prevValue: {
+        denominacion: carreraExistente.denominacion,
+        escuelaId: carreraExistente.escuelaId
       }
     });
 
@@ -123,10 +136,10 @@ export async function PUT(
     if (planesDeEstudio && Array.isArray(planesDeEstudio)) {
       // Obtener los IDs de los planes existentes
       const planesExistentesIds = carreraExistente.PlanDeEstudios.map(plan => plan.id);
-      
+
       // Identificar planes a crear, actualizar o eliminar
-      const planesActualizados: number[] = [];
-      
+      const planesActualizados: string[] = [];
+
       for (const plan of planesDeEstudio) {
         if (plan.id) {
           // Si el plan tiene ID, es una actualización
@@ -137,24 +150,40 @@ export async function PUT(
               codPlan: plan.codPlan
             }
           });
+          await logActivity({
+            req: request,
+            action: 'update',
+            entityType: 'planDeEstudios',
+            entityId: plan.id,
+            details: `Actualización del plan '${plan.codPlan}' para carrera '${denominacion}'`
+          });
+
           planesActualizados.push(plan.id);
         } else if (plan.denominacion && plan.codPlan) {
           // Si el plan no tiene ID pero tiene denominación y código, es una creación
-          await prisma.planDeEstudios.create({
+          const nuevoPlan = await prisma.planDeEstudios.create({
             data: {
               denominacion: plan.denominacion,
               codPlan: plan.codPlan,
-              carreraId: parseInt(id, 10)
+              carreraId: id
             }
+          });
+
+          await logActivity({
+            req: request,
+            action: 'create',
+            entityType: 'planDeEstudios',
+            entityId: nuevoPlan.id,
+            details: `Creación de nuevo plan '${plan.codPlan}' para carrera '${denominacion}'`
           });
         }
       }
-      
+
       // Eliminar planes que no se incluyeron en la actualización (opcional)
       const planesAEliminar = planesExistentesIds.filter(
         planId => !planesActualizados.includes(planId)
       );
-      
+
       if (planesAEliminar.length > 0) {
         await prisma.planDeEstudios.deleteMany({
           where: {
@@ -163,12 +192,19 @@ export async function PUT(
             }
           }
         });
+
+        await logActivity({
+          req: request,
+          action: 'delete',
+          entityType: 'planDeEstudios',
+          details: `Eliminación de planes de estudio: ${planesAEliminar.join(', ')} para carrera '${denominacion}'`
+        });
       }
     }
 
     // Obtener la carrera actualizada con sus planes de estudio
     const carreraCompleta = await prisma.carrera.findUnique({
-      where: { id: parseInt(id, 10) },
+      where: { id: id },
       include: {
         escuela: true,
         ConfiguracionCarrera: true,
@@ -209,8 +245,8 @@ export async function DELETE(
 
     // Verificar que la carrera existe
     const carrera = await prisma.carrera.findUnique({
-      where: { id: parseInt(id, 10) },
-      include: { 
+      where: { id: id },
+      include: {
         ConfiguracionCarrera: true,
         PlanDeEstudios: true
       }
@@ -225,13 +261,22 @@ export async function DELETE(
 
     // Eliminar la carrera (Cascade eliminará también su configuración y planes de estudio)
     await prisma.carrera.delete({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
 
+    await logActivity({
+      req: request,
+      action: 'delete',
+      entityType: 'carrera',
+      entityId: id,
+      details: `Eliminación de carrera '${carrera?.denominacion}' y relaciones asociadas (configuración, planes)`
+    });
+
+
     return NextResponse.json(
-      { 
+      {
         message: 'Carrera eliminada correctamente',
-        id: parseInt(id, 10)
+        id: id
       },
       { status: 200 }
     );

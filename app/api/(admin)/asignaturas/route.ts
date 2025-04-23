@@ -1,22 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { logActivity } from '@/lib/logActivity';
 
 // GET /api/asignaturas
 export async function GET(req: NextRequest) {
-  try {    const searchParams = req.nextUrl.searchParams;
+  try {
+    const searchParams = req.nextUrl.searchParams;
     const cursoAcademicoId = searchParams.get('cursoAcademicoId');
     const carreraId = searchParams.get('carreraId');
     const profesorId = searchParams.get('profesorId');
     const codAsignatura = searchParams.get('codAsignatura');
-    
+
     const whereClause: Prisma.AsignaturaWhereInput = {};
-    
-    if (cursoAcademicoId) whereClause.cursoAcademicoId = parseInt(cursoAcademicoId);
-    if (carreraId) whereClause.carreraId = parseInt(carreraId);
+
+    if (cursoAcademicoId) whereClause.cursoAcademicoId = cursoAcademicoId;
+    if (carreraId) whereClause.carreraId = carreraId;
     if (profesorId) whereClause.profesorId = profesorId;
     if (codAsignatura) whereClause.CodAsignatura = codAsignatura;
-    
+
     const asignaturas = await prisma.asignatura.findMany({
       where: whereClause,
       include: {
@@ -25,7 +27,7 @@ export async function GET(req: NextRequest) {
         user: {
           select: {
             id: true,
-            name: true, 
+            name: true,
             surname1: true,
             surname2: true,
             email: true
@@ -49,14 +51,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { 
-      CodAsignatura, 
-      Denominacion, 
-      Curso, 
-      Cuatrimestre, 
-      carreraId, 
-      cursoAcademicoId, 
-      profesorId 
+    const {
+      CodAsignatura,
+      Denominacion,
+      Curso,
+      Cuatrimestre,
+      carreraId,
+      cursoAcademicoId,
+      profesorId
     } = body;
 
     // Validación básica
@@ -114,7 +116,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     const nuevaAsignatura = await prisma.asignatura.create({
       data: {
         CodAsignatura,
@@ -126,6 +128,15 @@ export async function POST(req: NextRequest) {
         profesorId
       }
     });
+
+    await logActivity({
+      req,
+      action: 'create',
+      entityType: 'asignatura',
+      entityId: nuevaAsignatura.id,
+      details: `Creación manual de la asignatura ${nuevaAsignatura.Denominacion} (${nuevaAsignatura.CodAsignatura})`
+    });
+
 
     return NextResponse.json(nuevaAsignatura, { status: 201 });
 
@@ -139,7 +150,7 @@ export async function POST(req: NextRequest) {
 }
 
 // PUT /api/asignaturas - Endpoint especial para crear asignaturas desde OfertaAcademica
-export async function PUT() {
+export async function PUT(req: NextRequest) {
   try {
     // Primero, obtener el curso académico activo
     const cursoAcademicoActivo = await prisma.cursoAcademico.findFirst({
@@ -249,6 +260,16 @@ export async function PUT() {
             }
           });
 
+          await logActivity({
+            req,
+            action: 'update',
+            entityType: 'asignatura',
+            entityId: asignaturaActualizada.id,
+            details: `Actualización automática de la asignatura ${asignaturaActualizada.Denominacion} (${asignaturaActualizada.CodAsignatura}) desde OfertaAcademica`,
+            prevValue: asignaturaExistente
+          });
+
+
           asignaturasCreadas.push({
             accion: 'actualizada',
             asignatura: asignaturaActualizada
@@ -266,10 +287,28 @@ export async function PUT() {
             }
           });
 
+          await logActivity({
+            req,
+            action: 'create',
+            entityType: 'asignatura',
+            entityId: nuevaAsignatura.id,
+            details: `Creación automática de la asignatura ${nuevaAsignatura.Denominacion} (${nuevaAsignatura.CodAsignatura}) desde OfertaAcademica`
+          });
+
+
           asignaturasCreadas.push({
             accion: 'creada',
             asignatura: nuevaAsignatura
           });
+
+          await logActivity({
+            req,
+            action: 'create',
+            entityType: 'asignatura',
+            entityId: nuevaAsignatura.id,
+            details: `Creación automática de la asignatura ${nuevaAsignatura.Denominacion} (${nuevaAsignatura.CodAsignatura}) desde OfertaAcademica`
+          });
+
         }
       } catch (error) {
         console.error(`Error procesando oferta académica:`, error);

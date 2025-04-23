@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todos los roles
 export async function GET() {
@@ -12,7 +13,7 @@ export async function GET() {
         id: 'asc',
       },
     });
-    
+
     return NextResponse.json(roles, { status: 200 });
   } catch (error) {
     console.error('Error al obtener los roles:', error);
@@ -27,7 +28,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     // Validar los campos requeridos
     if (!body.name || !body.description) {
       return NextResponse.json(
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
-    
+
     // Crear el nuevo rol
     const newRole = await prisma.role.create({
       data: {
@@ -59,6 +60,15 @@ export async function POST(request: NextRequest) {
         ...(body.id ? { id: body.id } : {})
       },
     });
+
+    await logActivity({
+      req: request,
+      action: 'create',
+      entityType: 'role',
+      entityId: newRole.id.toString(),
+      details: `Creación del rol "${newRole.name}" con descripción: "${newRole.description}"`
+    });
+
 
     return NextResponse.json(newRole, { status: 201 });
   } catch (error) {

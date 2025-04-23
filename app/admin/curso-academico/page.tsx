@@ -183,14 +183,18 @@ export default function AdminCursoAcademico() {
     setIsActivating(true);
     setActivateMessage(null);
     
-    try {
-      const response = await fetch(`/api/cursos-academicos/${cursoToToggle.curso.id}`, {
-        method: 'PATCH',
+    try {      const response = await fetch(`/api/cursos-academicos/${cursoToToggle.curso.id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ activo: !cursoToToggle.currentStatus }),
+        body: JSON.stringify({
+          denominacion: cursoToToggle.curso.denominacion,
+          activo: !cursoToToggle.currentStatus,
+          cursoAnterior: cursoToToggle.curso.cursoAnterior,
+          cursoSiguiente: cursoToToggle.curso.cursoSiguiente
+        }),
       });
 
       if (!response.ok) {

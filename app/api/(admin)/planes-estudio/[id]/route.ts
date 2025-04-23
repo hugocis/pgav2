@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener un plan de estudios específico por ID
 export async function GET(
@@ -17,8 +18,8 @@ export async function GET(
     }
 
     const planEstudio = await prisma.planDeEstudios.findUnique({
-      where: { id: parseInt(id, 10) },
-      include: { 
+      where: { id: id },
+      include: {
         carrera: {
           include: {
             escuela: true
@@ -72,7 +73,7 @@ export async function PUT(
 
     // Verificar que el plan existe
     const planExistente = await prisma.planDeEstudios.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
 
     if (!planExistente) {
@@ -84,7 +85,7 @@ export async function PUT(
 
     // Verificar que la carrera existe
     const carreraExistente = await prisma.carrera.findUnique({
-      where: { id: parseInt(carreraId, 10) }
+      where: { id: carreraId }
     });
 
     if (!carreraExistente) {
@@ -98,8 +99,8 @@ export async function PUT(
     const otroPlanMismoCodigo = await prisma.planDeEstudios.findFirst({
       where: {
         codPlan,
-        carreraId: parseInt(carreraId, 10),
-        id: { not: parseInt(id, 10) }
+        carreraId: carreraId,
+        id: { not: id }
       }
     });
 
@@ -112,13 +113,23 @@ export async function PUT(
 
     // Actualizar el plan de estudios
     const planActualizado = await prisma.planDeEstudios.update({
-      where: { id: parseInt(id, 10) },
-      data: { 
+      where: { id: id },
+      data: {
         denominacion,
         codPlan,
-        carreraId: parseInt(carreraId, 10)
+        carreraId: carreraId
       }
     });
+
+    await logActivity({
+      req: request,
+      action: 'update',
+      entityType: 'planDeEstudios',
+      entityId: planActualizado.id,
+      details: `Actualización del plan de estudios "${planActualizado.denominacion}"`,
+      prevValue: planExistente
+    });
+
 
     return NextResponse.json(
       {
@@ -153,8 +164,8 @@ export async function DELETE(
 
     // Verificar que el plan existe
     const planEstudio = await prisma.planDeEstudios.findUnique({
-      where: { id: parseInt(id, 10) },
-      include: { 
+      where: { id: id },
+      include: {
         AlumnoPlan: true
       }
     });
@@ -179,13 +190,23 @@ export async function DELETE(
 
     // Eliminar el plan de estudios
     await prisma.planDeEstudios.delete({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
 
+    await logActivity({
+      req: request,
+      action: 'delete',
+      entityType: 'planDeEstudios',
+      entityId: planEstudio.id,
+      details: `Eliminación del plan de estudios "${planEstudio.denominacion}"`,
+      prevValue: planEstudio
+    });
+
+
     return NextResponse.json(
-      { 
+      {
         message: 'Plan de estudios eliminado correctamente',
-        id: parseInt(id, 10)
+        id: id
       },
       { status: 200 }
     );

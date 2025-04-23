@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener un registro de asistencia específico por ID
 export async function GET(
@@ -17,7 +18,7 @@ export async function GET(
     }
 
     const asistencia = await prisma.asistenciaAlumno.findUnique({
-      where: { id: parseInt(id, 10) },
+      where: { id: id },
       include: {
         sesionClase: {
           include: {
@@ -87,7 +88,7 @@ export async function PUT(
 
     // Verificar si el registro de asistencia existe
     const asistenciaExistente = await prisma.asistenciaAlumno.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
 
     if (!asistenciaExistente) {
@@ -99,7 +100,7 @@ export async function PUT(
 
     // Verificar si la sesión de clase existe
     const sesionExistente = await prisma.sesionClase.findUnique({
-      where: { id: parseInt(sesionClaseId, 10) }
+      where: { id: sesionClaseId }
     });
 
     if (!sesionExistente) {
@@ -123,7 +124,7 @@ export async function PUT(
 
     // Verificar si el estado de asistencia existe
     const estadoExistente = await prisma.estadoAsistencia.findUnique({
-      where: { id: parseInt(estadoAsistenciaId, 10) }
+      where: { id: estadoAsistenciaId }
     });
 
     if (!estadoExistente) {
@@ -136,10 +137,10 @@ export async function PUT(
     // Verificar si ya existe otro registro para este alumno en esta sesión (que no sea el actual)
     const otroRegistroExistente = await prisma.asistenciaAlumno.findFirst({
       where: {
-        sesionClaseId: parseInt(sesionClaseId, 10),
+        sesionClaseId: sesionClaseId,
         alumnoId,
         NOT: {
-          id: parseInt(id, 10)
+          id: id
         }
       }
     });
@@ -153,15 +154,25 @@ export async function PUT(
 
     // Actualizar el registro de asistencia
     const asistenciaActualizada = await prisma.asistenciaAlumno.update({
-      where: { id: parseInt(id, 10) },
+      where: { id: id },
       data: {
         fecha: new Date(fecha),
         estado: estado || estadoExistente.denominacion, // Si no se proporciona estado, usar la denominación del estadoAsistencia
-        sesionClaseId: parseInt(sesionClaseId, 10),
+        sesionClaseId: sesionClaseId,
         alumnoId,
-        estadoAsistenciaId: parseInt(estadoAsistenciaId, 10)
+        estadoAsistenciaId: estadoAsistenciaId
       }
     });
+
+    await logActivity({
+      req: request,
+      action: 'update',
+      entityType: 'asistenciaAlumno',
+      entityId: asistenciaActualizada.id,
+      details: `Actualización de asistencia del alumno ${alumnoExistente.email} en la sesión del ${new Date(fecha).toLocaleDateString()}`,
+      prevValue: asistenciaExistente
+    });
+
 
     return NextResponse.json(asistenciaActualizada, { status: 200 });
   } catch (error) {
@@ -190,7 +201,7 @@ export async function DELETE(
 
     // Verificar si el registro de asistencia existe
     const asistenciaExistente = await prisma.asistenciaAlumno.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
 
     if (!asistenciaExistente) {
@@ -202,20 +213,30 @@ export async function DELETE(
 
     // Verificar si hay solicitudes de justificación asociadas
     const solicitudesAsociadas = await prisma.solicitudJustificacion.findFirst({
-      where: { asistenciaAlumnoId: parseInt(id, 10) }
+      where: { asistenciaAlumnoId: id }
     });
 
     if (solicitudesAsociadas) {
       // Eliminar todas las solicitudes de justificación asociadas
       await prisma.solicitudJustificacion.deleteMany({
-        where: { asistenciaAlumnoId: parseInt(id, 10) }
+        where: { asistenciaAlumnoId: id }
       });
     }
 
     // Eliminar el registro de asistencia
     await prisma.asistenciaAlumno.delete({
-      where: { id: parseInt(id, 10) }
+      where: { id: id }
     });
+
+    await logActivity({
+      req: request,
+      action: 'delete',
+      entityType: 'asistenciaAlumno',
+      entityId: asistenciaExistente.id,
+      details: `Eliminación del registro de asistencia del alumno ${asistenciaExistente.alumnoId}`,
+      prevValue: asistenciaExistente
+    });
+
 
     return NextResponse.json({ message: 'Registro de asistencia eliminado correctamente' }, { status: 200 });
   } catch (error) {
