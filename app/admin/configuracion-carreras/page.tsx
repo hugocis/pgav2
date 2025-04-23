@@ -230,14 +230,31 @@ export default function AdminConfiguracionCarreras() {
         },
         credentials: 'include',
         body: JSON.stringify(updatedData),
-      });
-
-      if (response.ok) {
+      });      if (response.ok) {
         // Actualizar la configuración en el estado local
         const updatedConfiguracion = await response.json();
-        setConfiguraciones(configuraciones.map(config => 
-          config.id === selectedConfiguracion.id ? { ...config, ...updatedConfiguracion } : config
-        ));
+          // Construir la configuración actualizada manteniendo la referencia a carrera
+        const updatedConfig = {
+          ...selectedConfiguracion,
+          ...updatedConfiguracion,
+          carrera: selectedConfiguracion.carrera
+        };
+
+        // Actualizar configuraciones
+        setConfiguraciones(prevConfigs => {
+          const newConfigs = prevConfigs.map(config => 
+            config.id === selectedConfiguracion.id ? updatedConfig : config
+          );
+          return newConfigs;
+        });
+
+        // Actualizar configuraciones filtradas
+        setFilteredConfiguraciones(prevFiltered => {
+          const newFiltered = prevFiltered.map(config => 
+            config.id === selectedConfiguracion.id ? updatedConfig : config
+          );
+          return newFiltered;
+        });
         
         setUpdateMessage({ text: 'Configuración actualizada correctamente', type: 'success' });
         
@@ -297,14 +314,32 @@ export default function AdminConfiguracionCarreras() {
         },
         credentials: 'include',
         body: JSON.stringify(newConfigData),
-      });
-
-      if (response.ok) {
-        // Añadir la nueva configuración al estado local
+      });      if (response.ok) {        // Añadir la nueva configuración al estado local
         const createdConfig = await response.json();
-        setConfiguraciones([...configuraciones, createdConfig]);
+        
+        // Encontrar la carrera correspondiente para añadirla a la configuración
+        const carrera = carreras.find(c => c.id === parseInt(newCarreraRef.current?.value || ''));
+        const newConfig = {
+          ...createdConfig,
+          carrera: carrera
+        };
+        
+        // Actualizar ambos estados
+        setConfiguraciones(prevConfigs => {
+          const newConfigs = [...prevConfigs, newConfig];
+          return newConfigs;
+        });
+        setFilteredConfiguraciones(prevFiltered => {
+          const newFiltered = [...prevFiltered, newConfig];
+          return newFiltered;
+        });
         
         setCreateMessage({ text: 'Configuración creada correctamente', type: 'success' });
+        
+        // Actualizar la lista de carreras sin configuración
+        setCarrerasSinConfig(prevCarreras => 
+          prevCarreras.filter(c => c.id !== newConfig.carreraId)
+        );
         
         // Esperar 1.5 segundos antes de cerrar el diálogo
         setTimeout(() => {
@@ -440,50 +475,90 @@ export default function AdminConfiguracionCarreras() {
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+              <div className="overflow-x-auto">                <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrera</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Periodo de Dispensas</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sol. Dispensas</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sol. Justificaciones</th>
+                      <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center justify-center">
+                          <FaCalendarAlt className="mr-2" />
+                          Periodo de Dispensas
+                        </div>
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center justify-center">
+                          <FaToggleOn className="mr-2" />
+                          Dispensas
+                        </div>
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center justify-center">
+                          <FaToggleOn className="mr-2" />
+                          Justificaciones
+                        </div>
+                      </th>
                       <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredConfiguraciones.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                        <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
                           No se encontraron configuraciones con los criterios de búsqueda.
                         </td>
                       </tr>
                     ) : (
                       getCurrentPageItems().map(config => (
                         <tr key={config.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleRowClick(config)}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {config.id}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
                             {config.carrera ? config.carrera.denominacion : 'No disponible'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {config.FechaInicioDispensa && config.FechaFinDispensa ? 
-                              `${new Date(config.FechaInicioDispensa).toLocaleDateString()} - ${new Date(config.FechaFinDispensa).toLocaleDateString()}` : 
-                              'Sin periodo definido'}
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            <div className="flex items-center justify-center space-x-2">
+                              {config.FechaInicioDispensa && config.FechaFinDispensa ? (
+                                <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-center border border-blue-200">
+                                  {new Date(config.FechaInicioDispensa).toLocaleDateString('es-ES', { 
+                                    day: '2-digit',
+                                    month: 'short'
+                                  })} 
+                                  <span className="mx-1">→</span>
+                                  {new Date(config.FechaFinDispensa).toLocaleDateString('es-ES', { 
+                                    day: '2-digit',
+                                    month: 'short'
+                                  })}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 italic">Sin periodo definido</span>
+                              )}
+                            </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {config.SolDispensa ? 
-                              <FaToggleOn className="text-green-500 text-xl" /> : 
-                              <FaToggleOff className="text-gray-400 text-xl" />}
+                          <td className="px-6 py-4">
+                            <div className="flex justify-center">
+                              {config.SolDispensa ? (
+                                <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full flex items-center border border-emerald-200">
+                                  <FaToggleOn className="mr-2" /> Habilitado
+                                </div>
+                              ) : (
+                                <div className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full flex items-center border border-gray-200">
+                                  <FaToggleOff className="mr-2" /> Deshabilitado
+                                </div>
+                              )}
+                            </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {config.SolJustificacion ? 
-                              <FaToggleOn className="text-green-500 text-xl" /> : 
-                              <FaToggleOff className="text-gray-400 text-xl" />}
+                          <td className="px-6 py-4">
+                            <div className="flex justify-center">
+                              {config.SolJustificacion ? (
+                                <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full flex items-center border border-emerald-200">
+                                  <FaToggleOn className="mr-2" /> Habilitado
+                                </div>
+                              ) : (
+                                <div className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full flex items-center border border-gray-200">
+                                  <FaToggleOff className="mr-2" /> Deshabilitado
+                                </div>
+                              )}
+                            </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                          <td className="px-6 py-4 text-sm text-right">
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();

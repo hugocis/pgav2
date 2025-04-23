@@ -433,32 +433,39 @@ export default function AdminCursoAcademico() {
           return;
         }
       }
-      
-      const response = await fetch('/api/cursos-academicos', {
+        const response = await fetch('/api/cursos-academicos', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
         body: JSON.stringify(newCursoData),
-      });      if (response.ok) {
-        // Añadir el nuevo curso al estado local asegurándose de que tiene un id único
+      });
+        if (response.ok) {
         const createdCurso = await response.json();
         
-        // Si el curso se creó como activo, desactivar todos los demás
-        if (createdCurso.activo) {
-          setCursosAcademicos([
-            ...cursosAcademicos.map(curso => ({ ...curso, activo: false })),
-            { ...createdCurso, id: createdCurso.id } // Aseguramos que el id existe
-          ]);
-          // Actualizar también los cursos filtrados
-          setFilteredCursos(prevFiltered => [
-            ...prevFiltered.map(curso => ({ ...curso, activo: false })),
-            { ...createdCurso, id: createdCurso.id }
-          ]);
+        // Crear un nuevo objeto curso con todos los campos necesarios
+        const newCurso: CursoAcademico = {
+          id: createdCurso.id,
+          denominacion: createdCurso.denominacion,
+          cursoAnterior: createdCurso.cursoAnterior,
+          cursoSiguiente: createdCurso.cursoSiguiente,
+          activo: createdCurso.activo,
+          createdAt: createdCurso.createdAt,
+          updatedAt: createdCurso.updatedAt
+        };
+
+        // Si el curso es activo, desactivar todos los demás
+        if (newCurso.activo) {
+          const updatedCursos = cursosAcademicos.map(curso => ({
+            ...curso,
+            activo: false
+          }));
+          setCursosAcademicos([...updatedCursos, newCurso]);
+          setFilteredCursos([...updatedCursos, newCurso]);
         } else {
-          setCursosAcademicos([...cursosAcademicos, { ...createdCurso, id: createdCurso.id }]);
-          setFilteredCursos(prevFiltered => [...prevFiltered, { ...createdCurso, id: createdCurso.id }]);
+          setCursosAcademicos(prevCursos => [...prevCursos, newCurso]);
+          setFilteredCursos(prevFiltered => [...prevFiltered, newCurso]);
         }
         
         setCreateMessage({ text: 'Curso académico creado correctamente', type: 'success' });
@@ -649,12 +656,10 @@ export default function AdminCursoAcademico() {
               <div className="text-center text-red-600">{error}</div>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">                    <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Denominación</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Curso Anterior</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Curso Siguiente</th>
@@ -665,18 +670,14 @@ export default function AdminCursoAcademico() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredCursos.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                        <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
                           No se encontraron cursos académicos con los criterios de búsqueda.
                         </td>
                       </tr>
                     ) : (
                       getCurrentPageItems().map(curso => (
-                        <tr key={curso.id} className={`hover:bg-gray-50 cursor-pointer ${curso.activo ? 'bg-green-50' : ''}`} onClick={() => handleRowClick(curso)}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {curso.id}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {curso.denominacion}
+                        <tr key={`curso-${curso.id}`} className={`hover:bg-gray-50 cursor-pointer ${curso.activo ? 'bg-green-50' : ''}`} onClick={() => handleRowClick(curso)}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">                            {curso.denominacion}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {curso.cursoAnterior || '-'}
@@ -745,15 +746,14 @@ export default function AdminCursoAcademico() {
                       aria-label="Página anterior"
                     >
                       <FaChevronLeft />
-                    </button>
-                    <div 
+                    </button>                    <div 
                       ref={scrollContainerRef}
                       className="flex overflow-x-auto px-1 mx-1 scroll-smooth hide-scrollbar" 
                       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '200px' }}
                     >
-                      {Array.from({ length: Math.min(Math.ceil(filteredCursos.length / itemsPerPage), 20) }, (_, i) => i + 1).map(page => (
+                      {Array.from({ length: Math.ceil(filteredCursos.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
                         <button
-                          key={page}
+                          key={`page-${page}`}
                           onClick={() => setCurrentPage(page)}
                           className={`min-w-[36px] mx-1 px-2 py-1 rounded-md ${
                             currentPage === page
