@@ -135,16 +135,18 @@ model ExpedienteAlumno {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 model User {
-  id            String       @id @default(cuid())
-  username      String       @unique
-  name          String?
-  surname1      String?
-  surname2      String?      
-  email         String       @unique
-  password      String
-  lockout       Boolean      @default(false)  // Campo para bloquear acceso a usuarios
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id                   String       @id @default(cuid())
+  username             String       @unique
+  name                 String?
+  surname1             String?
+  surname2             String?      
+  email                String       @unique
+  password             String
+  resetPasswordToken   String?      // Token para restablecer contraseña
+  resetPasswordExpires DateTime?    // Fecha de expiración del token
+  lockout              Boolean      @default(false)  // Campo para bloquear acceso a usuarios
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
   userRoles     UserRole[]
   activities    ActivityLog[]
@@ -158,6 +160,7 @@ model User {
   HorariosProfesor HorariosProfesor[]
   Matricula Matricula[]
   SolicitudDispensa SolicitudDispensa[]
+  Asignatura Asignatura[]
 }
 
 model Role {
@@ -169,7 +172,7 @@ model Role {
 }
 
 model UserRole {
-  id        Int      @id @default(autoincrement())
+  id        String      @id @default(uuid())
   userId    String
   roleId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -180,11 +183,14 @@ model UserRole {
 }
 
 model ActivityLog {
-  id          Int      @id @default(autoincrement())
+  id          String      @id @default(uuid())
   action      String   // The action performed (e.g., "create", "update", "delete")
-  details     String?  // Additional details about the activity
+  details     String?  
   entityType  String   // The type of entity affected (e.g., "user", "role", "asignatura")
-  entityId    String?  // The ID of the affected entity
+  entityId    String?  
+  prevHash    String?   
+  hash        String    
+  signature   String    
 
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -193,7 +199,7 @@ model ActivityLog {
 }
 
 model CursoAcademico{
-  id            Int       @id @default(autoincrement())
+  id            String      @id @default(uuid())
   activo        Boolean   @default(false)
   denominacion  String
   cursoAnterior String?
@@ -207,7 +213,7 @@ model CursoAcademico{
 }
 
 model Escuela {
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   denominacion  String
 
   Carrera Carrera[]
@@ -217,10 +223,10 @@ model Escuela {
 }
 
 model Carrera{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   denominacion  String
-
-  escuelaId     Int
+  
+  escuelaId     String
   escuela       Escuela  @relation(fields: [escuelaId], references: [id], onDelete: Cascade)
 
   ConfiguracionCarrera ConfiguracionCarrera[]
@@ -233,13 +239,13 @@ model Carrera{
 }
 
 model ConfiguracionCarrera{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   FechaInicioDispensa DateTime? 
   FechaFinDispensa    DateTime? 
   SolDispensa         Boolean @default(false)
   SolJustificacion     Boolean @default(false)
 
-  carreraId     Int
+  carreraId     String
   carrera       Carrera  @relation(fields: [carreraId], references: [id], onDelete: Cascade)
   
   createdAt   DateTime @default(now())
@@ -247,11 +253,11 @@ model ConfiguracionCarrera{
 }
 
 model PlanDeEstudios{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   denominacion  String
   codPlan      String
   
-  carreraId     Int
+  carreraId     String
   carrera       Carrera  @relation(fields: [carreraId], references: [id], onDelete: Cascade)
 
   createdAt   DateTime @default(now())
@@ -261,36 +267,36 @@ model PlanDeEstudios{
 }
 
 model Asignatura{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   CodAsignatura  String
   Denominacion  String
   Curso       String
   Cuatrimestre String
 
-  carreraId     Int
+  carreraId     String
   carrera       Carrera  @relation(fields: [carreraId], references: [id], onDelete: Cascade)
-  cursoAcademicoId Int
+  cursoAcademicoId String
   cursoAcademico CursoAcademico @relation(fields: [cursoAcademicoId], references: [id], onDelete: Cascade)
+  profesorId    String
+  user        User @relation(fields: [profesorId], references: [id], onDelete: Cascade)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   Docencia Docencia[]
-
   Grupo Grupo[]
-
   Matricula Matricula[]
 }
 
 model Matricula{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   fechaalta     DateTime @default(now())
   fechaBaja     DateTime?
   mostrar       Boolean @default(false)
-  alumno_id     String
   
+  alumno_id     String
   user        User @relation(fields: [alumno_id], references: [id], onDelete: Cascade)
-  asignaturaId  Int
+  asignaturaId  String
   asignatura    Asignatura @relation(fields: [asignaturaId], references: [id], onDelete: Cascade)
 
   createdAt   DateTime @default(now())
@@ -301,11 +307,11 @@ model Matricula{
 }
 
 model Docencia{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   fechaalta     DateTime @default(now())
   fechaBaja     DateTime?
 
-  asignaturaId  Int
+  asignaturaId  String
   asignatura    Asignatura @relation(fields: [asignaturaId], references: [id], onDelete: Cascade)
 
   profesorId    String
@@ -317,15 +323,15 @@ model Docencia{
 }
 
 model AlumnoPlan{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   fechaalta     DateTime @default(now())
   fechaBaja     DateTime?
 
   alumno_id    String
   user        User @relation(fields: [alumno_id], references: [id], onDelete: Cascade)
-  cursoAcademicoId Int
+  cursoAcademicoId String
   cursoAcademico CursoAcademico @relation(fields: [cursoAcademicoId], references: [id], onDelete: Cascade)
-  plandeEstudiosId Int
+  plandeEstudiosId String
   plandeEstudios PlanDeEstudios @relation(fields: [plandeEstudiosId], references: [id], onDelete: Cascade)
 
   createdAt   DateTime @default(now())
@@ -333,10 +339,10 @@ model AlumnoPlan{
 }
 
 model Grupo{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   denominacion  String
   
-  asignaturaId  Int
+  asignaturaId  String
   asignatura    Asignatura @relation(fields: [asignaturaId], references: [id], onDelete: Cascade)
 
   profesorId    String
@@ -348,18 +354,18 @@ model Grupo{
 }
 
 model AlumnoGrupo{
-  id           Int      @id @default(autoincrement())
+  id           String      @id @default(uuid())
   alumno_Id    String
   user        User @relation(fields: [alumno_Id], references: [id], onDelete: Cascade)
-  grupoId      Int
+  grupoId      String
   grupo        Grupo @relation(fields: [grupoId], references: [id], onDelete: Cascade)
 }
 
 model SesionClase{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   fecha         DateTime
 
-  grupoId       Int
+  grupoId       String
   grupo         Grupo @relation(fields: [grupoId], references: [id], onDelete: Cascade)
   docenteId     String
   user        User @relation(fields: [docenteId], references: [id], onDelete: Cascade)
@@ -371,7 +377,7 @@ model SesionClase{
 }
 
 model EstadoAsistencia{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   denominacion  String
 
   createdAt   DateTime @default(now())
@@ -381,15 +387,15 @@ model EstadoAsistencia{
 }
 
 model AsistenciaAlumno{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   fecha         DateTime
   estado        String
 
-  sesionClaseId Int
+  sesionClaseId String
   sesionClase   SesionClase @relation(fields: [sesionClaseId], references: [id], onDelete: Cascade)
   alumnoId      String
   user        User @relation(fields: [alumnoId], references: [id], onDelete: Cascade)
-  estadoAsistenciaId Int
+  estadoAsistenciaId String
   estadoAsistencia EstadoAsistencia @relation(fields: [estadoAsistenciaId], references: [id], onDelete: Cascade)
 
   createdAt   DateTime @default(now())
@@ -399,7 +405,7 @@ model AsistenciaAlumno{
 }
 
 model EstadoJustificacion{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   denominacion  String
 
   createdAt   DateTime @default(now())
@@ -409,7 +415,7 @@ model EstadoJustificacion{
 }
 
 model SolicitudJustificacion{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   alegacion     String
   respuesta      String?
   fechaAlegacion        DateTime
@@ -417,9 +423,9 @@ model SolicitudJustificacion{
 
   alumnoId      String
   user        User @relation(fields: [alumnoId], references: [id], onDelete: Cascade)
-  estadoJustificacionId Int
+  estadoJustificacionId String
   estadoJustificacion EstadoJustificacion @relation(fields: [estadoJustificacionId], references: [id], onDelete: Cascade)
-  asistenciaAlumnoId Int
+  asistenciaAlumnoId String
   asistenciaAlumno AsistenciaAlumno @relation(fields: [asistenciaAlumnoId], references: [id], onDelete: Cascade)
 
   createdAt   DateTime @default(now())
@@ -429,11 +435,11 @@ model SolicitudJustificacion{
 }
 
 model DocumentacionJustificacion{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   url           String
   fechaSubida   DateTime
   
-  solicitudJustificacionId Int
+  solicitudJustificacionId String
   solicitudJustificacion SolicitudJustificacion @relation(fields: [solicitudJustificacionId], references: [id], onDelete: Cascade)
 
   createdAt   DateTime @default(now())
@@ -441,7 +447,7 @@ model DocumentacionJustificacion{
 }
 
 model HorariosProfesor{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   lunes         String?
   martes        String?
   miercoles     String?
@@ -457,11 +463,11 @@ model HorariosProfesor{
 }
 
 model DocumentacionDispensa{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   url           String
   fechaSubida   DateTime
   
-  solicitudDispensaId Int
+  solicitudDispensaId String
   solicitudDispensa SolicitudDispensa @relation(fields: [solicitudDispensaId], references: [id], onDelete: Cascade)
 
   createdAt   DateTime @default(now())
@@ -469,7 +475,7 @@ model DocumentacionDispensa{
 }
 
 model EstadoDispensa{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   denominacion  String
 
   createdAt   DateTime @default(now())
@@ -480,7 +486,7 @@ model EstadoDispensa{
 }
 
 model SolicitudDispensa{
-  id            Int      @id @default(autoincrement())
+  id            String      @id @default(uuid())
   alegacion     String
   respuesta      String?
   fechaAlegacion        DateTime
@@ -493,9 +499,9 @@ model SolicitudDispensa{
 
   alumnoId      String
   user        User @relation(fields: [alumnoId], references: [id], onDelete: Cascade)
-  matriculaId Int
+  matriculaId String
   matricula Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
-  estadoDispensaId Int
+  estadoDispensaId String
   estadoDispensa EstadoDispensa @relation(name: "estadoDispensaRelacion", fields: [estadoDispensaId], references: [id], onDelete: Cascade)
 
   createdAt   DateTime @default(now())
