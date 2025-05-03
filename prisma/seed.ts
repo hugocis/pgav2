@@ -38,6 +38,35 @@ async function main() {
 
   console.log('✅ All roles have been created or verified.');
 
+  // Create or verify attendance states
+  const estadosAsistencia = [
+    { denominacion: 'Asiste' },
+    { denominacion: 'No Asiste' },
+    { denominacion: '50%' },
+    { denominacion: 'Dispensado' },
+    { denominacion: 'Erasmus T' },
+    { denominacion: 'Erasmus NT' },
+  ];
+
+  console.log('🔄 Creating or verifying attendance states...');
+  
+  for (const estadoData of estadosAsistencia) {
+    const existingEstado = await prisma.estadoAsistencia.findFirst({
+      where: { denominacion: estadoData.denominacion },
+    });
+
+    if (existingEstado) {
+      console.log(`ℹ️ Estado de asistencia "${estadoData.denominacion}" already exists with ID: ${existingEstado.id}`);
+    } else {
+      const newEstado = await prisma.estadoAsistencia.create({
+        data: estadoData,
+      });
+      console.log(`✅ Estado de asistencia "${estadoData.denominacion}" created with ID: ${newEstado.id}`);
+    }
+  }
+
+  console.log('✅ All attendance states have been created or verified.');
+
   // Test user data
   const testUsers = [
     {

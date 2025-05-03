@@ -292,9 +292,8 @@ export default function ProfesorDashboard() {
                       >
                         <FaUserFriends className="mr-1.5" />
                         Grupos
-                      </Link>
-                      <Link
-                        href={`/profesor/alumnos/${docencia.id}`}
+                      </Link>                      <Link
+                        href={`/profesor/alumnos?asignatura=${docencia.asignatura.id}`}
                         className="flex-1 bg-[#1e6ba8] hover:bg-[#185a8f] text-white text-sm font-medium py-2.5 px-3 rounded-md flex items-center justify-center transition-colors"
                       >
                         <FaUserGraduate className="mr-1.5" />
