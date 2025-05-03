@@ -92,8 +92,7 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
-  ],
-  callbacks: {
+  ],  callbacks: {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -115,6 +114,11 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
+      // Handle authentication redirects
+      if (url.includes('/auth/login')) {
+        return `${baseUrl}/login`;
+      }
+      
       // If the URL starts with '/', it's a relative URL
       if (url.startsWith("/")) {
         // Redirect to appropriate dashboard based on user role

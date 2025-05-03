@@ -285,10 +285,9 @@ export default function ProfesorDashboard() {
                         </div>
                         <div className="text-xs text-gray-500">Asistencia</div>
                       </div>
-                    </div>                   
-                    <div className="flex flex-wrap gap-2 mt-5">
+                    </div>                     <div className="flex flex-wrap gap-2 mt-5">
                       <Link
-                        href={`/profesor/grupos/${docencia.id}`}
+                        href={`/profesor/grupos?asignatura=${docencia.asignatura.id}`}
                         className="flex-1 bg-[#0D3C68] hover:bg-[#0a325a] text-white text-sm font-medium py-2.5 px-3 rounded-md flex items-center justify-center transition-colors"
                       >
                         <FaUserFriends className="mr-1.5" />
@@ -315,7 +314,7 @@ export default function ProfesorDashboard() {
                       className="w-full mt-3 bg-[#0D3C68] hover:bg-[#072747] text-white text-sm font-medium py-3 px-4 rounded-md flex items-center justify-center transition-colors"
                     >
                       <FaChalkboardTeacher className="mr-2" />
-                      Pasar Clase
+                      Pasar Asistencia
                     </Link>
                   </div>
                 </div>

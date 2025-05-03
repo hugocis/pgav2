@@ -80,9 +80,8 @@ export async function middleware(req: NextRequest) {
       }
     }
   }
-
   // 3) Protección de API por rol
- /* if (pathname.startsWith('/api/')) {
+  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/')) {
     // 3.a) Autenticación
     if (!token) {
       return NextResponse.json(
@@ -105,7 +104,7 @@ export async function middleware(req: NextRequest) {
       }
     }
   }
-  */
+  
   // 4) Continuar con la petición
   return NextResponse.next();
 }

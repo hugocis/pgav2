@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
           const nuevoCursoAuto = await prisma.cursoAcademico.create({
             data: {
               denominacion: anyAnyaca,
-              activo: false, // Por defecto no está activo
+              activo: true,
               cursoAnterior,
               cursoSiguiente
             }
