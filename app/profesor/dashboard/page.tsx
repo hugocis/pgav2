@@ -298,9 +298,8 @@ export default function ProfesorDashboard() {
                       >
                         <FaUserGraduate className="mr-1.5" />
                         Alumnos
-                      </Link>
-                      <Link
-                        href={`/profesor/estadisticas/${docencia.id}`}
+                      </Link>                      <Link
+                        href={`/profesor/estadisticas?asignatura=${docencia.asignatura.id}`}
                         className="flex-1 bg-[#2d8fd5] hover:bg-[#2577b8] text-white text-sm font-medium py-2.5 px-3 rounded-md flex items-center justify-center transition-colors"
                       >
                         <FaChartPie className="mr-1.5" />
