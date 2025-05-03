@@ -119,23 +119,104 @@ export default function ProfesorDashboard() {
           
           const data = await response.json();
           console.log('Datos recibidos de la API:', data);
-          
-          // Procesamos los datos recibidos
+            // Procesamos los datos recibidos
           if (Array.isArray(data)) {
             // Obtenemos estadísticas para cada docencia
             const docenciasEnriquecidas = await Promise.all(data.map(async (docencia: Docencia) => {
               try {
-                // En un caso real, aquí se harían las llamadas a las APIs para obtener
-                // estadísticas reales de alumnos, clases y asistencias
+                // Obtener los grupos de la asignatura
+                const gruposResponse = await fetch(`/api/grupos?asignaturaId=${docencia.asignatura.id}`, {
+                  credentials: 'include'
+                });
                 
-                // Por ahora usamos datos de ejemplo, pero en una implementación real
-                // se obtendrían de las APIs correspondientes
+                if (!gruposResponse.ok) {
+                  throw new Error(`Error al obtener grupos para asignatura ${docencia.asignatura.id}`);
+                }
+                
+                const gruposData = await gruposResponse.json();
+                // Filtrar solo los grupos que pertenecen al profesor conectado
+                const grupos = (gruposData.grupos || []).filter((g: any) => g.profesorId === session.user.id);
+                
+                // Recopilar datos de alumnos, sesiones y asistencias por cada grupo
+                let totalAlumnos = 0;
+                let totalSesiones = 0;
+                let totalAsistenciasRegistradas = 0;
+                let posiblesAsistencias = 0;
+                
+                // Mantener registro de alumnos ya contados para evitar duplicados
+                const alumnosContados = new Set();
+                
+                // Procesar cada grupo
+                await Promise.all(grupos.map(async (grupo: any) => {
+                  // Obtener alumnos del grupo
+                  const alumnosGrupoResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupo.id}`, {
+                    credentials: 'include'
+                  });
+                  
+                  if (alumnosGrupoResponse.ok) {
+                    const alumnosGrupo = await alumnosGrupoResponse.json();
+                    // Contar solo alumnos únicos usando sus IDs
+                    if (Array.isArray(alumnosGrupo)) {
+                      alumnosGrupo.forEach((alumnoGrupo: any) => {
+                        if (alumnoGrupo.alumno_Id && !alumnosContados.has(alumnoGrupo.alumno_Id)) {
+                          alumnosContados.add(alumnoGrupo.alumno_Id);
+                          totalAlumnos++;
+                        }
+                      });
+                    }
+                  }
+                  
+                  // Obtener sesiones de clase del grupo
+                  const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}`, {
+                    credentials: 'include'
+                  });
+                  
+                  if (sesionesResponse.ok) {
+                    const sesiones = await sesionesResponse.json();
+                    const numSesiones = Array.isArray(sesiones) ? sesiones.length : 0;
+                    totalSesiones += numSesiones;
+                      // Obtener asistencias para cada sesión
+                    await Promise.all(sesiones.map(async (sesion: any) => {
+                      const asistenciasResponse = await fetch(`/api/asistencias-alumno?sesionClaseId=${sesion.id}`, {
+                        credentials: 'include'
+                      });
+                      
+                      if (asistenciasResponse.ok) {
+                        const asistencias = await asistenciasResponse.json();
+                        if (Array.isArray(asistencias)) {
+                          // Filtrar asistencias solo para alumnos de este grupo
+                          const asistenciasAlumno = asistencias.filter((a: any) => {
+                            const esAlumnoDeGrupo = alumnosContados.has(a.alumnoId);
+                            const asiste = a.estado === 'Asiste' || 
+                                          (a.estadoAsistencia && a.estadoAsistencia.denominacion === 'Asiste');
+                            return esAlumnoDeGrupo && asiste;
+                          });
+                          
+                          totalAsistenciasRegistradas += asistenciasAlumno.length;
+                        }
+                      }
+                    }));
+                    
+                    // Calcular posibles asistencias (número de alumnos * número de sesiones)
+                    const alumnosDelGrupo = await fetch(`/api/alumnos-grupo?grupoId=${grupo.id}`, {
+                      credentials: 'include'
+                    }).then(res => res.ok ? res.json() : []);
+                    
+                    const numAlumnosGrupo = Array.isArray(alumnosDelGrupo) ? alumnosDelGrupo.length : 0;
+                    posiblesAsistencias += numAlumnosGrupo * numSesiones;
+                  }
+                }));
+                
+                // Calcular porcentaje de asistencia
+                const porcentajeAsistencia = posiblesAsistencias > 0 
+                  ? Math.round((totalAsistenciasRegistradas / posiblesAsistencias) * 100) 
+                  : 0;
+                
                 return {
                   ...docencia,
-                  // Estos valores serían reemplazados por los resultados de las APIs reales
-                  alumnosInscritos: undefined, 
-                  totalClases: undefined,
-                  totalAsistencias: undefined
+                  alumnosInscritos: totalAlumnos,
+                  totalClases: totalSesiones,
+                  totalAsistencias: porcentajeAsistencia
                 };
               } catch (error) {
                 console.error(`Error al obtener estadísticas para docencia ${docencia.id}:`, error);
@@ -263,27 +344,47 @@ export default function ProfesorDashboard() {
 
                   <div className="p-5">
 
-                    {/* Panel de estadísticas */}
-                    <div className="flex mb-4 bg-gray-50 rounded-lg overflow-hidden border border-gray-100 divide-x divide-gray-200">
+                    {/* Panel de estadísticas */}                    <div className="flex mb-4 bg-gray-50 rounded-lg overflow-hidden border border-gray-100 divide-x divide-gray-200">
                       <div className="flex-1 p-3 text-center">
                         <div className="text-lg font-semibold text-gray-800">
-                          {docencia.alumnosInscritos !== undefined ? docencia.alumnosInscritos : "N/A"}
+                          {docencia.alumnosInscritos !== undefined ? docencia.alumnosInscritos : "0"}
                         </div>
                         <div className="text-xs text-gray-500">Alumnos</div>
                       </div>
                       <div className="flex-1 p-3 text-center">
                         <div className="text-lg font-semibold text-gray-800">
-                          {docencia.totalClases !== undefined ? docencia.totalClases : "N/A"}
+                          {docencia.totalClases !== undefined ? docencia.totalClases : "0"}
                         </div>
                         <div className="text-xs text-gray-500">Clases</div>
                       </div>
-                      <div className="flex-1 p-3 text-center">
-                        <div className="text-lg font-semibold text-gray-800">
-                          {docencia.totalAsistencias !== undefined && docencia.totalClases && docencia.alumnosInscritos
-                            ? `${Math.round((docencia.totalAsistencias / (docencia.totalClases * docencia.alumnosInscritos)) * 100)}%`
-                            : "N/A"}
+                      <div className="flex-1 p-3 text-center">                        <div className="flex flex-col items-center">
+                          <div className={`text-lg font-semibold ${
+                            docencia.totalAsistencias !== undefined 
+                              ? docencia.totalAsistencias >= 80 
+                                ? 'text-green-700'
+                                : docencia.totalAsistencias >= 50 
+                                  ? 'text-yellow-700'
+                                  : 'text-red-700' 
+                              : 'text-gray-800'
+                          }`}>
+                            {docencia.totalAsistencias !== undefined ? `${docencia.totalAsistencias}%` : "0%"}
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                            <div 
+                              className={`h-1.5 rounded-full ${
+                                docencia.totalAsistencias !== undefined 
+                                  ? docencia.totalAsistencias >= 80 
+                                    ? 'bg-green-500'
+                                    : docencia.totalAsistencias >= 50 
+                                      ? 'bg-yellow-500'
+                                      : 'bg-red-500' 
+                                  : 'bg-gray-300'
+                              }`} 
+                              style={{ width: `${docencia.totalAsistencias || 0}%` }}>
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">Asistencia</div>
                         </div>
-                        <div className="text-xs text-gray-500">Asistencia</div>
                       </div>
                     </div>                     <div className="flex flex-wrap gap-2 mt-5">
                       <Link
