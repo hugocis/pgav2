@@ -12,6 +12,7 @@ import {
   FaBook,
   FaInfoCircle,
   FaUserFriends,
+  FaCalendarAlt,
 } from 'react-icons/fa';
 
 // Interfaces para tipado
@@ -398,23 +399,30 @@ export default function ProfesorDashboard() {
                         className="flex-1 bg-[#1e6ba8] hover:bg-[#185a8f] text-white text-sm font-medium py-2.5 px-3 rounded-md flex items-center justify-center transition-colors"
                       >
                         <FaUserGraduate className="mr-1.5" />
-                        Alumnos
-                      </Link>                      <Link
+                        Alumnos                      </Link>                      <Link
                         href={`/profesor/estadisticas?asignatura=${docencia.asignatura.id}`}
                         className="flex-1 bg-[#2d8fd5] hover:bg-[#2577b8] text-white text-sm font-medium py-2.5 px-3 rounded-md flex items-center justify-center transition-colors"
                       >
                         <FaChartPie className="mr-1.5" />
                         Estadísticas
+                      </Link>                    </div>
+                      {/* Botones de asistencia */}
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <Link
+                        href={`/profesor/pasar-clase?asignatura=${docencia.asignatura.id}`}
+                        className="bg-[#0D3C68] hover:bg-[#072747] text-white text-sm font-medium py-3 px-4 rounded-md flex items-center justify-center transition-colors"
+                      >
+                        <FaChalkboardTeacher className="mr-2" />
+                        Pasar Asistencia
+                      </Link>
+                      <Link
+                        href={`/profesor/historial-sesiones?asignatura=${docencia.asignatura.id}`}
+                        className="bg-[#2d8fd5] hover:bg-[#2577b8] text-white text-sm font-medium py-3 px-4 rounded-md flex items-center justify-center transition-colors"
+                      >
+                        <FaCalendarAlt className="mr-2" />
+                        Historial
                       </Link>
                     </div>
-                      {/* Botón de pasar clase */}
-                    <Link
-                      href={`/profesor/pasar-clase/${docencia.id}`}
-                      className="w-full mt-3 bg-[#0D3C68] hover:bg-[#072747] text-white text-sm font-medium py-3 px-4 rounded-md flex items-center justify-center transition-colors"
-                    >
-                      <FaChalkboardTeacher className="mr-2" />
-                      Pasar Asistencia
-                    </Link>
                   </div>
                 </div>
               ))}
