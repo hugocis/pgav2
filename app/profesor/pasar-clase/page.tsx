@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardContainer from '@/components/DashboardContainer';
 import Link from 'next/link';
-import { 
+import {   
   FaChalkboardTeacher, 
   FaSearch, 
   FaArrowLeft, 
@@ -13,7 +13,11 @@ import {
   FaCalendarAlt, 
   FaClock, 
   FaSave,
-  FaUserGraduate
+  FaUserGraduate,
+  FaCheck,
+  FaTimes,
+  FaPercentage,
+  FaBook
 } from 'react-icons/fa';
 
 // Interfaces para el tipado
@@ -70,7 +74,6 @@ export default function PasarClase() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const asignaturaId = searchParams.get('asignatura');
-
   const [asignatura, setAsignatura] = useState<Asignatura | null>(null);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [grupoSeleccionado, setGrupoSeleccionado] = useState<string>('');
@@ -84,8 +87,8 @@ export default function PasarClase() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
+  const [success, setSuccess] = useState<string | null>(null);  const [fechasConSesion, setFechasConSesion] = useState<string[]>([]);
+  const [mostrarGuia, setMostrarGuia] = useState<boolean>(false);
   // Obtener fecha y hora actual en formato adecuado para inputs
   useEffect(() => {
     const now = new Date();
@@ -95,6 +98,43 @@ export default function PasarClase() {
     setFecha(fechaActual);
     setHora(horaActual);
   }, []);
+  
+  // Agregar la funcionalidad para marcar visualmente los días con sesiones en el calendario
+  useEffect(() => {
+    if (!fechasConSesion.length) return;
+    
+    // Esta función se ejecutará cuando se abra el calendario
+    const handleCalendarOpen = () => {
+      // Dar tiempo para que el DOM del calendario se renderice
+      setTimeout(() => {
+        // Intentar marcar los días con sesiones
+        document.querySelectorAll('td[data-date]').forEach(day => {
+          const dateValue = day.getAttribute('data-date');
+          if (dateValue && fechasConSesion.includes(dateValue)) {
+            day.classList.add('bg-green-100');
+            const dayElement = day as HTMLElement;
+            dayElement.style.backgroundColor = '#d1fae5';
+            dayElement.style.fontWeight = 'bold';
+            dayElement.style.color = '#065f46';
+            dayElement.style.borderRadius = '50%';
+          }
+        });
+      }, 100);
+    };
+    
+    // Agregar el listener al input de fecha
+    const dateInput = document.getElementById('fecha');
+    if (dateInput) {
+      dateInput.addEventListener('mousedown', handleCalendarOpen);
+      dateInput.addEventListener('focus', handleCalendarOpen);
+      
+      // Limpiar al desmontar
+      return () => {
+        dateInput.removeEventListener('mousedown', handleCalendarOpen);
+        dateInput.removeEventListener('focus', handleCalendarOpen);
+      };
+    }
+  }, [fechasConSesion]);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -174,16 +214,61 @@ export default function PasarClase() {
     };
     
     fetchData();
-  }, [asignaturaId, session?.user?.id]);
-
-  // Cargar alumnos cuando se selecciona un grupo
+  }, [asignaturaId, session?.user?.id]);  // Aplicar estilos a los días del calendario que tienen sesiones
+  useEffect(() => {
+    if (fechasConSesion.length === 0) return;
+    
+    // Crear un estilo personalizado para marcar los días con sesiones en verde
+    const styleId = 'calendar-green-days-style';
+    
+    // Eliminar el estilo anterior si existe
+    if (document.getElementById(styleId)) {
+      document.getElementById(styleId)?.remove();
+    }
+    
+    // Crear reglas de CSS para cada fecha con sesiones
+    const cssRules = fechasConSesion.map(fecha => {
+      return `
+        input[type="date"].calendar-with-green-days::-webkit-calendar-picker-indicator {
+          background-color: white;
+        }
+        input[type="date"].calendar-with-green-days::-webkit-datetime-edit-day-field:focus,
+        input[type="date"].calendar-with-green-days::-webkit-datetime-edit-month-field:focus,
+        input[type="date"].calendar-with-green-days::-webkit-datetime-edit-year-field:focus {
+          background-color: transparent;
+        }
+        
+        /* Esta es la regla específica para cada fecha con sesión */
+        td[data-date="${fecha}"] {
+          background-color: #d1fae5 !important;
+          border-radius: 50%;
+          font-weight: bold;
+          color: #065f46 !important;
+        }
+      `;
+    }).join('\n');
+    
+    // Insertar el elemento de estilo en el head del documento
+    const styleEl = document.createElement('style');
+    styleEl.id = styleId;
+    styleEl.textContent = cssRules;
+    document.head.appendChild(styleEl);
+    
+    // Limpiar cuando el componente se desmonte
+    return () => {
+      document.getElementById(styleId)?.remove();
+    };
+  }, [fechasConSesion]);
+  
+  // Cargar alumnos y fechas con sesión cuando se selecciona un grupo
   useEffect(() => {
     if (!grupoSeleccionado) return;
     
-    const fetchAlumnos = async () => {
+    const fetchData = async () => {
       setIsLoading(true);
       
       try {
+        // Cargar alumnos del grupo
         const alumnosResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupoSeleccionado}`, {
           credentials: 'include'
         });
@@ -210,15 +295,36 @@ export default function PasarClase() {
         });
         
         setAsistencias(asistenciasIniciales);
+        
+        // Cargar las sesiones de clase para obtener las fechas
+        const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupoSeleccionado}`, {
+          credentials: 'include'
+        });
+        
+        if (sesionesResponse.ok) {
+          const sesionesData = await sesionesResponse.json();
+          
+          // Extraer solo las fechas (formato YYYY-MM-DD) de las sesiones
+          const fechas = sesionesData.map((sesion: any) => {
+            const fecha = new Date(sesion.fecha);
+            return fecha.toISOString().split('T')[0];
+          });
+          
+          setFechasConSesion(fechas);
+        } else {
+          console.warn('No se pudieron cargar las sesiones del grupo');
+          setFechasConSesion([]);
+        }
+        
         setIsLoading(false);
       } catch (error) {
-        console.error('Error al cargar alumnos:', error);
-        setError(`Error al cargar los alumnos: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+        console.error('Error al cargar datos:', error);
+        setError(`Error al cargar los datos: ${error instanceof Error ? error.message : 'Error desconocido'}`);
         setIsLoading(false);
       }
     };
     
-    fetchAlumnos();
+    fetchData();
   }, [grupoSeleccionado]);
 
   // Filtrar alumnos por término de búsqueda
@@ -230,9 +336,17 @@ export default function PasarClase() {
         )
       )
     : alumnosGrupo;
-
   // Cambiar estado de asistencia al hacer clic
   const cambiarEstadoAsistencia = (alumnoId: string) => {
+    // Crear un pequeño efecto de "click"
+    const element = document.getElementById(`alumno-${alumnoId}`);
+    if (element) {
+      element.classList.add('scale-95', 'shadow-inner');
+      setTimeout(() => {
+        element.classList.remove('scale-95', 'shadow-inner');
+      }, 150);
+    }
+    
     const estadoActual = asistencias.get(alumnoId) || 'Asiste';
     const indexActual = estadosPermitidos.indexOf(estadoActual);
     const indexSiguiente = (indexActual + 1) % estadosPermitidos.length;
@@ -242,8 +356,7 @@ export default function PasarClase() {
     nuevasAsistencias.set(alumnoId, nuevoEstado);
     setAsistencias(nuevasAsistencias);
   };
-
-  // Guardar la sesión de clase y las asistencias
+    // Guardar la sesión de clase y las asistencias
   const guardarSesion = async () => {
     if (!grupoSeleccionado || !fecha || !hora) {
       setError('Por favor, selecciona un grupo, fecha y hora válidos');
@@ -315,10 +428,9 @@ export default function PasarClase() {
         
         return await asistenciaResponse.json();
       });
+        await Promise.all(promesasAsistencias);
       
-      await Promise.all(promesasAsistencias);
-      
-      setSuccess('¡Sesión de clase y asistencias registradas con éxito!');
+      setSuccess('¡Sesión de clase y asistencias registradas con éxito! Redirigiendo al historial...');
       
       // Reiniciar todas las asistencias a "Asiste" para una nueva sesión
       const asistenciasIniciales = new Map<string, string>();
@@ -327,9 +439,18 @@ export default function PasarClase() {
       });
       setAsistencias(asistenciasIniciales);
       
-    } catch (error) {
-      console.error('Error al guardar la sesión:', error);
+      // Hacer scroll suave pero rápidamente al inicio para mostrar el mensaje de éxito
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      // Redirigir al historial después de 3 segundos
+      setTimeout(() => {
+        router.push(`/profesor/historial-sesiones?asignatura=${asignaturaId}`);
+      }, 3000);
+      
+    } catch (error) {      console.error('Error al guardar la sesión:', error);
       setError(`Error al guardar la sesión: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      // Si hay error, hacer scroll al inicio para mostrar el mensaje de error
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setIsSaving(false);
     }
@@ -348,150 +469,218 @@ export default function PasarClase() {
         return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
     }
   };
-
   return (
     <DashboardContainer roleName="Profesor">
-      <div className="bg-gray-50 min-h-full pb-8">
+      <div className="bg-gray-100 min-h-full pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           {/* Panel de encabezado */}
-          <div className="mb-6 bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-5 text-white">
-              <div className="flex justify-between items-center">
-                <div>
+          <div className="mb-8 bg-white rounded-xl shadow-md overflow-hidden border border-blue-50">
+            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#2563EB] px-6 py-8 text-white">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">                <div>
                   <div className="flex items-center">
-                    <Link href="/profesor/dashboard" className="mr-3 text-white hover:text-blue-200 transition">
+                    <Link 
+                      href="/profesor/dashboard" 
+                      className="mr-4 text-white hover:text-blue-200 transition bg-blue-800 hover:bg-blue-700 p-3 rounded-full shadow-md"
+                    >
                       <FaArrowLeft />
                     </Link>
-                    <h1 className="text-2xl font-bold flex items-center">
-                      <FaChalkboardTeacher className="mr-3" />
-                      Pasar Asistencia
-                    </h1>
+                    <div>
+                      <h1 className="text-3xl font-bold flex items-center">
+                        <FaChalkboardTeacher className="mr-3 text-white drop-shadow-md" />
+                        Control de Asistencia
+                      </h1>
+                      {asignatura && (
+                        <p className="text-blue-100 mt-2 flex items-center text-lg">
+                          <FaBook className="mr-2 text-blue-200" />
+                          <span className="text-white font-medium">{asignatura.Denominacion}</span>
+                          <span className="mx-2 text-blue-200">•</span>
+                          <span>{asignatura.carrera?.denominacion || ''}</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  {asignatura && (
-                    <p className="text-blue-100 mt-1">
-                      {asignatura.Denominacion} - {asignatura.carrera?.denominacion || ''}
-                    </p>
-                  )}
                 </div>
+                <Link 
+                  href={`/profesor/historial-sesiones?asignatura=${asignaturaId}`} 
+                  className="bg-blue-800 hover:bg-blue-700 text-white py-3 px-5 rounded-lg 
+                    flex items-center transition shadow-md hover:shadow-lg font-medium"
+                >
+                  <FaCalendarAlt className="mr-2" />
+                  Ver Historial de Asistencias
+                </Link>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
             </div>
-          </div>
-
-          {isLoading ? (
-            <div className="bg-white rounded-lg shadow-sm p-6 flex justify-center">
+          </div>          {isLoading ? (
+            <div className="bg-white rounded-xl shadow p-12 flex justify-center border border-blue-50">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-2 text-gray-600">Cargando información...</p>
+                <div className="flex items-center justify-center">
+                  <div className="relative">
+                    <div className="h-24 w-24 rounded-full border-t-4 border-b-4 border-blue-500 animate-spin"></div>
+                    <div className="absolute top-0 left-0 h-24 w-24 rounded-full border-t-4 border-b-4 border-blue-300 animate-spin animate-pulse" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+                  </div>
+                </div>
+                <p className="mt-6 text-gray-700 font-medium text-lg">Cargando información...</p>
+                <p className="text-sm text-gray-500 mt-2">Esto puede tomar unos segundos</p>
               </div>
             </div>
           ) : error ? (
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="text-center text-red-600">
-                <p>{error}</p>
-                <Link href="/profesor/dashboard" className="mt-4 inline-block px-4 py-2 bg-[#0D3C68] text-white rounded-md">
+            <div className="bg-white rounded-xl shadow-md p-8 border border-red-100">
+              <div className="text-center">
+                <div className="bg-red-100 w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-red-800 mb-2">Se ha producido un error</h3>
+                <p className="text-gray-700 mb-6">{error}</p>
+                <Link 
+                  href="/profesor/dashboard" 
+                  className="mt-4 inline-block px-6 py-3 bg-gradient-to-r from-[#0D3C68] to-[#2563EB] text-white rounded-lg shadow hover:shadow-md transition-all"
+                >
                   Volver al Dashboard
                 </Link>
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                  Registrar Nueva Sesión de Clase
-                </h2>
-
-                {success && (
-                  <div className="mb-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded">
-                    <p>{success}</p>
+            <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100"><div className="p-7 border-b border-gray-200">
+                <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center flex items-center justify-center">
+                  <FaCalendarAlt className="mr-3 text-blue-600" />
+                  <span>Registrar Nueva Sesión</span>
+                </h2>                {success && (
+                  <div id="mensaje-exito" className="mb-8 bg-green-100 border-2 border-green-500 text-green-800 p-6 rounded-xl shadow-lg text-center animate-pulse">
+                    <div className="flex items-center justify-center">
+                      <div className="bg-green-200 p-3 rounded-full mr-3 shadow-inner">
+                        <FaCheck className="text-green-700 text-2xl" />
+                      </div>
+                      <p className="font-bold text-xl">{success.split('!')[0]}!</p>
+                    </div>
+                    {success.includes('Redirigiendo') && (
+                      <div className="mt-4 flex flex-col items-center">
+                        <p className="text-green-700 font-medium">{success.split('!')[1]}</p>
+                        <div className="mt-3 flex justify-center">
+                          <div className="flex space-x-2">
+                            <div className="h-3 w-3 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                            <div className="h-3 w-3 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: "200ms" }}></div>
+                            <div className="h-3 w-3 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: "400ms" }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Selector de grupo */}
-                  <div>
-                    <label htmlFor="grupo" className="block text-sm font-medium text-gray-700 mb-1">
-                      Grupo
-                    </label>
-                    <select
-                      id="grupo"
-                      value={grupoSeleccionado}
-                      onChange={(e) => setGrupoSeleccionado(e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {grupos.length === 0 ? (
-                        <option value="">No hay grupos disponibles</option>
-                      ) : (
-                        grupos.map((grupo) => (
-                          <option key={grupo.id} value={grupo.id}>
-                            {grupo.denominacion}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-
-                  {/* Selector de fecha */}
-                  <div>
-                    <label htmlFor="fecha" className="block text-sm font-medium text-gray-700 mb-1">
-                      Fecha
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FaCalendarAlt className="text-gray-400" />
-                      </div>
-                      <input
-                        type="date"
-                        id="fecha"
-                        value={fecha}
-                        onChange={(e) => setFecha(e.target.value)}
-                        className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl shadow-sm mb-8 border border-blue-100">
+                  <h3 className="text-xl font-semibold text-blue-900 mb-5 flex items-center">
+                    <div className="bg-blue-100 p-2 rounded-full mr-3">
+                      <FaChalkboardTeacher className="text-blue-600" />
                     </div>
-                  </div>
-
-                  {/* Selector de hora */}
-                  <div>
-                    <label htmlFor="hora" className="block text-sm font-medium text-gray-700 mb-1">
-                      Hora
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FaClock className="text-gray-400" />
+                    Información de la Sesión
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
+                    {/* Selector de grupo */}
+                    <div className="bg-white p-5 rounded-xl shadow-sm border border-blue-50 hover:shadow-md transition-shadow">
+                      <label htmlFor="grupo" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Grupo de Clase
+                      </label>
+                      <select
+                        id="grupo"
+                        value={grupoSeleccionado}
+                        onChange={(e) => setGrupoSeleccionado(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 text-base"
+                      >
+                        {grupos.length === 0 ? (
+                          <option value="">No hay grupos disponibles</option>
+                        ) : (
+                          grupos.map((grupo) => (
+                            <option key={grupo.id} value={grupo.id}>
+                              {grupo.denominacion}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>                    {/* Selector de fecha */}
+                    <div className="bg-white p-5 rounded-xl shadow-sm border border-blue-50 hover:shadow-md transition-shadow">
+                      <label htmlFor="fecha" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center justify-between">
+                        <span>Fecha de la Clase</span>
+                        {fechasConSesion.includes(fecha) && (
+                          <span className="inline-flex items-center text-xs px-2 py-0.5 bg-green-100 text-green-800 rounded-full">
+                            <FaCheck className="mr-1" size={10} />
+                            Sesión registrada
+                          </span>
+                        )}
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <FaCalendarAlt className={`${fechasConSesion.includes(fecha) ? 'text-green-600' : 'text-blue-500'}`} />
+                        </div>                        <input
+                          type="date"
+                          id="fecha"
+                          value={fecha}
+                          onChange={(e) => setFecha(e.target.value)}
+                          className={`w-full pl-10 p-3 border ${fechasConSesion.includes(fecha) ? 'border-green-300 bg-green-50' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 text-base calendar-with-green-days`}
+                          style={{ colorScheme: 'light' }}
+                        />
                       </div>
-                      <input
-                        type="time"
-                        id="hora"
-                        value={hora}
-                        onChange={(e) => setHora(e.target.value)}
-                        className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
+                      <div className="mt-2 text-xs text-gray-500">
+                        {fechasConSesion.length > 0 ? 'Los días en verde indican fechas con sesiones ya registradas' : 'No hay sesiones registradas para este grupo'}
+                      </div>
+                    </div>
+
+                    {/* Selector de hora */}
+                    <div className="bg-white p-5 rounded-xl shadow-sm border border-blue-50 hover:shadow-md transition-shadow">
+                      <label htmlFor="hora" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Hora de la Clase
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <FaClock className="text-blue-500" />
+                        </div>
+                        <input
+                          type="time"
+                          id="hora"
+                          value={hora}
+                          onChange={(e) => setHora(e.target.value)}
+                          className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 text-base"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
                 
-                <div className="mt-6">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="text-sm text-gray-500">
-                      <strong>{alumnosGrupo.length}</strong> alumnos en este grupo
+                <div className="flex flex-col md:flex-row justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <div className="flex items-center bg-blue-50 px-5 py-3 rounded-lg text-sm mb-3 md:mb-0">
+                    <div className="bg-blue-100 p-1.5 rounded-full mr-3">
+                      <FaUserGraduate className="text-blue-600" />
                     </div>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FaSearch className="text-gray-400" />
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="Buscar alumnos..."
-                        className="pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
+                    <span className="font-semibold mr-1 text-blue-900">
+                      {alumnosGrupo.length}
+                    </span>
+                    <span className="text-gray-700">
+                      {alumnosGrupo.length === 1 ? 'alumno en este grupo' : 'alumnos en este grupo'}
+                    </span>
+                  </div>
+                  <div className="relative w-full md:w-auto">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <FaSearch className="text-blue-500" />
                     </div>
+                    <input
+                      type="text"
+                      placeholder="Buscar alumnos..."
+                      className="w-full md:w-80 pl-11 pr-4 py-3 border border-gray-200 rounded-lg leading-5 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 text-sm transition-all"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                   </div>
                 </div>
-              </div>
-
-              {/* Lista de alumnos y asistencia */}
+                
+                {searchTerm && alumnosFiltrados.length > 0 && (
+                  <div className="text-center bg-yellow-50 p-3 rounded-lg text-sm text-yellow-700 mb-4 border border-yellow-100 shadow-sm">
+                    Mostrando {alumnosFiltrados.length} de {alumnosGrupo.length} alumnos
+                  </div>
+                )}
+              </div>{/* Lista de alumnos y asistencia */}
               {!grupoSeleccionado ? (
                 <div className="text-center py-10">
                   <p className="text-gray-500 mb-4">Selecciona un grupo para ver los alumnos</p>
@@ -501,99 +690,193 @@ export default function PasarClase() {
                   <FaUserGraduate className="mx-auto text-gray-300 text-5xl mb-3" />
                   <p className="text-gray-500 mb-4">No hay alumnos en este grupo</p>
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          #
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Alumno
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Estado
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {alumnosFiltrados.map((alumnoGrupo, index) => {
-                        if (!alumnoGrupo.user) return null;
-                        
-                        const alumno = alumnoGrupo.user;
-                        const estadoAsistencia = asistencias.get(alumno.id) || 'Asiste';
-                        const estadoClass = getEstadoClass(estadoAsistencia);
-                        
-                        return (
-                          <tr key={alumno.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {index + 1}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {alumno.surname1 ? `${alumno.surname1}${alumno.surname2 ? ` ${alumno.surname2}` : ''}, ${alumno.name}` : alumno.name}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {alumno.email}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-center">
-                              <button
-                                onClick={() => cambiarEstadoAsistencia(alumno.id)}
-                                className={`py-1 px-4 rounded-full text-sm font-medium ${estadoClass} transition-colors`}
-                              >
-                                {estadoAsistencia}
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              
-              <div className="p-5 bg-gray-50 border-t border-gray-200">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                  <div>
-                    <div className="flex items-center space-x-4">
-                      <span className="font-medium text-sm text-gray-700">Estados:</span>
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Asiste</span>
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">No Asiste</span>
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">50%</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Haz clic en el estado para cambiarlo
-                    </p>
+              ) : (                <div className="px-7 py-6 bg-gray-50">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                    {alumnosFiltrados.map((alumnoGrupo, index) => {
+                      if (!alumnoGrupo.user) return null;
+                      
+                      const alumno = alumnoGrupo.user;
+                      const estadoAsistencia = asistencias.get(alumno.id) || 'Asiste';
+                      
+                      let bgColor, textColor, borderColor, iconComponent, gradientColors;
+                      switch (estadoAsistencia) {
+                        case 'Asiste':
+                          bgColor = 'bg-green-50 hover:bg-green-100';
+                          textColor = 'text-green-800';
+                          borderColor = 'border-green-200';
+                          gradientColors = 'from-green-50 to-green-100';
+                          iconComponent = <div className="absolute top-3 right-3 w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                            <FaCheck className="text-green-600 text-xs" />
+                          </div>;
+                          break;
+                        case 'No Asiste':
+                          bgColor = 'bg-red-50 hover:bg-red-100';
+                          textColor = 'text-red-800';
+                          borderColor = 'border-red-200';
+                          gradientColors = 'from-red-50 to-red-100';
+                          iconComponent = <div className="absolute top-3 right-3 w-6 h-6 bg-red-100 rounded-full flex items-center justify-center">
+                            <FaTimes className="text-red-600 text-xs" />
+                          </div>;
+                          break;
+                        case '50%':
+                          bgColor = 'bg-yellow-50 hover:bg-yellow-100';
+                          textColor = 'text-yellow-800';
+                          borderColor = 'border-yellow-200';
+                          gradientColors = 'from-yellow-50 to-yellow-100';
+                          iconComponent = <div className="absolute top-3 right-3 w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center">
+                            <FaPercentage className="text-yellow-600 text-xs" />
+                          </div>;
+                          break;
+                        default:
+                          bgColor = 'bg-gray-50 hover:bg-gray-100';
+                          textColor = 'text-gray-800';
+                          borderColor = 'border-gray-200';
+                          gradientColors = 'from-gray-50 to-gray-100';
+                          iconComponent = null;
+                      }
+                      
+                      // Obtén las iniciales para el avatar
+                      const nombre = alumno.name || '';
+                      const apellido1 = alumno.surname1 || '';
+                      const iniciales = `${nombre.charAt(0)}${apellido1.charAt(0)}`.toUpperCase();
+                      
+                      return (
+                        <button
+                          id={`alumno-${alumno.id}`}
+                          key={alumno.id}
+                          onClick={() => cambiarEstadoAsistencia(alumno.id)}
+                          className={`relative flex flex-col items-center justify-between p-6 rounded-xl border ${borderColor} bg-gradient-to-br ${gradientColors} transition-all transform hover:scale-102 focus:outline-none shadow hover:shadow-md min-h-[160px]`}
+                        >
+                          {iconComponent}
+                          
+                          <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg mb-3 shadow-sm">
+                            {iniciales}
+                          </div>
+                          
+                          <div className="text-center flex-grow w-full flex flex-col justify-between">
+                            <div className="font-semibold text-base text-gray-900 mb-3 line-clamp-2 px-1">
+                              {alumno.surname1 
+                                ? `${alumno.surname1}${alumno.surname2 ? ` ${alumno.surname2.charAt(0)}.` : ''}, ${alumno.name}` 
+                                : alumno.name}
+                            </div>
+                            
+                            <div className={`text-sm font-bold px-4 py-2 rounded-lg ${bgColor} ${textColor} border ${borderColor} mt-auto mx-auto`}>
+                              {estadoAsistencia}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div className="flex space-x-3">
-                    <Link
-                      href="/profesor/dashboard"
-                      className="px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50"
-                    >
-                      Cancelar
-                    </Link>
+                </div>
+              )}                <div className="px-7 py-8 bg-white border-t border-gray-200">                <div className="mb-8">
+                  {/* Botón para mostrar/ocultar la guía */}
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-blue-800 flex items-center">
+                      <FaCheck className="mr-2" />
+                      Guía de Estados
+                    </h3>
                     <button
-                      onClick={guardarSesion}
-                      disabled={isSaving || !grupoSeleccionado || alumnosGrupo.length === 0}
-                      className="px-4 py-2 bg-[#0D3C68] text-white rounded-md hover:bg-[#0a325a] disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                      onClick={() => setMostrarGuia(!mostrarGuia)}
+                      className="text-sm px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 flex items-center transition-all"
                     >
-                      {isSaving ? (
+                      {mostrarGuia ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Guardando...
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-4 h-4 mr-1">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                          Ocultar guía
                         </>
                       ) : (
                         <>
-                          <FaSave className="mr-2" />
-                          Guardar Asistencia
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-4 h-4 mr-1">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                          </svg>
+                          Mostrar guía
                         </>
                       )}
                     </button>
                   </div>
+                  
+                  {/* Contenido de la guía - se muestra/oculta según el estado */}
+                  {mostrarGuia && (
+                    <>
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl mb-6 shadow-sm border border-blue-100 transition-all">
+                        <div className="flex flex-wrap justify-center gap-6">
+                          <div className="bg-white p-4 rounded-lg shadow-sm border border-green-100 flex flex-col items-center">
+                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mb-2">
+                              <FaCheck className="text-green-600" />
+                            </div>
+                            <span className="px-4 py-1.5 text-sm font-medium rounded-lg bg-green-50 text-green-800 border border-green-200">
+                              Asiste
+                            </span>
+                            <span className="text-xs mt-2 text-gray-600">Alumno presente</span>
+                          </div>
+                          
+                          <div className="bg-white p-4 rounded-lg shadow-sm border border-red-100 flex flex-col items-center">
+                            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mb-2">
+                              <FaTimes className="text-red-600" />
+                            </div>
+                            <span className="px-4 py-1.5 text-sm font-medium rounded-lg bg-red-50 text-red-800 border border-red-200">
+                              No Asiste
+                            </span>
+                            <span className="text-xs mt-2 text-gray-600">Alumno ausente</span>
+                          </div>
+                          
+                          <div className="bg-white p-4 rounded-lg shadow-sm border border-yellow-100 flex flex-col items-center">
+                            <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mb-2">
+                              <FaPercentage className="text-yellow-600" />
+                            </div>
+                            <span className="px-4 py-1.5 text-sm font-medium rounded-lg bg-yellow-50 text-yellow-800 border border-yellow-200">
+                              50%
+                            </span>
+                            <span className="text-xs mt-2 text-gray-600">Asistencia parcial</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
+                        <div className="flex">
+                          <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="ml-3">
+                            <p className="text-sm text-yellow-700 font-medium">
+                              Haz clic sobre cada tarjeta de alumno para cambiar su estado de asistencia
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-5">
+                  <Link
+                    href="/profesor/dashboard"
+                    className="w-full sm:w-auto px-8 py-3.5 border border-gray-300 rounded-xl bg-white text-gray-700 hover:bg-gray-50 text-center font-medium shadow-sm hover:shadow transition-all"
+                  >
+                    Cancelar
+                  </Link>
+                  <button
+                    onClick={guardarSesion}
+                    disabled={isSaving || !grupoSeleccionado || alumnosGrupo.length === 0}
+                    className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-[#0D3C68] to-[#2563EB] text-white rounded-xl hover:from-[#0a325a] hover:to-[#1e56d3] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-medium shadow-sm hover:shadow transition-all"
+                  >
+                    {isSaving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <FaSave className="mr-3 text-lg" />
+                        Guardar Asistencia
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
