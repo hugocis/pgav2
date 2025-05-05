@@ -72,10 +72,10 @@ export default function ProfesorGrupos() {
   const [grupoAEditar, setGrupoAEditar] = useState<Grupo | null>(null);
   const [nuevoGrupoNombre, setNuevoGrupoNombre] = useState('');
   const [nombreEditadoGrupo, setNombreEditadoGrupo] = useState('');
-  const [searchTermAlumnos, setSearchTermAlumnos] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [searchTermAlumnos, setSearchTermAlumnos] = useState('');  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>('');
+  const [notification, setNotification] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
 
   // Cargar datos de la asignatura
   useEffect(() => {
@@ -242,11 +242,21 @@ export default function ProfesorGrupos() {
       if (!response.ok) {
         throw new Error('No se pudo crear el grupo');
       }
-      
-      const data = await response.json();
+        const data = await response.json();
       setGrupos([...grupos, data.grupo]);
       setModalCrearGrupoAbierto(false);
       setNuevoGrupoNombre('');
+      
+      // Mostrar notificación de éxito
+      setNotification({
+        message: `¡Grupo "${nuevoGrupoNombre.trim()}" creado correctamente!`,
+        type: 'success'
+      });
+      
+      // Ocultar la notificación después de 3 segundos
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
     } catch (error) {
       console.error('Error al crear el grupo:', error);
       alert('Error al crear el grupo. Por favor, inténtalo de nuevo.');
@@ -271,9 +281,21 @@ export default function ProfesorGrupos() {
       
       // Actualizar la lista de alumnos-grupo
       setTodosLosAlumnosGrupo(todosLosAlumnosGrupo.filter(ag => ag.grupoId !== grupoAEliminar.id));
+        const nombreGrupoEliminado = grupoAEliminar.denominacion;
       
       setModalConfirmacionAbierto(false);
       setGrupoAEliminar(null);
+      
+      // Mostrar notificación de éxito
+      setNotification({
+        message: `Grupo "${nombreGrupoEliminado}" eliminado correctamente`,
+        type: 'success'
+      });
+      
+      // Ocultar la notificación después de 3 segundos
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
     } catch (error) {
       console.error('Error al eliminar el grupo:', error);
       alert('Error al eliminar el grupo. Por favor, inténtalo de nuevo.');
@@ -329,35 +351,70 @@ export default function ProfesorGrupos() {
       console.error('Error al cambiar el estado del alumno en el grupo:', error);
       alert('Error al cambiar el estado del alumno en el grupo. Por favor, inténtalo de nuevo.');
     }
-  };
-  
-  // Función para editar el nombre de un grupo
+  };  // Función para editar el nombre de un grupo
   const handleEditarGrupo = async () => {
     if (!grupoAEditar || !nombreEditadoGrupo.trim()) return;
     
-    try {
+  try {
+      // Inspeccionar el objeto del grupo que vamos a editar para depuración
+      console.log('Grupo a editar completo:', JSON.stringify(grupoAEditar, null, 2));
+      
       const response = await fetch(`/api/grupos/${grupoAEditar.id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
         body: JSON.stringify({
-          denominacion: nombreEditadoGrupo.trim()
+          denominacion: nombreEditadoGrupo.trim(),
+          asignaturaId: grupoAEditar.asignatura.id,
+          profesorId: grupoAEditar.profesorId
         }),
       });
       
       if (!response.ok) {
         throw new Error('No se pudo actualizar el nombre del grupo');
-      }
-      
-      // Actualizar localmente
+      }        // Actualizar localmente
       const grupoActualizado = await response.json();
-      setGrupos(grupos.map(g => g.id === grupoAEditar.id ? grupoActualizado : g));
+      console.log('Respuesta de la API al actualizar grupo:', grupoActualizado);
       
+      // Asegurarnos de que denominacion se asigna correctamente
+      const nuevaDenominacion = nombreEditadoGrupo.trim();
+      
+      // Asegurarse de preservar todas las propiedades importantes, incluido esGrupoPredefinido
+      const grupoConPropiedadesPreservadas = {
+        ...grupoAEditar,
+        ...grupoActualizado,
+        // Forzar la actualización de la denominación explícitamente
+        denominacion: nuevaDenominacion,
+        // Asegurar que esGrupoPredefinido se conserva
+        esGrupoPredefinido: grupoAEditar.esGrupoPredefinido
+      };
+        // Crear una nueva copia del array de grupos con el grupo actualizado
+      const gruposActualizados = grupos.map(g => 
+        g.id === grupoAEditar.id ? grupoConPropiedadesPreservadas : g
+      );
+      
+      console.log('Grupo después de actualizar:', grupoConPropiedadesPreservadas);
+      console.log('Grupos actualizados:', gruposActualizados);
+      
+      // Actualizar el estado con el nuevo array
+      setGrupos(gruposActualizados);
+        // Limpiar el estado después de completar la edición
       setModalEditarGrupoAbierto(false);
       setGrupoAEditar(null);
       setNombreEditadoGrupo('');
+      
+      // Mostrar notificación de éxito
+      setNotification({
+        message: `¡Grupo "${nuevaDenominacion}" actualizado correctamente!`,
+        type: 'success'
+      });
+      
+      // Ocultar la notificación después de 3 segundos
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
     } catch (error) {
       console.error('Error al editar el grupo:', error);
       alert('Error al editar el nombre del grupo. Por favor, inténtalo de nuevo.');
@@ -376,34 +433,61 @@ export default function ProfesorGrupos() {
         (alumno && alumno.email && alumno.email.toLowerCase().includes(searchTermAlumnos.toLowerCase()))
       )
     : alumnosAsignatura;
-
   return (
-    <DashboardContainer roleName="Profesor">
-      <div className="bg-gray-50 min-h-full pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">          {/* Panel de encabezado */}
-          <div className="mb-6 bg-white rounded-xl shadow-md overflow-hidden border border-blue-50">
-            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#2563EB] px-6 py-6 text-white">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <DashboardContainer roleName="Profesor">      {/* Notificación de éxito */}
+      {notification && (
+        <div className={`fixed top-20 right-4 z-50 px-6 py-3 rounded-lg shadow-lg border ${
+          notification.type === 'success' 
+            ? 'bg-green-50 border-green-200 text-green-800' 
+            : notification.type === 'error'
+              ? 'bg-red-50 border-red-200 text-red-800'
+              : 'bg-blue-50 border-blue-200 text-blue-800'
+        } transform transition-all duration-500 ease-in-out animate-fadeIn opacity-90 hover:opacity-100`}>
+          <div className="flex items-center">
+            {notification.type === 'success' && (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            )}
+            {notification.type === 'error' && (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            )}
+            {notification.type === 'info' && (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+              </svg>
+            )}
+            <span className="font-medium">{notification.message}</span>
+          </div>
+        </div>
+      )}
+      
+      <div className="bg-gray-50 min-h-full pb-8">        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">          {/* Panel de encabezado */}
+          <div className="mb-6 bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-5 text-white">
+              <div className="flex justify-between items-center">
                 <div>
                   <div className="flex items-center">
                     <Link 
                       href="/profesor/dashboard" 
-                      className="mr-4 text-white hover:text-blue-200 transition bg-blue-800 hover:bg-blue-700 p-3 rounded-full shadow-md"
+                      className="mr-3 text-white hover:text-blue-200 transition"
                     >
                       <FaArrowLeft />
                     </Link>
                     <div>
-                      <h1 className="text-3xl font-bold flex items-center">
-                        <FaUserFriends className="mr-3 text-white drop-shadow-md" />
+                      <h1 className="text-2xl font-semibold flex items-center">
+                        <FaUserFriends className="mr-2 text-white" />
                         Gestión de Grupos
                       </h1>
                       {asignatura && (
-                        <p className="text-blue-100 mt-2 flex items-center text-lg">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <p className="text-blue-100 mt-1 flex items-center text-sm">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                           </svg>
                           <span className="text-white font-medium">{asignatura.Denominacion}</span>
-                          <span className="mx-2 text-blue-200">•</span>
+                          <span className="mx-1 text-blue-200">•</span>
                           <span>{asignatura.carrera?.denominacion || ''}</span>
                         </p>
                       )}
@@ -412,14 +496,14 @@ export default function ProfesorGrupos() {
                 </div>
                 <button
                   onClick={() => setModalCrearGrupoAbierto(true)}
-                  className="bg-blue-800 hover:bg-blue-700 text-white py-3 px-5 rounded-lg 
-                    flex items-center transition shadow-md hover:shadow-lg font-medium"
+                  className="bg-blue-700 hover:bg-blue-800 text-white py-2 px-4 rounded-lg 
+                    flex items-center transition text-sm"
                 >
-                  <FaPlus className="mr-2" /> 
-                  Crear Nuevo Grupo
+                  <FaPlus className="mr-1" /> 
+                  Crear Grupo
                 </button>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
             </div>
           </div>
 
@@ -512,13 +596,13 @@ export default function ProfesorGrupos() {
                           Alumnos
                         </th>
                         {grupos.map(grupo => (
-                          <th key={grupo.id} scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div className="flex flex-col items-center">                              <div className="mb-2 font-semibold text-sm">
+                          <th key={grupo.id} scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">                            <div className="flex flex-col items-center">                              <div className="mb-2 font-semibold text-sm">
                                 <span className={grupo.esGrupoPredefinido 
                                   ? "text-[#2c7be5]" 
                                   : "text-emerald-600"
                                 }>
-                                  {grupo.denominacion}
+                                  {/* Mostrar denominación explícitamente para evitar problemas de actualización */}
+                                  {grupo?.denominacion || ''}
                                 </span>
                               </div>
                               <div className="flex space-x-2">
@@ -619,12 +703,10 @@ export default function ProfesorGrupos() {
             </div>
           )}
         </div>
-      </div>
-      
-      {/* Modal de crear grupo */}
+      </div>      {/* Modal de crear grupo */}
       {modalCrearGrupoAbierto && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md animate-fadeIn">
+        <div className="fixed inset-0 backdrop-blur-md bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md animate-fadeIn border border-gray-200">
             <div className="p-5 border-b border-[#c5d4e7] bg-[#eef2f6]">
               <h3 className="text-lg font-semibold text-[#2c7be5] flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -677,8 +759,8 @@ export default function ProfesorGrupos() {
         </div>
       )}      {/* Modal de confirmación */}
       {modalConfirmacionAbierto && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
+        <div className="fixed inset-0 backdrop-blur-md bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-gray-200">
             <div className="p-5 border-b">
               <h3 className="text-lg font-semibold text-red-600">Confirmar Eliminación</h3>
             </div>
@@ -709,12 +791,10 @@ export default function ProfesorGrupos() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Modal de editar grupo */}
+      )}      {/* Modal de editar grupo */}
       {modalEditarGrupoAbierto && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md animate-fadeIn">
+        <div className="fixed inset-0 backdrop-blur-md bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md animate-fadeIn border border-gray-200">
             <div className="p-5 border-b border-[#c5d4e7] bg-[#eef2f6]">
               <h3 className="text-lg font-semibold text-[#2c7be5] flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
