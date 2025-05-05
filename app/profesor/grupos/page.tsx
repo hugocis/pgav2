@@ -24,6 +24,7 @@ interface Grupo {
   denominacion: string;
   asignatura: Asignatura;
   profesorId: string;
+  esGrupoPredefinido?: boolean; // Para indicar si es un grupo creado por el sistema o por el profesor
   user: {
     id: string;
     name: string;
@@ -63,12 +64,14 @@ export default function ProfesorGrupos() {
 
   const [asignatura, setAsignatura] = useState<Asignatura | null>(null);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
-  const [alumnosAsignatura, setAlumnosAsignatura] = useState<Alumno[]>([]);
-  const [todosLosAlumnosGrupo, setTodosLosAlumnosGrupo] = useState<AlumnoGrupo[]>([]);
+  const [alumnosAsignatura, setAlumnosAsignatura] = useState<Alumno[]>([]);  const [todosLosAlumnosGrupo, setTodosLosAlumnosGrupo] = useState<AlumnoGrupo[]>([]);
   const [modalCrearGrupoAbierto, setModalCrearGrupoAbierto] = useState(false);
   const [modalConfirmacionAbierto, setModalConfirmacionAbierto] = useState(false);
+  const [modalEditarGrupoAbierto, setModalEditarGrupoAbierto] = useState(false);
   const [grupoAEliminar, setGrupoAEliminar] = useState<Grupo | null>(null);
+  const [grupoAEditar, setGrupoAEditar] = useState<Grupo | null>(null);
   const [nuevoGrupoNombre, setNuevoGrupoNombre] = useState('');
+  const [nombreEditadoGrupo, setNombreEditadoGrupo] = useState('');
   const [searchTermAlumnos, setSearchTermAlumnos] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +124,23 @@ export default function ProfesorGrupos() {
         
         const gruposData = await gruposResponse.json();
         // Filtrar solo los grupos donde el profesor es el dueño
-        const gruposFiltrados = gruposData.grupos.filter((grupo: Grupo) => grupo.profesorId === session.user.id);
+        let gruposFiltrados = gruposData.grupos.filter((grupo: Grupo) => grupo.profesorId === session.user.id);
+          // Marcar grupos predefinidos (Grupo A, Grupo B, etc.) o los que tienen ID menor o igual a 100
+        gruposFiltrados = gruposFiltrados.map((grupo: Grupo) => {
+          // Es un grupo predefinido si:
+          // 1. Su denominación es exactamente "GRUPO A", "GRUPO B", "GRUPO A INGLÉS", o "GRUPO B INGLÉS"
+          // 2. O si su ID es menor o igual a 100
+          const nombreMayusculas = grupo.denominacion.toUpperCase();
+          const esGrupoPredefinidoExacto = ["GRUPO A", "GRUPO B", "GRUPO A INGLÉS", "GRUPO B INGLÉS"].includes(nombreMayusculas);
+          const esGrupoConIdPredefinido = (parseInt(grupo.id) <= 100);
+          
+          const esPredefinido = esGrupoPredefinidoExacto || esGrupoConIdPredefinido;
+          return {
+            ...grupo,
+            esGrupoPredefinido: esPredefinido
+          };
+        });
+        
         setGrupos(gruposFiltrados);
         setDebugInfo(prev => prev + `| Grupos cargados: ${gruposFiltrados.length}`);
         console.log("Grupos cargados:", gruposFiltrados);
@@ -260,7 +279,6 @@ export default function ProfesorGrupos() {
       alert('Error al eliminar el grupo. Por favor, inténtalo de nuevo.');
     }
   };
-
   const toggleAlumnoEnGrupo = async (alumnoId: string, grupoId: string) => {
     try {
       const alumnoYaEnGrupo = todosLosAlumnosGrupo.find(
@@ -283,31 +301,10 @@ export default function ProfesorGrupos() {
           todosLosAlumnosGrupo.filter(ag => ag.id !== alumnoYaEnGrupo.id)
         );
       } else {
-        // Si el alumno no está en el grupo, lo añadimos
-        // Primero verificamos si el alumno está en otro grupo (para la misma asignatura)
-        const alumnoEnOtroGrupo = todosLosAlumnosGrupo.find(
-          ag => ag.alumno_Id === alumnoId && 
-               grupos.some(g => g.id === ag.grupoId)
-        );
+        // Si el alumno no está en el grupo, lo añadimos directamente
+        // Ya no eliminamos al alumno de otros grupos, permitiendo que esté en múltiples grupos
         
-        // Si está en otro grupo, lo eliminamos primero
-        if (alumnoEnOtroGrupo) {
-          const deleteResponse = await fetch(`/api/alumnos-grupo/${alumnoEnOtroGrupo.id}`, {
-            method: 'DELETE',
-            credentials: 'include',
-          });
-          
-          if (!deleteResponse.ok) {
-            throw new Error('Error al eliminar al alumno de su grupo actual');
-          }
-          
-          // Actualizar localmente
-          setTodosLosAlumnosGrupo(
-            todosLosAlumnosGrupo.filter(ag => ag.id !== alumnoEnOtroGrupo.id)
-          );
-        }
-        
-        // Añadir al alumno al nuevo grupo
+        // Añadir al alumno al grupo seleccionado
         const addResponse = await fetch('/api/alumnos-grupo', {
           method: 'POST',
           headers: {
@@ -333,6 +330,44 @@ export default function ProfesorGrupos() {
       alert('Error al cambiar el estado del alumno en el grupo. Por favor, inténtalo de nuevo.');
     }
   };
+  
+  // Función para editar el nombre de un grupo
+  const handleEditarGrupo = async () => {
+    if (!grupoAEditar || !nombreEditadoGrupo.trim()) return;
+    
+    try {
+      const response = await fetch(`/api/grupos/${grupoAEditar.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          denominacion: nombreEditadoGrupo.trim()
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('No se pudo actualizar el nombre del grupo');
+      }
+      
+      // Actualizar localmente
+      const grupoActualizado = await response.json();
+      setGrupos(grupos.map(g => g.id === grupoAEditar.id ? grupoActualizado : g));
+      
+      setModalEditarGrupoAbierto(false);
+      setGrupoAEditar(null);
+      setNombreEditadoGrupo('');
+    } catch (error) {
+      console.error('Error al editar el grupo:', error);
+      alert('Error al editar el nombre del grupo. Por favor, inténtalo de nuevo.');
+    }
+  };  // Función auxiliar para comprobar si un alumno está en un grupo específico
+  const estaAlumnoEnGrupo = (alumnoId: string, grupoId: string): boolean => {
+    return todosLosAlumnosGrupo.some(
+      ag => ag.alumno_Id === alumnoId && ag.grupoId === grupoId
+    );
+  };
 
   // Filtrar alumnos por término de búsqueda
   const alumnosFiltrados = searchTermAlumnos
@@ -342,46 +377,49 @@ export default function ProfesorGrupos() {
       )
     : alumnosAsignatura;
 
-  // Verificar si un alumno está en un grupo específico
-  const estaAlumnoEnGrupo = (alumnoId: string, grupoId: string) => {
-    return todosLosAlumnosGrupo.some(ag => ag.alumno_Id === alumnoId && ag.grupoId === grupoId);
-  };
-
   return (
     <DashboardContainer roleName="Profesor">
       <div className="bg-gray-50 min-h-full pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-          {/* Panel de encabezado */}
-          <div className="mb-6 bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-5 text-white">
-              <div className="flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">          {/* Panel de encabezado */}
+          <div className="mb-6 bg-white rounded-xl shadow-md overflow-hidden border border-blue-50">
+            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#2563EB] px-6 py-6 text-white">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                   <div className="flex items-center">
-                    <Link href="/profesor/dashboard" className="mr-3 text-white hover:text-blue-200 transition">
+                    <Link 
+                      href="/profesor/dashboard" 
+                      className="mr-4 text-white hover:text-blue-200 transition bg-blue-800 hover:bg-blue-700 p-3 rounded-full shadow-md"
+                    >
                       <FaArrowLeft />
                     </Link>
-                    <h1 className="text-2xl font-bold flex items-center">
-                      <FaUserFriends className="mr-3" />
-                      Gestión de Grupos
-                    </h1>
+                    <div>
+                      <h1 className="text-3xl font-bold flex items-center">
+                        <FaUserFriends className="mr-3 text-white drop-shadow-md" />
+                        Gestión de Grupos
+                      </h1>
+                      {asignatura && (
+                        <p className="text-blue-100 mt-2 flex items-center text-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                          </svg>
+                          <span className="text-white font-medium">{asignatura.Denominacion}</span>
+                          <span className="mx-2 text-blue-200">•</span>
+                          <span>{asignatura.carrera?.denominacion || ''}</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  {asignatura && (
-                    <p className="text-blue-100 mt-1">
-                      {asignatura.Denominacion} - {asignatura.carrera?.denominacion || ''}
-                    </p>
-                  )}
                 </div>
-                <div>
-                  <button
-                    onClick={() => setModalCrearGrupoAbierto(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md flex items-center"
-                  >
-                    <FaPlus className="mr-2" /> 
-                    Crear Nuevo Grupo
-                  </button>
-                </div>
+                <button
+                  onClick={() => setModalCrearGrupoAbierto(true)}
+                  className="bg-blue-800 hover:bg-blue-700 text-white py-3 px-5 rounded-lg 
+                    flex items-center transition shadow-md hover:shadow-lg font-medium"
+                >
+                  <FaPlus className="mr-2" /> 
+                  Crear Nuevo Grupo
+                </button>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
             </div>
           </div>
 
@@ -475,25 +513,45 @@ export default function ProfesorGrupos() {
                         </th>
                         {grupos.map(grupo => (
                           <th key={grupo.id} scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div className="flex flex-col items-center">
-                              <span className="mb-2">{grupo.denominacion}</span>
+                            <div className="flex flex-col items-center">                              <div className="mb-2 font-semibold text-sm">
+                                <span className={grupo.esGrupoPredefinido 
+                                  ? "text-[#2c7be5]" 
+                                  : "text-emerald-600"
+                                }>
+                                  {grupo.denominacion}
+                                </span>
+                              </div>
                               <div className="flex space-x-2">
-                                <button 
-                                  className="text-blue-600 hover:text-blue-800" 
-                                  title="Asignar alumnos"
-                                >
-                                  <FaUserCog />
-                                </button>
-                                <button 
-                                  onClick={() => {
-                                    setGrupoAEliminar(grupo);
-                                    setModalConfirmacionAbierto(true);
-                                  }} 
-                                  className="text-red-600 hover:text-red-800"
-                                  title="Eliminar grupo"
-                                >
-                                  <FaTrash />
-                                </button>
+                                {/* Solo mostrar botón de editar para grupos creados por el profesor */}
+                                {!grupo.esGrupoPredefinido && (
+                                  <button 
+                                    onClick={() => {
+                                      setGrupoAEditar(grupo);
+                                      setNombreEditadoGrupo(grupo.denominacion);
+                                      setModalEditarGrupoAbierto(true);
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-100 rounded-full transition-colors"
+                                    title="Editar nombre del grupo"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                )}
+                                
+                                {/* Solo mostrar botón de eliminar para grupos creados por el profesor */}
+                                {!grupo.esGrupoPredefinido && (
+                                  <button 
+                                    onClick={() => {
+                                      setGrupoAEliminar(grupo);
+                                      setModalConfirmacionAbierto(true);
+                                    }} 
+                                    className="text-red-600 hover:text-red-800 p-1.5 hover:bg-red-100 rounded-full transition-colors"
+                                    title="Eliminar grupo"
+                                  >
+                                    <FaTrash className="h-4 w-4" />
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </th>
@@ -503,21 +561,23 @@ export default function ProfesorGrupos() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {alumnosFiltrados && alumnosFiltrados.map((alumno, index) => {
                         if (!alumno || !alumno.id) return null;
-                        
-                        return (
+                          return (
                           <tr key={alumno.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-start">
-                                <span className="font-medium text-gray-900 mr-2">
-                                  {index + 1}.-
-                                </span>
-                                <div>
+                              <div className="flex items-center">
+                                <div 
+                                  className="flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center font-medium text-white shadow-sm"
+                                  style={{ 
+                                    backgroundColor: '#2c7be5' 
+                                  }}
+                                >
+                                  {(alumno.name?.charAt(0) || '') + (alumno.surname1?.charAt(0) || '')}
+                                </div>
+                                <div className="ml-3">
                                   <div className="text-sm font-medium text-gray-900">
                                     {alumno.surname1 ? `${alumno.surname1}${alumno.surname2 ? ` ${alumno.surname2}` : ''}, ${alumno.name}` : alumno.name}
                                   </div>
-                                  <div className="text-xs text-gray-500">
-                                    {alumno.email}
-                                  </div>
+                                  {/* Eliminamos los emails que no aportan valor */}
                                 </div>
                               </div>
                             </td>
@@ -525,13 +585,27 @@ export default function ProfesorGrupos() {
                               <td key={grupo.id} className="px-6 py-4 whitespace-nowrap text-center">
                                 <button 
                                   onClick={() => toggleAlumnoEnGrupo(alumno.id, grupo.id)}
-                                  className={`py-1 px-3 rounded-full text-xs font-medium ${estaAlumnoEnGrupo(alumno.id, grupo.id) 
-                                    ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                                    : 'bg-red-100 text-red-800 hover:bg-red-200'}`}
+                                  className={`py-3 px-5 rounded-md text-sm font-medium transition-all transform hover:scale-105 min-w-[120px] ${estaAlumnoEnGrupo(alumno.id, grupo.id) 
+                                    ? 'bg-[#eef2f6] text-[#2c7be5] hover:bg-[#dce5f0] border border-[#c5d4e7] shadow-sm' 
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300'}`}
                                 >
                                   {estaAlumnoEnGrupo(alumno.id, grupo.id) 
-                                    ? 'Alumno matriculado' 
-                                    : 'Alumno no matriculado'}
+                                    ? (
+                                      <span className="flex items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        </svg>
+                                        Asignado
+                                      </span>
+                                    ) 
+                                    : (
+                                      <span className="flex items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                                        </svg>
+                                        Asignar
+                                      </span>
+                                    )}
                                 </button>
                               </td>
                             ))}
@@ -546,17 +620,22 @@ export default function ProfesorGrupos() {
           )}
         </div>
       </div>
-
+      
       {/* Modal de crear grupo */}
       {modalCrearGrupoAbierto && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
-            <div className="p-5 border-b">
-              <h3 className="text-lg font-semibold text-gray-800">Crear Nuevo Grupo</h3>
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md animate-fadeIn">
+            <div className="p-5 border-b border-[#c5d4e7] bg-[#eef2f6]">
+              <h3 className="text-lg font-semibold text-[#2c7be5] flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Crear Grupo Personal
+              </h3>
             </div>
             <div className="p-5">
-              <div className="mb-4">
-                <label htmlFor="nombreGrupo" className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="mb-6">
+                <label htmlFor="nombreGrupo" className="block text-sm font-medium text-gray-700 mb-2">
                   Nombre del Grupo
                 </label>
                 <input
@@ -564,21 +643,31 @@ export default function ProfesorGrupos() {
                   id="nombreGrupo"
                   value={nuevoGrupoNombre}
                   onChange={(e) => setNuevoGrupoNombre(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Ej: Grupo A, Grupo Mañana..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-[#2c7be5] focus:border-[#2c7be5] shadow-sm"
+                  placeholder="Ej: Grupo Tarde, Grupo Avanzado..."
+                  autoFocus
                 />
               </div>
+              
+              <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-700 mb-4">
+                <p className="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Los grupos personales te permiten organizar a tus alumnos según tus propios criterios, independientemente de los grupos oficiales.</span>
+                </p>
+              </div>
             </div>
-            <div className="p-3 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
+            <div className="p-4 bg-gray-50 flex justify-end space-x-3 rounded-b-lg border-t border-gray-100">
               <button
                 onClick={() => setModalCrearGrupoAbierto(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                className="px-5 py-2.5 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleCrearGrupo}
-                className="px-4 py-2 bg-[#0D3C68] text-white rounded-md hover:bg-[#092a4a] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 bg-[#2c7be5] text-white rounded-md hover:bg-[#1a68d4] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm"
                 disabled={!nuevoGrupoNombre.trim()}
               >
                 Crear Grupo
@@ -586,9 +675,7 @@ export default function ProfesorGrupos() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Modal de confirmación */}
+      )}      {/* Modal de confirmación */}
       {modalConfirmacionAbierto && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
@@ -618,6 +705,64 @@ export default function ProfesorGrupos() {
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
               >
                 Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de editar grupo */}
+      {modalEditarGrupoAbierto && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md animate-fadeIn">
+            <div className="p-5 border-b border-[#c5d4e7] bg-[#eef2f6]">
+              <h3 className="text-lg font-semibold text-[#2c7be5] flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Editar Nombre del Grupo
+              </h3>
+            </div>
+            <div className="p-5">
+              {grupoAEditar && (
+                <div>
+                  <div className="mb-4">
+                    <label htmlFor="nombreEditadoGrupo" className="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre del Grupo
+                    </label>
+                    <input
+                      type="text"
+                      id="nombreEditadoGrupo"
+                      value={nombreEditadoGrupo}
+                      onChange={(e) => setNombreEditadoGrupo(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white"
+                      placeholder="Introduce el nuevo nombre del grupo"
+                      autoFocus
+                    />
+                  </div>
+                  <p className="text-sm text-gray-600 bg-[#eef2f6] p-3 rounded-lg mt-4">
+                    Solo puedes editar los grupos que has creado manualmente.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 bg-gray-50 flex justify-end space-x-3 rounded-b-lg border-t border-gray-100">
+              <button
+                onClick={() => {
+                  setModalEditarGrupoAbierto(false);
+                  setGrupoAEditar(null);
+                  setNombreEditadoGrupo('');
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleEditarGrupo}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                disabled={!nombreEditadoGrupo.trim()}
+              >
+                Guardar Cambios
               </button>
             </div>
           </div>

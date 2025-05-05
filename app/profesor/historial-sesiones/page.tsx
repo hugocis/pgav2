@@ -14,7 +14,6 @@ import {
   FaCalendarAlt, 
   FaEdit, 
   FaTrash,
-  FaUserGraduate, 
   FaSortAmountDown,
   FaSortAmountUp,
   FaEye

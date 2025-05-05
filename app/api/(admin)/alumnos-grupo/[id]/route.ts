@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     const alumnoGrupo = await prisma.alumnoGrupo.findUnique({
       where: { id },
@@ -53,7 +53,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     // Primero obtenemos los datos para el registro de actividad
     const alumnoGrupo = await prisma.alumnoGrupo.findUnique({
