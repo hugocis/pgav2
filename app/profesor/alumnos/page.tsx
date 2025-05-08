@@ -907,10 +907,10 @@ export default function ProfesorAlumnos() {
                           {sortConfig.key === 'porcentajeTotal' && (
                             <FaChevronDown className={`ml-2 h-3.5 w-3.5 text-blue-200 ${sortConfig.direction === 'descending' ? 'transform rotate-180' : ''}`} />
                           )}
-                        </div>
-                      </th>
+                        </div>                      </th>
                     </tr>
-                  </thead><tbody className="bg-white divide-y divide-gray-200">
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
                     {currentAlumnos.map((alumno, index) => (
                       <tr key={alumno.alumnoId} className={`${index % 2 === 0 ? 'bg-white' : 'bg-blue-50/10'} hover:bg-blue-50/30 transition-colors duration-150`}>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -940,7 +940,9 @@ export default function ProfesorAlumnos() {
                               </td>
                             );
                           }
-                            return (                            <td key={grupo.id} className="px-6 py-4 whitespace-nowrap">
+                          
+                          return (
+                            <td key={grupo.id} className="px-6 py-4 whitespace-nowrap">
                               <div className="flex justify-center">
                                 <div className={`bg-white rounded-lg py-2 px-3 shadow-sm transition-all hover:shadow-md
                                   ${estadisticasGrupo.porcentaje >= 85 ? 'border border-green-100 hover:border-green-300' : 
@@ -955,9 +957,9 @@ export default function ProfesorAlumnos() {
                                 </div>
                               </div>
                             </td>
-                          );
-                        })}
-                          {/* Porcentaje total con gráfico */}                        <td className="px-6 py-4 whitespace-nowrap">
+                          );                        })}
+                          {/* Porcentaje total con gráfico */}
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex justify-center">
                             <Link 
                               href={`/profesor/estadisticas?asignatura=${asignaturaId}&alumno=${alumno.alumnoId}`} 
