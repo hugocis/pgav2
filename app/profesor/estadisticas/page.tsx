@@ -311,8 +311,7 @@ export default function ProfesorEstadisticas() {
     
     return { porcentaje, asiste, noAsiste, parcial, dispensado };
   };
-  
-  // Exportar datos a Excel
+    // Exportar datos a Excel con estilos mejorados
   const exportToExcel = async () => {
     if (!asignatura || alumnos.length === 0 || sesiones.length === 0) {
       alert('No hay datos suficientes para exportar a Excel.');
@@ -354,7 +353,113 @@ export default function ProfesorEstadisticas() {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Asistencias');
       
-      // Aplicar estilos y formato al Excel
+      // Obtener referencias de celdas para aplicar estilos
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+      const totalRows = alumnosData.length + 1; // +1 por el header
+      const totalCols = headers.length;
+      
+      // Crear estilos para el encabezado
+      const headerStyle = {
+        font: { bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '0D3C68' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: '000000' } },
+          bottom: { style: 'thin', color: { rgb: '000000' } },
+          left: { style: 'thin', color: { rgb: '000000' } },
+          right: { style: 'thin', color: { rgb: '000000' } }
+        }
+      };
+      
+      // Crear estilos para las filas de datos (alternando colores)
+      const evenRowStyle = {
+        fill: { fgColor: { rgb: 'F3F4F6' } },
+        border: { outline: true }
+      };
+      
+      const oddRowStyle = {
+        fill: { fgColor: { rgb: 'FFFFFF' } },
+        border: { outline: true }
+      };
+      
+      // Estilos para porcentajes de asistencia
+      const highAttendanceStyle = {
+        font: { color: { rgb: '166534' } },
+        fill: { fgColor: { rgb: 'DCFCE7' } }
+      };
+      
+      const mediumAttendanceStyle = {
+        font: { color: { rgb: '854D0E' } },
+        fill: { fgColor: { rgb: 'FEF3C7' } }
+      };
+      
+      const lowAttendanceStyle = {
+        font: { color: { rgb: '991B1B' } },
+        fill: { fgColor: { rgb: 'FEE2E2' } }
+      };
+      
+      // Estilos para estados de asistencia
+      const attendanceStyles = {
+        'Asiste': { font: { color: { rgb: '166534' } }, fill: { fgColor: { rgb: 'DCFCE7' } } },
+        'No Asiste': { font: { color: { rgb: '991B1B' } }, fill: { fgColor: { rgb: 'FEE2E2' } } },
+        '50%': { font: { color: { rgb: '854D0E' } }, fill: { fgColor: { rgb: 'FEF3C7' } } },
+        'Dispensado': { font: { color: { rgb: '1E40AF' } }, fill: { fgColor: { rgb: 'DBEAFE' } } },
+        'Sin registro': { font: { color: { rgb: '4B5563' } }, fill: { fgColor: { rgb: 'F9FAFB' } } }
+      };
+      
+      // Aplicar estilos al encabezado
+      for (let col = 0; col < totalCols; col++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 0, c: col });
+        if (!ws[cellRef]) ws[cellRef] = { v: headers[col] };
+        ws[cellRef].s = headerStyle;
+      }
+      
+      // Aplicar estilos a las filas de datos
+      for (let row = 1; row < totalRows; row++) {
+        const rowStyle = row % 2 === 1 ? evenRowStyle : oddRowStyle;
+        
+        // Aplicar estilo a cada celda de la fila
+        for (let col = 0; col < totalCols; col++) {
+          const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+          if (!ws[cellRef]) continue;
+          
+          // Estilo base según fila par/impar
+          ws[cellRef].s = { ...rowStyle };
+          
+          // Aplicar estilos específicos según el contenido
+          if (col === 3) { // Columna de porcentaje de asistencia
+            const porcentajeText = ws[cellRef].v?.toString() || '';
+            const porcentaje = parseInt(porcentajeText, 10);
+            
+            if (porcentaje >= 85) {
+              ws[cellRef].s = { ...ws[cellRef].s, ...highAttendanceStyle };
+            } else if (porcentaje >= 60) {
+              ws[cellRef].s = { ...ws[cellRef].s, ...mediumAttendanceStyle };
+            } else {
+              ws[cellRef].s = { ...ws[cellRef].s, ...lowAttendanceStyle };
+            }
+            
+            // Formato numérico para el porcentaje
+            if (!isNaN(porcentaje)) {
+              ws[cellRef].z = '0%'; // Formato de porcentaje
+            }
+          }
+          
+          // Estilos para columnas de asistencia (a partir de la columna 4)
+          if (col >= 4) {
+            const estadoAsistencia = ws[cellRef].v?.toString() || '';
+            const estadoKey = Object.keys(attendanceStyles).find(
+              key => estadoAsistencia.toLowerCase() === key.toLowerCase()
+            );
+            
+            if (estadoKey) {
+              ws[cellRef].s = { ...ws[cellRef].s, ...attendanceStyles[estadoKey as keyof typeof attendanceStyles] };
+            }
+          }
+        }
+      }
+      
+      // Aplicar ancho de columnas
       ws['!cols'] = [
         { width: 10 }, // ID
         { width: 20 }, // Apellidos
@@ -363,16 +468,84 @@ export default function ProfesorEstadisticas() {
         ...Array(sesiones.length).fill({ width: 12 }) // Sesiones
       ];
       
+      // Añadir fila de resumen al final
+      const resumenRow = ['RESUMEN'];
+      let totalAsistencia = 0;
+      
+      // Calcular medias de asistencia
+      alumnosData.forEach(row => {
+        const porcentajeText = row[3].toString();
+        const porcentaje = parseInt(porcentajeText, 10);
+        if (!isNaN(porcentaje)) {
+          totalAsistencia += porcentaje;
+        }
+      });
+      
+      const mediaAsistencia = alumnosData.length > 0 ? Math.round(totalAsistencia / alumnosData.length) : 0;
+      
+      // Completar fila de resumen
+      resumenRow.push(''); // Apellidos
+      resumenRow.push('Media del grupo:'); // Nombre
+      resumenRow.push(`${mediaAsistencia}%`); // % Asistencia
+      
+      // Añadir estadísticas para cada sesión
+      sesiones.forEach((sesion, index) => {
+        const asistentes = asistencias.filter(a => 
+          a.sesionClaseId === sesion.id && 
+          a.estadoAsistencia?.denominacion.toLowerCase() === 'asiste'
+        ).length;
+        
+        const porcentajeSesion = alumnos.length > 0 ? Math.round((asistentes / alumnos.length) * 100) : 0;
+        resumenRow.push(`${porcentajeSesion}%`);
+      });
+      
+      // Añadir fila de resumen a la hoja
+      const resumenStartRow = totalRows + 1;
+      XLSX.utils.sheet_add_aoa(ws, [resumenRow], { origin: resumenStartRow });
+      
+      // Aplicar estilo a la fila de resumen
+      for (let col = 0; col < totalCols; col++) {
+        const cellRef = XLSX.utils.encode_cell({ r: resumenStartRow, c: col });
+        if (!ws[cellRef]) continue;
+        
+        ws[cellRef].s = {
+          font: { bold: true },
+          fill: { fgColor: { rgb: 'E5E7EB' } },
+          border: {
+            top: { style: 'thin' },
+            bottom: { style: 'thin' },
+            left: { style: 'thin' },
+            right: { style: 'thin' }
+          }
+        };
+        
+        // Estilo especial para la celda de media de asistencia
+        if (col === 3) {
+          if (mediaAsistencia >= 85) {
+            ws[cellRef].s.fill = { fgColor: { rgb: 'DCFCE7' } };
+            ws[cellRef].s.font = { bold: true, color: { rgb: '166534' } };
+          } else if (mediaAsistencia >= 60) {
+            ws[cellRef].s.fill = { fgColor: { rgb: 'FEF3C7' } };
+            ws[cellRef].s.font = { bold: true, color: { rgb: '854D0E' } };
+          } else {
+            ws[cellRef].s.fill = { fgColor: { rgb: 'FEE2E2' } };
+            ws[cellRef].s.font = { bold: true, color: { rgb: '991B1B' } };
+          }
+        }
+      }
+      
       // Metadatos del documento
       wb.Props = {
-        Title: `Asistencias ${asignatura.Denominacion}`,
+        Title: `Estadísticas de Asistencia - ${asignatura.Denominacion}`,
         Subject: `Grupo: ${grupos.find(g => g.id === grupoSeleccionado)?.denominacion || 'Todos los grupos'}`,
         Author: session?.user?.name || 'Profesor',
-        CreatedDate: new Date()
+        CreatedDate: new Date(),
+        Company: 'Universidad Francisco de Vitoria',
+        Manager: 'Sistema PGA'
       };
       
       // Generar el nombre del archivo
-      const fileName = `Asistencias_${asignatura.Denominacion.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const fileName = `Estadisticas_Asistencia_${asignatura.Denominacion.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
       
       // Guardar el archivo
       XLSX.writeFile(wb, fileName);
