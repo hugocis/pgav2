@@ -331,7 +331,7 @@ export default function ProfesorDashboard() {
                     </p>
                     <div className="flex justify-between items-center mt-2">
                       <p className="text-blue-100 text-sm">
-                        Curso {docencia.asignatura.cursoAcademico.denominacion} • {docencia.asignatura.Curso} 
+                        {docencia.asignatura.Curso} 
                         {docencia.asignatura.Curso && docencia.asignatura.Curso.includes('º') ? ' Curso' : ''}
                         {docencia.asignatura.Cuatrimestre ? 
                           ` • ${docencia.asignatura.Cuatrimestre}${docencia.asignatura.Cuatrimestre.includes('º') ? ' Cuatrimestre' : ''}` 
