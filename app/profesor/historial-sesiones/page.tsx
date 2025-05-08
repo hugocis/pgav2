@@ -901,8 +901,7 @@ export default function HistorialSesiones() {
                     </div>
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
+                        <thead className="bg-gray-50">                          <tr>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Fecha/Hora
                             </th>
@@ -1157,15 +1156,16 @@ export default function HistorialSesiones() {
                 </div>
                 {sesionSeleccionada.asistencias && sesionSeleccionada.asistencias.length > 0 ? (
                   <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
+                    <thead className="bg-gray-50">                      <tr>
                         <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Alumno
                         </th>
                         <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Estado
                         </th>
-                      </tr>                    </thead><tbody className="bg-white divide-y divide-gray-200">{sesionSeleccionada.asistencias.sort((a, b) => {
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">{sesionSeleccionada.asistencias.sort((a, b) => {
                       // Acceder tanto a alumno como a user
                       const alumnoA: AlumnoData = a.alumno || a.user || {};
                       const alumnoB: AlumnoData = b.alumno || b.user || {};
@@ -1184,15 +1184,15 @@ export default function HistorialSesiones() {
                       // Si después de filtrar y unir sigue vacío, esto indica que no hay datos de nombre
                       nombreCompleto = nombreCompleto.trim();
 
-                      return (
-                        <tr key={asistencia.id} className="hover:bg-gray-50">                          <td className="px-4 py-3 whitespace-nowrap text-sm">
-                            <div className="flex items-center">
-                              <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 mr-3">
-                                <FaUserGraduate />
+                      return (                          <tr key={asistencia.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                              <div className="flex items-center">
+                                <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 mr-3">
+                                  <FaUserGraduate />
+                                </div>
+                                <span>{nombreCompleto ? nombreCompleto : 'Alumno no disponible'}</span>
                               </div>
-                              <span>{nombreCompleto ? nombreCompleto : 'Alumno no disponible'}</span>
-                            </div>
-                          </td>
+                            </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${getEstadoAsistenciaClass(asistencia.estado || (asistencia.estadoAsistencia?.denominacion || 'Sin registro'))}`}>
                               {asistencia.estado || (asistencia.estadoAsistencia?.denominacion || 'Sin registro')}
@@ -1370,15 +1370,16 @@ export default function HistorialSesiones() {
                 <div className="overflow-x-auto max-h-[400px]">
                   {asistenciasEdicion.length > 0 ? (
                     <table className="min-w-full">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
+                      <thead className="bg-gray-50 sticky top-0">                        <tr>
                           <th scope="col" className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Alumno
                           </th>
                           <th scope="col" className="px-5 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Estado de Asistencia
                           </th>
-                        </tr>                      </thead><tbody className="bg-white divide-y divide-gray-200">{asistenciasEdicion.filter(asistencia => {
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">{asistenciasEdicion.filter(asistencia => {
                         // Manejar correctamente el caso donde alumno podría ser undefined
                         // Accediendo tanto a alumno como a user para asegurar que obtenemos los datos
                         const alumnoData: AlumnoData = asistencia.alumno || asistencia.user || {};
@@ -1402,7 +1403,8 @@ export default function HistorialSesiones() {
                         const apellidoA = alumnoA.surname1 || '';
                         const apellidoB = alumnoB.surname1 || '';
                         return apellidoA.localeCompare(apellidoB);
-                      }).map((asistencia) => {                            // Manejar correctamente el caso donde alumno podría ser undefined
+                      }).map((asistencia) => {
+                        // Manejar correctamente el caso donde alumno podría ser undefined
                         // Acceder tanto a alumno como a user ya que la API puede devolver datos en ambas estructuras
                         const alumnoData: AlumnoData = asistencia.alumno || asistencia.user || {};
                         let nombreCompleto = [
@@ -1416,8 +1418,8 @@ export default function HistorialSesiones() {
 
                         const estado = estadosModificados[asistencia.id] || asistencia.estado;
 
-                        return (
-                          <tr key={asistencia.id} className="hover:bg-gray-50 transition-colors">                        <td className="px-5 py-3">
+                        return (                          <tr key={asistencia.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-5 py-3">
                               <div className="flex items-center">
                                 <div className="h-10 w-10 flex-shrink-0">
                                   <div className="h-full w-full rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
