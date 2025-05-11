@@ -899,9 +899,9 @@ export default function HistorialSesiones() {
                         </div>
                       </div>
                     </div>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">                          <tr>
+                    <div className="overflow-x-auto">                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Fecha/Hora
                             </th>
@@ -1154,9 +1154,9 @@ export default function HistorialSesiones() {
                     {sesionSeleccionada.asistencias?.length || 0} registros
                   </div>
                 </div>
-                {sesionSeleccionada.asistencias && sesionSeleccionada.asistencias.length > 0 ? (
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">                      <tr>
+                {sesionSeleccionada.asistencias && sesionSeleccionada.asistencias.length > 0 ? (                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
                         <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Alumno
                         </th>
@@ -1368,9 +1368,9 @@ export default function HistorialSesiones() {
                 </div>
 
                 <div className="overflow-x-auto max-h-[400px]">
-                  {asistenciasEdicion.length > 0 ? (
-                    <table className="min-w-full">
-                      <thead className="bg-gray-50 sticky top-0">                        <tr>
+                  {asistenciasEdicion.length > 0 ? (                    <table className="min-w-full">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
                           <th scope="col" className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Alumno
                           </th>
