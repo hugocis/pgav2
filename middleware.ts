@@ -2,82 +2,121 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-// Este middleware se encarga únicamente de la autenticación y autorización
+// Definición de roles
+const ROLE = {
+  ADMIN:   'Admin',
+  MANAGER: 'Manager',
+  PEC:     'PEC',
+  PROF:    'Profesor',
+  ALUM:    'Alumno',
+};
+
+// Permisos por prefijo de API y método HTTP
+const apiPermissions: {
+  [prefix: string]: {
+    GET?:    string[];
+    POST?:   string[];
+    PUT?:    string[];
+    DELETE?: string[];
+  }
+} = {
+  /*'/api/users': {
+    GET:    [ROLE.ADMIN, ROLE.MANAGER],
+    POST:   [ROLE.ADMIN],
+    PUT:    [ROLE.ADMIN],
+    DELETE: [ROLE.ADMIN],
+  },
+  '/api/activity-logs': {
+    GET:    [ROLE.ADMIN],
+    PUT:    [ROLE.ADMIN],
+    DELETE: [ROLE.ADMIN],
+  },
+  '/api/alumnos-plan': {
+    GET:  [ROLE.ADMIN, ROLE.MANAGER, ROLE.PROF, ROLE.ALUM],
+    POST: [ROLE.ADMIN, ROLE.MANAGER],
+  },
+  // Añade aquí el resto de tus endpoints*/
+};
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  
-  // Obtener el token y la información del usuario
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  const userRoles = token?.roles as string[] || [];
-  
-  // AUTENTICACIÓN Y AUTORIZACIÓN
-  // Redirección después del login basada en el rol del usuario
+  const userRoles = (token?.roles as string[]) || [];
+
+  // 1) Redirección de páginas y dashboards
   if ((pathname === '/' || pathname === '/login') && token) {
-    // Solo redirigimos si el usuario está autenticado
-    if (userRoles.length > 0) {
-      // Determinamos la redirección según rol (prioridad si tiene múltiples roles)
-      if (userRoles.includes('Admin')) {
-        return NextResponse.redirect(new URL('/admin/dashboard', req.url));
-      } else if (userRoles.includes('Manager')) {
-        return NextResponse.redirect(new URL('/manager/dashboard', req.url));
-      } else if (userRoles.includes('PEC')) {
-        return NextResponse.redirect(new URL('/pec/dashboard', req.url));
-      } else if (userRoles.includes('Profesor')) {
-        return NextResponse.redirect(new URL('/profesor/dashboard', req.url));
-      } else if (userRoles.includes('Alumno')) {
-        return NextResponse.redirect(new URL('/alumno/dashboard', req.url));
+    if (userRoles.includes(ROLE.ADMIN)) {
+      return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+    }
+    if (userRoles.includes(ROLE.MANAGER)) {
+      return NextResponse.redirect(new URL('/manager/dashboard', req.url));
+    }
+    if (userRoles.includes(ROLE.PEC)) {
+      return NextResponse.redirect(new URL('/pec/dashboard', req.url));
+    }
+    if (userRoles.includes(ROLE.PROF)) {
+      return NextResponse.redirect(new URL('/profesor/dashboard', req.url));
+    }
+    if (userRoles.includes(ROLE.ALUM)) {
+      return NextResponse.redirect(new URL('/alumno/dashboard', req.url));
+    }
+  }
+
+  // 2) Protección de páginas por rol
+  const pageAreas: [string, string][] = [
+    ['/admin',   ROLE.ADMIN],
+    ['/manager', ROLE.MANAGER],
+    ['/pec',     ROLE.PEC],
+    ['/profesor',ROLE.PROF],
+    ['/alumno',  ROLE.ALUM],
+  ];
+  for (const [prefix, requiredRole] of pageAreas) {
+    if (pathname.startsWith(prefix)) {
+      if (!token) {
+        return NextResponse.redirect(new URL('/login', req.url));
+      }
+      if (!userRoles.includes(requiredRole)) {
+        return NextResponse.redirect(new URL('/login', req.url));
+      }
+    }
+  }
+  // 3) Protección de API por rol
+  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/')) {
+    // 3.a) Autenticación
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    // 3.b) Autorización según apiPermissions
+    for (const [prefix, methods] of Object.entries(apiPermissions)) {
+      if (pathname.startsWith(prefix)) {
+        const allowed = methods[req.method as keyof typeof methods] || [];
+        if (!allowed.some(r => userRoles.includes(r))) {
+          return NextResponse.json(
+            { error: 'Not authorized' },
+            { status: 403 }
+          );
+        }
+        break;
       }
     }
   }
   
-  // Verificación de acceso basado en roles para áreas protegidas
-  // Si la ruta está protegida pero no hay token, redirigimos al login
-  if (
-    (pathname.startsWith('/admin') ||
-     pathname.startsWith('/manager') ||
-     pathname.startsWith('/pec') ||
-     pathname.startsWith('/profesor') ||
-     pathname.startsWith('/alumno')) && 
-    !token
-  ) {
-    return NextResponse.redirect(new URL('/login', req.url));
-  }
-  
-  // Verificamos que el usuario tenga el rol correcto para acceder a cada área
-  if (pathname.startsWith('/admin') && !userRoles.includes('Admin')) {
-    return NextResponse.redirect(new URL('/login', req.url));
-  }
-  
-  if (pathname.startsWith('/manager') && !userRoles.includes('Manager')) {
-    return NextResponse.redirect(new URL('/login', req.url));
-  }
-  
-  if (pathname.startsWith('/pec') && !userRoles.includes('PEC')) {
-    return NextResponse.redirect(new URL('/login', req.url));
-  }
-  
-  if (pathname.startsWith('/profesor') && !userRoles.includes('Profesor')) {
-    return NextResponse.redirect(new URL('/login', req.url));
-  }
-  
-  if (pathname.startsWith('/alumno') && !userRoles.includes('Alumno')) {
-    return NextResponse.redirect(new URL('/login', req.url));
-  }
-  
-  // Si no se ha redirigido, continuamos con la solicitud
+  // 4) Continuar con la petición
   return NextResponse.next();
 }
 
-// Configurar las rutas a las que se aplica este middleware
 export const config = {
   matcher: [
-    '/',                // Ruta principal
-    '/login',           // Ruta de login
-    '/admin/:path*',    // Todas las rutas de admin
-    '/manager/:path*',  // Todas las rutas de manager
-    '/pec/:path*',      // Todas las rutas de PEC
-    '/profesor/:path*', // Todas las rutas de profesor
-    '/alumno/:path*',   // Todas las rutas de alumno
-    '/api/:path*',      // Todas las rutas de API
+    '/', '/login',
+    '/admin/:path*',
+    '/manager/:path*',
+    '/pec/:path*',
+    '/profesor/:path*',
+    '/alumno/:path*',
+    '/api/:path*',
   ],
 };
