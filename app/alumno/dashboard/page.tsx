@@ -363,16 +363,21 @@ export default function AlumnoDashboard() {
                     </div>
                   </div>
                   <div className="flex items-center bg-white px-4 py-2 rounded-md shadow-sm">
-                    <FaChartPie className="mr-2 text-blue-600" />
-                    <div>
+                    <FaChartPie className="mr-2 text-blue-600" />                    <div>
                       <span className="text-sm text-gray-500">Asistencia Promedio:</span>
-                      <span className={`ml-2 font-medium ${
-                        getPromedioPorcentaje(matriculas) >= 80 
-                          ? 'text-green-600' 
-                          : getPromedioPorcentaje(matriculas) >= 50 
-                            ? 'text-yellow-600' 
-                            : 'text-red-600'
-                      }`}>{getPromedioPorcentaje(matriculas)}%</span>
+                      {typeof getPromedioPorcentaje(matriculas) === 'number' ? (
+                        <span className={`ml-2 font-medium ${
+                            typeof getPromedioPorcentaje(matriculas) === 'number'
+                              ? getPromedioPorcentaje(matriculas) >= "80"
+                                ? 'text-green-600' 
+                                : getPromedioPorcentaje(matriculas) >= "50" 
+                                  ? 'text-yellow-600' 
+                                  : 'text-red-600'
+                              : 'text-gray-500'
+                          }`}>{getPromedioPorcentaje(matriculas)}%</span>
+                      ) : (
+                        <span className="ml-2 font-medium text-gray-500">N/A</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -406,8 +411,7 @@ export default function AlumnoDashboard() {
             </div>
           ) : (
             <>
-              {/* Vista principal: mostrar todas las asignaturas */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              {/* Vista principal: mostrar todas las asignaturas */}              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
                 {matriculas.map((matricula) => (
                   <div 
                     key={matricula.id} 
@@ -449,32 +453,33 @@ export default function AlumnoDashboard() {
                             {matricula.asistencias !== undefined ? matricula.asistencias : "0"}
                           </div>
                           <div className="text-xs text-gray-500">Asistencias</div>
-                        </div>
-                        <div className="flex-1 p-3 text-center">                        
+                        </div>                        <div className="flex-1 p-3 text-center">                        
                           <div className="flex flex-col items-center">
                             <div className={`text-lg font-semibold ${
-                              matricula.porcentajeAsistencia !== undefined 
-                                ? matricula.porcentajeAsistencia >= 80 
+                              matricula.totalSesiones !== undefined && matricula.totalSesiones > 0
+                                ? matricula.porcentajeAsistencia !== undefined && matricula.porcentajeAsistencia >= 80 
                                   ? 'text-green-700'
-                                  : matricula.porcentajeAsistencia >= 50 
+                                  : matricula.porcentajeAsistencia !== undefined && matricula.porcentajeAsistencia >= 50 
                                     ? 'text-yellow-700'
                                     : 'text-red-700' 
-                                : 'text-gray-800'
+                                : 'text-gray-500'
                             }`}>
-                              {matricula.porcentajeAsistencia !== undefined ? `${matricula.porcentajeAsistencia}%` : "0%"}
+                              {matricula.totalSesiones !== undefined && matricula.totalSesiones > 0 
+                                ? `${matricula.porcentajeAsistencia}%` 
+                                : "N/A"}
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
                               <div 
                                 className={`h-1.5 rounded-full ${
-                                  matricula.porcentajeAsistencia !== undefined 
-                                    ? matricula.porcentajeAsistencia >= 80 
+                                  matricula.totalSesiones !== undefined && matricula.totalSesiones > 0
+                                    ? matricula.porcentajeAsistencia !== undefined && matricula.porcentajeAsistencia >= 80 
                                       ? 'bg-green-500'
-                                      : matricula.porcentajeAsistencia >= 50 
+                                      : matricula.porcentajeAsistencia !== undefined && matricula.porcentajeAsistencia >= 50 
                                         ? 'bg-yellow-500'
                                         : 'bg-red-500' 
                                     : 'bg-gray-300'
                                 }`} 
-                                style={{ width: `${matricula.porcentajeAsistencia || 0}%` }}>
+                                style={{ width: `${matricula.totalSesiones !== undefined && matricula.totalSesiones > 0 ? matricula.porcentajeAsistencia : 0}%` }}>
                               </div>
                             </div>
                           </div>
@@ -501,8 +506,20 @@ export default function AlumnoDashboard() {
                       </Link>
                     </div>
                   </div>
-                ))}
+                ))}              </div>
+              
+              {/* Divisor decorativo entre secciones */}
+              <div className="relative py-5">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-gray-50 px-4 text-sm text-gray-500 font-medium rounded-full shadow-sm border border-gray-200">
+                    Justificaciones y Dispensas
+                  </span>
+                </div>
               </div>
+              
               {/* Sección de faltas pendientes de justificar */}
               <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
                 <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-4 border-b border-blue-700">
@@ -559,7 +576,12 @@ export default function AlumnoDashboard() {
                       <p className="text-gray-500 text-sm mt-1">Todas tus asistencias están en orden o ya han sido justificadas</p>
                     </div>
                   )}
-                </div>
+                </div>              </div>
+              
+              {/* División visual entre las secciones de faltas y dispensas */}
+              <div className="flex items-center mb-6 mt-4">
+                <div className="flex-grow border-t border-gray-200"></div>
+                <div className="flex-grow border-t border-gray-200"></div>
               </div>
 
               {/* Sección de solicitudes de dispensas */}
@@ -638,9 +660,14 @@ export default function AlumnoDashboard() {
 }
 
 // Función para calcular el promedio de porcentaje de asistencia
-function getPromedioPorcentaje(matriculas: Matricula[]): number {
-  if (matriculas.length === 0) return 0;
+function getPromedioPorcentaje(matriculas: Matricula[]): number | string {
+  if (matriculas.length === 0) return "N/A";
   
-  const total = matriculas.reduce((sum, m) => sum + (m.porcentajeAsistencia || 0), 0);
-  return Math.round(total / matriculas.length);
+  // Filtrar las asignaturas que tienen sesiones
+  const matriculasConSesiones = matriculas.filter(m => m.totalSesiones && m.totalSesiones > 0);
+  
+  if (matriculasConSesiones.length === 0) return "N/A";
+  
+  const total = matriculasConSesiones.reduce((sum, m) => sum + (m.porcentajeAsistencia || 0), 0);
+  return Math.round(total / matriculasConSesiones.length);
 }

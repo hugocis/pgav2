@@ -130,6 +130,34 @@ export default function AsistenciaDetallada() {
   const [sesionesAlumno, setSesionesAlumno] = useState<AsistenciaAlumno[]>([]);
   const [faltasJustificables, setFaltasJustificables] = useState<AsistenciaAlumno[]>([]);
   const [configuracionesCarrera, setConfiguracionesCarrera] = useState<ConfiguracionCarrera[]>([]);
+  // Almacena los grupos a los que pertenece el alumno para evitar consultas repetidas
+  const [gruposDelAlumno, setGruposDelAlumno] = useState<string[]>([]);
+  // Efecto separado solo para obtener grupos del alumno, una sola vez
+  useEffect(() => {
+    // Obtener los grupos a los que pertenece el alumno para usarlos en múltiples funciones
+    const obtenerGruposDelAlumno = async () => {
+      if (!session?.user?.id) return;
+      
+      try {
+        const response = await fetch(`/api/alumnos-grupo?alumnoId=${session.user.id}`, {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const grupos = data.filter((ag: any) => ag.alumno_Id === session.user.id)
+                           .map((ag: any) => ag.grupo_Id);
+          setGruposDelAlumno(grupos);
+        }
+      } catch (error) {
+        console.error("Error al obtener grupos del alumno:", error);
+      }
+    };
+
+    if (session?.user?.id) {
+      obtenerGruposDelAlumno();
+    }
+  }, [session?.user?.id]); // Solo depende de la sesión del usuario, no de gruposDelAlumno
 
   useEffect(() => {
     const fetchMatricula = async () => {
@@ -137,9 +165,15 @@ export default function AsistenciaDetallada() {
         router.push('/alumno/dashboard');
         return;
       }
+      
+      if (gruposDelAlumno.length === 0) {
+        // Si no tenemos los grupos cargados aún, esperamos
+        return;
+      }
 
       try {
         setIsLoading(true);
+        
         // Obtener la matrícula específica
         const url = `/api/matriculas?alumno_id=${session.user.id}&porAlumno=true`;
         
@@ -178,7 +212,7 @@ export default function AsistenciaDetallada() {
         }
         
         // Cargar sesiones y asistencias
-        await fetchSesiones(matriculaEncontrada);
+        await fetchSesiones(matriculaConEstadisticas);
         
       } catch (error) {
         console.error('Error:', error);
@@ -187,9 +221,12 @@ export default function AsistenciaDetallada() {
         setIsLoading(false);
       }
     };
-    
-    const enriquecerMatricula = async (matricula: Matricula): Promise<Matricula> => {
+      const enriquecerMatricula = async (matricula: Matricula): Promise<Matricula> => {
       try {
+        if (!session?.user?.id || gruposDelAlumno.length === 0) {
+          return matricula;
+        }
+        
         // Obtener los grupos de la asignatura
         const gruposResponse = await fetch(`/api/grupos?asignaturaId=${matricula.asignatura.id}`, {
           credentials: 'include'
@@ -201,61 +238,59 @@ export default function AsistenciaDetallada() {
         
         const gruposData = await gruposResponse.json();
         
-        let totalSesiones = 0;
-        let asistencias = 0;
-        let faltas = 0;
+        // Filtrar solo los grupos en los que el alumno está matriculado
+        const gruposFiltrados = gruposData.grupos.filter(
+          (grupo: any) => gruposDelAlumno.includes(grupo.id)
+        );
         
-        // Procesar cada grupo
-        await Promise.all(gruposData.grupos.map(async (grupo: any) => {
-          // Verificar si el alumno está en este grupo
-          const alumnoGrupoResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupo.id}`, {
+        // Obtener todas las sesiones de los grupos relevantes
+        const sesionesPromesas = gruposFiltrados.map(async (grupo: any) => {
+          const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}`, {
             credentials: 'include'
           });
           
-          if (alumnoGrupoResponse.ok) {
-            const alumnosGrupo = await alumnoGrupoResponse.json();
-            const estaEnGrupo = Array.isArray(alumnosGrupo) && alumnosGrupo.some(
-              (ag: any) => ag.alumno_Id === session?.user?.id
-            );
-            
-            if (estaEnGrupo) {
-              // Obtener sesiones de este grupo
-              const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}`, {
-                credentials: 'include'
-              });
-              
-              if (sesionesResponse.ok) {
-                const sesiones = await sesionesResponse.json();
-                totalSesiones += sesiones.length;
-                
-                // Obtener asistencias del alumno en estas sesiones
-                await Promise.all(sesiones.map(async (sesion: any) => {
-                  const asistenciaResponse = await fetch(
-                    `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session?.user?.id}`,
-                    { credentials: 'include' }
-                  );
-                  
-                  if (asistenciaResponse.ok) {
-                    const asistenciasData = await asistenciaResponse.json();
-                    
-                    if (Array.isArray(asistenciasData) && asistenciasData.length > 0) {
-                      const asistencia = asistenciasData[0];
-                      if (asistencia.estado === 'Asiste' || 
-                          (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion === 'Asiste')) {
-                        asistencias++;
-                      } else {
-                        faltas++;
-                      }
-                    } else {
-                      // Si no hay registro, se considera falta
-                      faltas++;
-                    }
-                  }
-                }));
-              }
-            }
+          if (!sesionesResponse.ok) return [];
+          return sesionesResponse.json();
+        });
+        
+        const sesionesResultados = await Promise.all(sesionesPromesas);
+        const todasLasSesiones = sesionesResultados.flat();
+        
+        let totalSesiones = todasLasSesiones.length;
+        let asistencias = 0;
+        let faltas = 0;
+        
+        // Obtener asistencias para todas las sesiones en paralelo
+        const asistenciasPromesas = todasLasSesiones.map(async (sesion: any) => {
+          const asistenciaResponse = await fetch(
+            `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}`,
+            { credentials: 'include' }
+          );
+          
+          if (!asistenciaResponse.ok) return null;
+          
+          const asistenciasData = await asistenciaResponse.json();
+          
+          if (Array.isArray(asistenciasData) && asistenciasData.length > 0) {
+            return asistenciasData[0];
           }
-        }));
+          
+          return null; // Si no hay registro, se considera falta
+        });
+        
+        const asistenciasResultados = await Promise.all(asistenciasPromesas);
+        
+        // Contar asistencias y faltas
+        for (const asistencia of asistenciasResultados) {
+          if (asistencia && (
+              asistencia.estado === 'Asiste' || 
+              (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion === 'Asiste')
+          )) {
+            asistencias++;
+          } else {
+            faltas++;
+          }
+        }
         
         // Calcular porcentaje de asistencia
         const porcentajeAsistencia = totalSesiones > 0 
@@ -274,9 +309,8 @@ export default function AsistenciaDetallada() {
         return matricula;
       }
     };
-
-    const fetchSesiones = async (matricula: Matricula) => {
-      if (!session?.user?.id) return;
+      const fetchSesiones = async (matricula: Matricula) => {
+      if (!session?.user?.id || gruposDelAlumno.length === 0) return;
 
       try {
         // Obtener todos los grupos de la asignatura seleccionada
@@ -290,47 +324,46 @@ export default function AsistenciaDetallada() {
         
         const gruposData = await gruposResponse.json();
         
+        // Solo incluir los grupos donde el alumno está matriculado
+        const gruposDelAlumnoFiltrados = gruposData.grupos.filter(
+          (grupo: any) => gruposDelAlumno.includes(grupo.id)
+        );
+        
         // Para cada grupo, verificar si el estudiante está matriculado y obtener sus sesiones y asistencias
         const todasLasAsistencias: AsistenciaAlumno[] = [];
         
-        for (const grupo of gruposData.grupos) {
-          // Comprobar si el estudiante está en este grupo
-          const alumnosGrupoResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupo.id}`, {
+        // Obtener todas las sesiones de los grupos relevantes primero
+        const sesionesPromesas = gruposDelAlumnoFiltrados.map(async (grupo: any) => {
+          const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}`, {
             credentials: 'include'
           });
           
-          if (!alumnosGrupoResponse.ok) continue;
-          
-          const alumnosGrupo = await alumnosGrupoResponse.json();
-          const estaEnGrupo = Array.isArray(alumnosGrupo) && alumnosGrupo.some(
-            (ag: any) => ag.alumno_Id === session.user.id
+          if (!sesionesResponse.ok) return [];
+          return sesionesResponse.json();
+        });
+        
+        const sesionesResultados = await Promise.all(sesionesPromesas);
+        
+        // Aplanar todas las sesiones en una sola lista
+        const todasLasSesiones = sesionesResultados.flat();
+        
+        // Obtener asistencias para todas las sesiones en paralelo
+        const asistenciasPromesas = todasLasSesiones.map(async (sesion: any) => {
+          const asistenciaResponse = await fetch(
+            `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}`,
+            { credentials: 'include' }
           );
           
-          if (estaEnGrupo) {
-            // Obtener todas las sesiones de este grupo
-            const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}`, {
-              credentials: 'include'
-            });
-            
-            if (!sesionesResponse.ok) continue;
-            
-            const sesiones = await sesionesResponse.json();
-            
-            // Para cada sesión, obtener la asistencia del alumno
-            for (const sesion of sesiones) {
-              const asistenciaResponse = await fetch(
-                `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}`,
-                { credentials: 'include' }
-              );
-              
-              if (!asistenciaResponse.ok) continue;
-              
-              const asistenciasData = await asistenciaResponse.json();
-              
-              if (Array.isArray(asistenciasData) && asistenciasData.length > 0) {
-                todasLasAsistencias.push(...asistenciasData);
-              }
-            }
+          if (!asistenciaResponse.ok) return [];
+          return asistenciaResponse.json();
+        });
+        
+        const asistenciasResultados = await Promise.all(asistenciasPromesas);
+        
+        // Aplanar todas las asistencias
+        for (const asistencias of asistenciasResultados) {
+          if (Array.isArray(asistencias) && asistencias.length > 0) {
+            todasLasAsistencias.push(...asistencias);
           }
         }
         
@@ -348,12 +381,10 @@ export default function AsistenciaDetallada() {
       } catch (error) {
         console.error('Error al cargar sesiones:', error);
       }
-    };
-
-    if (session?.user?.id && matriculaId) {
+    };if (session?.user?.id && matriculaId && gruposDelAlumno.length > 0) {
       fetchMatricula();
     }
-  }, [session, matriculaId, router]);
+  }, [session, matriculaId, router, gruposDelAlumno.length]);
 
   // Determinar si las dispensas están disponibles
   const dispensasDisponibles = () => {
@@ -446,28 +477,34 @@ export default function AsistenciaDetallada() {
                       <p className="text-xs text-gray-500 uppercase mb-1">Porcentaje de asistencia</p>
                       <div className="flex items-center gap-2">
                         <div className={`text-lg font-bold ${
-                          matricula.porcentajeAsistencia !== undefined
-                            ? matricula.porcentajeAsistencia >= 80
-                              ? 'text-green-700'
-                              : matricula.porcentajeAsistencia >= 50
-                                ? 'text-yellow-700'
-                                : 'text-red-700'
-                            : 'text-gray-800'
+                          matricula.totalSesiones && matricula.totalSesiones > 0
+                            ? (matricula.porcentajeAsistencia !== undefined 
+                                ? matricula.porcentajeAsistencia >= 80
+                                  ? 'text-green-700'
+                                  : matricula.porcentajeAsistencia >= 50
+                                    ? 'text-yellow-700'
+                                    : 'text-red-700'
+                                : 'text-gray-800')
+                            : 'text-gray-500'
                         }`}>
-                          {matricula.porcentajeAsistencia || 0}%
+                          {matricula.totalSesiones && matricula.totalSesiones > 0
+                            ? `${matricula.porcentajeAsistencia || 0}%`
+                            : "N/A"}
                         </div>
                         <div className="w-full max-w-[150px] bg-gray-200 rounded-full h-2">
                           <div
                             className={`h-2 rounded-full ${
-                              matricula.porcentajeAsistencia !== undefined
-                                ? matricula.porcentajeAsistencia >= 80
-                                  ? 'bg-green-500'
-                                  : matricula.porcentajeAsistencia >= 50
-                                    ? 'bg-yellow-500'
-                                    : 'bg-red-500'
+                              matricula.totalSesiones && matricula.totalSesiones > 0
+                                ? (matricula.porcentajeAsistencia !== undefined
+                                    ? matricula.porcentajeAsistencia >= 80
+                                      ? 'bg-green-500'
+                                      : matricula.porcentajeAsistencia >= 50
+                                        ? 'bg-yellow-500'
+                                        : 'bg-red-500'
+                                    : 'bg-gray-300')
                                 : 'bg-gray-300'
                             }`}
-                            style={{ width: `${matricula.porcentajeAsistencia || 0}%` }}
+                            style={{ width: `${(matricula.totalSesiones && matricula.totalSesiones > 0) ? (matricula.porcentajeAsistencia || 0) : 0}%` }}
                           ></div>
                         </div>
                       </div>
