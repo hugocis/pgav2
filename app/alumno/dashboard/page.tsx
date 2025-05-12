@@ -14,7 +14,6 @@ import {
   FaCalendarCheck,
   FaFileAlt,
 } from 'react-icons/fa';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 // Interfaces para tipado
 interface Matricula {
@@ -127,8 +126,7 @@ export default function AlumnoDashboard() {
   const [cursosAcademicos, setCursosAcademicos] = useState<{ id: string, denominacion: string, activo: boolean }[]>([]);
   const [faltasJustificables, setFaltasJustificables] = useState<AsistenciaAlumno[]>([]);
   const [configuracionesCarrera, setConfiguracionesCarrera] = useState<ConfiguracionCarrera[]>([]);
-  
-  useEffect(() => {
+    useEffect(() => {
     const fetchMatriculas = async () => {
       try {
         setIsLoading(true);
@@ -163,6 +161,19 @@ export default function AlumnoDashboard() {
           }
           
           const data = await response.json();
+          
+          // Obtener todos los grupos del alumno en una sola llamada
+          const alumnoGruposResponse = await fetch(`/api/alumnos-grupo?alumnoId=${session.user.id}`, {
+            credentials: 'include'
+          });
+          
+          if (!alumnoGruposResponse.ok) {
+            throw new Error('Error al obtener grupos del alumno');
+          }
+          
+          const alumnoGrupos = await alumnoGruposResponse.json();
+          // Crear un conjunto de IDs de grupos a los que pertenece el alumno para búsqueda rápida
+          const gruposDelAlumno = new Set(alumnoGrupos.map((ag: any) => ag.grupoId));
             
           // Procesamos los datos recibidos
           if (Array.isArray(data)) {
@@ -184,59 +195,50 @@ export default function AlumnoDashboard() {
                 let asistencias = 0;
                 let faltas = 0;
                 
-                // Procesar cada grupo
-                await Promise.all(gruposData.grupos.map(async (grupo: any) => {
-                  // Verificar si el alumno está en este grupo
-                  const alumnoGrupoResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupo.id}`, {
+                // Filtrar solo grupos a los que pertenece el alumno
+                const gruposDelAlumnoEnAsignatura = gruposData.grupos.filter(
+                  (grupo: any) => gruposDelAlumno.has(grupo.id)
+                );
+                
+                // Procesar solo los grupos a los que pertenece el alumno
+                await Promise.all(gruposDelAlumnoEnAsignatura.map(async (grupo: any) => {
+                  // Obtener sesiones de este grupo
+                  const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}`, {
                     credentials: 'include'
                   });
                   
-                  if (alumnoGrupoResponse.ok) {
-                    const alumnosGrupo = await alumnoGrupoResponse.json();
-                    const estaEnGrupo = Array.isArray(alumnosGrupo) && alumnosGrupo.some(
-                      (ag: any) => ag.alumno_Id === session.user.id
-                    );
+                  if (sesionesResponse.ok) {
+                    const sesiones = await sesionesResponse.json();
+                    totalSesiones += sesiones.length;
                     
-                    if (estaEnGrupo) {
-                      // Obtener sesiones de este grupo
-                      const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}`, {
-                        credentials: 'include'
-                      });
+                    // Obtener asistencias del alumno en estas sesiones
+                    await Promise.all(sesiones.map(async (sesion: any) => {
+                      const asistenciaResponse = await fetch(
+                        `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}`,
+                        { credentials: 'include' }
+                      );
                       
-                      if (sesionesResponse.ok) {
-                        const sesiones = await sesionesResponse.json();
-                        totalSesiones += sesiones.length;
+                      if (asistenciaResponse.ok) {
+                        const asistenciasData = await asistenciaResponse.json();
                         
-                        // Obtener asistencias del alumno en estas sesiones
-                        await Promise.all(sesiones.map(async (sesion: any) => {
-                          const asistenciaResponse = await fetch(
-                            `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}`,
-                            { credentials: 'include' }
-                          );
-                          
-                          if (asistenciaResponse.ok) {
-                            const asistenciasData = await asistenciaResponse.json();
-                            
-                            if (Array.isArray(asistenciasData) && asistenciasData.length > 0) {
-                              const asistencia = asistenciasData[0];
-                              if (asistencia.estado === 'Asiste' || 
-                                  (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion === 'Asiste')) {
-                                asistencias++;
-                              } else {
-                                faltas++;
-                                // Comprobar si esta falta se puede justificar y agregarla a la lista
-                                if (!asistencia.SolicitudJustificacion || asistencia.SolicitudJustificacion.length === 0) {
-                                  setFaltasJustificables(prevFaltas => [...prevFaltas, asistencia]);
-                                }
-                              }
-                            } else {
-                              // Si no hay registro, se considera falta
-                              faltas++;
+                        if (Array.isArray(asistenciasData) && asistenciasData.length > 0) {
+                          const asistencia = asistenciasData[0];
+                          if (asistencia.estado === 'Asiste' || 
+                              (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion === 'Asiste')) {
+                            asistencias++;
+                          } else {
+                            faltas++;
+                            // Comprobar si esta falta se puede justificar y agregarla a la lista
+                            if (!asistencia.SolicitudJustificacion || asistencia.SolicitudJustificacion.length === 0) {
+                              setFaltasJustificables(prevFaltas => [...prevFaltas, asistencia]);
                             }
                           }
-                        }));
+                        } else {
+                          // Si no hay registro, se considera falta
+                          faltas++;
+                        }
                       }
-                    }
+                    }));
                   }
                 }));
                 
