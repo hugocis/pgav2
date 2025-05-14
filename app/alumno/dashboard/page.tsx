@@ -94,8 +94,14 @@ interface AsistenciaAlumno {
   estadoAsistencia: {
     id: string;
     denominacion: string;
-  };
-  SolicitudJustificacion: any[];
+  };  SolicitudJustificacion: Array<{
+    id: string;
+    estadoJustificacion: {
+      id: string;
+      denominacion: string;
+    };
+    fechaAlegacion: string;
+  }>;
 }
 
 interface ConfiguracionCarrera {
@@ -126,11 +132,47 @@ export default function AlumnoDashboard() {
   const [cursosAcademicos, setCursosAcademicos] = useState<{ id: string, denominacion: string, activo: boolean }[]>([]);
   const [faltasJustificables, setFaltasJustificables] = useState<AsistenciaAlumno[]>([]);
   const [configuracionesCarrera, setConfiguracionesCarrera] = useState<ConfiguracionCarrera[]>([]);
+  
+  // Agregamos un estado para el filtro de faltas
+  const [filtroFaltas, setFiltroFaltas] = useState<'todas' | 'pendientes' | 'sinjustificar'>('todas');
+  // Función para obtener las faltas filtradas según el criterio seleccionado
+  const getFaltasFiltradas = () => {
+    switch (filtroFaltas) {
+      case 'pendientes':
+        return faltasJustificables.filter(f => 
+          f.SolicitudJustificacion?.some(s => 
+            // Incluir las solicitudes pendientes
+            s.estadoJustificacion?.denominacion === 'Pendiente'
+          )
+        );
+      case 'sinjustificar':
+        return faltasJustificables.filter(f => 
+          // Sin solicitudes de justificación O
+          // Todas las solicitudes están rechazadas/no justificadas (sin ninguna pendiente o justificada)
+          !f.SolicitudJustificacion || 
+          f.SolicitudJustificacion.length === 0 ||
+          (f.SolicitudJustificacion.every(s => 
+            s.estadoJustificacion?.denominacion === 'Rechazado' || 
+            s.estadoJustificacion?.denominacion === 'No Justificado'
+          ) && 
+          !f.SolicitudJustificacion.some(s =>
+            s.estadoJustificacion?.denominacion === 'Pendiente' ||
+            s.estadoJustificacion?.denominacion === 'Justificado'
+          ))
+        );
+      default:
+        return faltasJustificables;
+    }
+  };
+  
+  // Obtener las faltas filtradas
+  const faltasFiltradas = getFaltasFiltradas();
+  
   useEffect(() => {
     const fetchMatriculas = async () => {
       try {
         setIsLoading(true);
-        // Primero, obtener el curso académico actual
+        // Primero, obtener el curso académico current
         const cursosResponse = await fetch('/api/cursos-academicos?activo=true', {
           credentials: 'include'
         });
@@ -212,10 +254,14 @@ export default function AlumnoDashboard() {
                     totalSesiones += sesiones.length;
 
                     // Obtener asistencias del alumno en estas sesiones
-                    await Promise.all(sesiones.map(async (sesion: any) => {
+                    await Promise.all(sesiones.map(async (sesion: any) => {                      // Incluir explícitamente la solicitud de incluir justificaciones                      // Usamos un timestamp para evitar la caché del navegador y obtener datos frescos
+                      const timestamp = new Date().getTime();
                       const asistenciaResponse = await fetch(
-                        `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}`,
-                        { credentials: 'include' }
+                        `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}&includeJustificaciones=true&_ts=${timestamp}`,
+                        { 
+                          credentials: 'include',
+                          cache: 'no-store' // Asegurar que no se use caché
+                        }
                       );
 
                       if (asistenciaResponse.ok) {
@@ -228,11 +274,22 @@ export default function AlumnoDashboard() {
                           switch(estado) {
                             case 'Asiste':
                               asistencias++;
-                              break;
-                            case '50%':
-                              // Para 50% de asistencia, contamos como 0.5
+                              break;                            case '50%':                              // Para 50% de asistencia, contamos como 0.5
                               asistencias += 0.5;
                               faltas += 0.5;
+                              // Permitir justificar también las faltas del 50%
+                              
+                              // Solo agregar la falta si se puede justificar
+                              if (puedeJustificarFalta(asistencia)) {
+                                setFaltasJustificables(prevFaltas => {
+                                  // Solo agregar la falta si no existe ya en la lista
+                                  const exists = prevFaltas.some(f => f.id === asistencia.id);
+                                  if (!exists) {
+                                    return [...prevFaltas, asistencia];
+                                  }
+                                  return prevFaltas;
+                                });
+                              }
                               break;
                             case 'Erasmus T':
                             case 'Erasmus NT':
@@ -246,10 +303,10 @@ export default function AlumnoDashboard() {
                               totalSesiones--;
                               break;
                             case 'No Asiste':
-                            default:
-                              faltas++;
-                              // Comprobar si esta falta se puede justificar y agregarla a la lista (evitando duplicados)
-                              if (!asistencia.SolicitudJustificacion || asistencia.SolicitudJustificacion.length === 0) {
+                            default:                              faltas++;
+                              
+                              // Solo agregar la falta si se puede justificar
+                              if (puedeJustificarFalta(asistencia)) {
                                 setFaltasJustificables(prevFaltas => {
                                   // Solo agregar la falta si no existe ya en la lista
                                   const exists = prevFaltas.some(f => f.id === asistencia.id);
@@ -316,9 +373,67 @@ export default function AlumnoDashboard() {
     }
   }, [session]);
 
+  useEffect(() => {
+    // Debug log to check faltas justificables
+    if (faltasJustificables.length > 0) {
+      console.log("Faltas Justificables:", faltasJustificables.map(f => ({
+        id: f.id,
+        fecha: f.fecha,
+        estado: f.estadoAsistencia?.denominacion,
+        solicitudes: f.SolicitudJustificacion?.map(s => ({
+          id: s.id,
+          estado: s.estadoJustificacion?.denominacion
+        }))
+      })));
+    } else {
+      console.log("No hay faltas justificables encontradas");
+    }
+    
+    // Mostrar directamente los estados de justificación para depuración
+    console.log("Estados de justificación de faltasJustificables:", 
+      faltasJustificables.filter(f => f.SolicitudJustificacion && f.SolicitudJustificacion.length > 0)
+        .map(f => ({
+          id: f.id, 
+          solicitudes: f.SolicitudJustificacion.map(s => s.estadoJustificacion?.denominacion)
+        }))
+    );
+  }, [faltasJustificables]);
+
   const fullName = session?.user ?
     `${session.user.name || ''} ${session.user.surname1 || ''} ${session.user.surname2 || ''}`.trim() :
-    'Alumno';
+    'Alumno';  // Determinar si una asistencia se puede justificar o debe mostrarse en la lista
+  const puedeJustificarFalta = (asistencia: AsistenciaAlumno) => {
+    // Protección contra valores nulos o indefinidos
+    if (!asistencia) {
+      console.warn('Asistencia es null o undefined en puedeJustificarFalta');
+      return false;
+    }
+    
+    // Debug: Imprimir toda la asistencia para inspección
+    console.log('Revisando asistencia completa:', {
+      id: asistencia.id,
+      tiene_solicitudes: Boolean(asistencia.SolicitudJustificacion?.length),
+      solicitudes_estados: asistencia.SolicitudJustificacion?.map(s => s?.estadoJustificacion?.denominacion) || []
+    });
+    
+    // Si no tiene solicitudes, se puede justificar
+    if (!asistencia.SolicitudJustificacion || asistencia.SolicitudJustificacion.length === 0) {
+      console.log(`[${asistencia.id}] No tiene solicitudes, se muestra en la lista`);
+      return true;
+    }
+    
+    // Si tiene alguna solicitud pendiente, rechazada o no justificada, también debe mostrarse
+    const tieneSolicitudPendienteORechazada = asistencia.SolicitudJustificacion.some((sol) => {
+      const estado = sol?.estadoJustificacion?.denominacion;
+      return estado === 'Pendiente' || estado === 'No Justificado' || estado === 'Rechazado';
+    });
+    
+    // Añadimos un log para depuración
+    console.log(`[${asistencia.id}] Tiene solicitud pendiente o rechazada: ${tieneSolicitudPendienteORechazada}`, 
+      asistencia.SolicitudJustificacion.map(s => s?.estadoJustificacion?.denominacion || 'Sin estado'));
+    
+    return tieneSolicitudPendienteORechazada;
+  };
 
   // Determinar si las dispensas están disponibles para una matrícula
   const isDispensaDisponible = (matricula: Matricula, configuracionesCarrera: ConfiguracionCarrera[]) => {
@@ -545,65 +660,311 @@ export default function AlumnoDashboard() {
                     Justificaciones y Dispensas
                   </span>
                 </div>
-              </div>
-
-              {/* Sección de faltas pendientes de justificar */}
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
-                <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-4 border-b border-blue-700">
-                  <h3 className="text-lg font-semibold text-white flex items-center">
-                    <FaExclamationTriangle className="mr-2 text-blue-200" />
-                    Faltas pendientes de justificar
-                  </h3>
+              </div>              {/* Sección de faltas pendientes de justificar */}              <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6 transition-all hover:shadow-lg">
+                <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-4 relative">
+                  <div className="flex flex-wrap items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white flex items-center">
+                      <FaExclamationTriangle className="mr-2 text-blue-200" />
+                      Faltas y solicitudes de justificación
+                    </h3>
+                    <div className="flex items-center mt-1 sm:mt-0">                      <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full font-medium shadow-inner">
+                        {faltasJustificables.length} {faltasJustificables.length === 1 ? 'registro' : 'registros'}
+                      </span>
+                      {faltasJustificables.filter(f => 
+                        f.SolicitudJustificacion?.some(s => 
+                          s.estadoJustificacion?.denominacion === 'Pendiente'
+                        )
+                      ).length > 0 && (
+                        <span className="ml-2 bg-blue-600 text-white text-xs px-3 py-1 rounded-full font-medium shadow-inner flex items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {faltasJustificables.filter(f => 
+                            f.SolicitudJustificacion?.some(s => 
+                              s.estadoJustificacion?.denominacion === 'Pendiente'
+                            )
+                          ).length} en revisión
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Decorative line at the bottom */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
                 </div>
-                <div className="p-6">
+                
+                <div className="p-4 sm:p-6">
                   {faltasJustificables.length > 0 ? (
-                    <div className="space-y-4">
-                      {faltasJustificables.map(falta => {
-                        // Encontrar la matrícula correspondiente a esta falta
-                        const matriculaFalta = matriculas.find(m =>
-                          m.asignatura.id === falta.sesionClase.grupo.asignaturaId
-                        );
+                    <div>                      {/* Tabs for filtering faltas */}
+                      <div className="flex flex-wrap border-b border-gray-200 mb-5">
+                        <button 
+                          onClick={() => setFiltroFaltas('todas')}
+                          className={`px-4 py-2 text-sm font-medium ${
+                            filtroFaltas === 'todas' 
+                              ? 'text-blue-700 border-b-2 border-blue-700' 
+                              : 'text-gray-500 hover:text-blue-700 border-b-2 border-transparent hover:border-blue-700'
+                          } transition-colors`}
+                        >
+                          Todas ({faltasJustificables.length})
+                        </button>                        <button 
+                          onClick={() => setFiltroFaltas('pendientes')}
+                          className={`px-4 py-2 text-sm font-medium ${
+                            filtroFaltas === 'pendientes' 
+                              ? 'text-blue-700 border-b-2 border-blue-700' 
+                              : 'text-gray-500 hover:text-blue-700 border-b-2 border-transparent hover:border-blue-700'
+                          } transition-colors`}
+                        >
+                          Pendientes ({faltasJustificables.filter(f => 
+                            f.SolicitudJustificacion?.some(s => 
+                              s.estadoJustificacion?.denominacion === 'Pendiente'
+                            )
+                          ).length})
+                        </button>                        <button 
+                          onClick={() => setFiltroFaltas('sinjustificar')}
+                          className={`px-4 py-2 text-sm font-medium ${
+                            filtroFaltas === 'sinjustificar' 
+                              ? 'text-blue-700 border-b-2 border-blue-700' 
+                              : 'text-gray-500 hover:text-blue-700 border-b-2 border-transparent hover:border-blue-700'
+                          } transition-colors`}
+                        >
+                          Sin justificar ({
+                            faltasJustificables.filter(f => 
+                              !f.SolicitudJustificacion || 
+                              f.SolicitudJustificacion.length === 0 ||
+                              (f.SolicitudJustificacion.every(s => 
+                                s.estadoJustificacion?.denominacion === 'Rechazado' || 
+                                s.estadoJustificacion?.denominacion === 'No Justificado'
+                              ) && 
+                              !f.SolicitudJustificacion.some(s =>
+                                s.estadoJustificacion?.denominacion === 'Pendiente' ||
+                                s.estadoJustificacion?.denominacion === 'Justificado'
+                              ))
+                            ).length
+                          })
+                        </button>
+                      </div>
+                      
+                      {/* Cards grid for faltas */}
+                      <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
+                        {faltasFiltradas.map(falta => {
+                          // Encontrar la matrícula correspondiente a esta falta
+                          const matriculaFalta = matriculas.find(m =>
+                            m.asignatura.id === falta.sesionClase?.grupo?.asignaturaId
+                          );
 
-                        if (!matriculaFalta) return null;
+                          if (!matriculaFalta) return null;
 
-                        return (
-                          <div key={falta.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-blue-50 rounded-md border border-blue-100">
-                            <div className="mb-3 md:mb-0">
-                              <p className="text-gray-800 font-medium flex flex-wrap items-center">
-                                <span className="mr-2">{new Date(falta.sesionClase.fecha).toLocaleDateString()}</span>
-                                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-                                  {matriculaFalta.asignatura.Denominacion}
-                                </span>
-                              </p>
-                              <p className="text-gray-600 text-sm mt-1">
-                                Grupo: {falta.sesionClase.grupo.denominacion}
-                              </p>
-                              <p className="text-gray-600 text-sm">
-                                Profesor: {matriculaFalta.asignatura.user ?
-                                  `${matriculaFalta.asignatura.user.name || ''} ${matriculaFalta.asignatura.user.surname1 || ''}`
-                                  : 'No asignado'}
-                              </p>
+                          // Obtener el estado de la falta para mostrar información más detallada
+                          const estadoFalta = falta.estado || (falta.estadoAsistencia && falta.estadoAsistencia.denominacion) || 'No Asiste';
+                          
+                          // Determinar el color del badge según el tipo de falta
+                          let badgeStyle = "";
+                          let statusBg = "";
+                          
+                          if (estadoFalta === 'No Asiste') {
+                            badgeStyle = "bg-gradient-to-r from-red-500 to-red-600 text-white";
+                            statusBg = "bg-red-50 border-red-100";
+                          } else if (estadoFalta === '50%') {
+                            badgeStyle = "bg-gradient-to-r from-yellow-500 to-yellow-600 text-white";
+                            statusBg = "bg-yellow-50 border-yellow-100";
+                          }
+                          
+                          // Verificar si hay solicitud de justificación y obtener su estado
+                          const tieneSolicitud = falta.SolicitudJustificacion && falta.SolicitudJustificacion.length > 0;
+                          
+                          // Obtener todas las solicitudes para esta falta
+                          const solicitudes = tieneSolicitud 
+                            ? falta.SolicitudJustificacion.map(s => ({
+                                id: s.id,
+                                estado: s.estadoJustificacion?.denominacion || 'Desconocido',
+                                fecha: s.fechaAlegacion
+                              }))
+                            : [];                          // Identificar el estado de la solicitud más reciente (o prioritaria)
+                          // Prioridad: Pendiente > Rechazado > No Justificado > Justificado
+                          let solicitudEstado = null;
+                          if (solicitudes.some(s => s.estado === 'Pendiente')) {
+                            solicitudEstado = 'Pendiente';
+                          } else if (solicitudes.some(s => s.estado === 'Rechazado')) {
+                            solicitudEstado = 'Rechazado';
+                          } else if (solicitudes.some(s => s.estado === 'No Justificado')) {
+                            solicitudEstado = 'No Justificado';
+                          } else if (solicitudes.some(s => s.estado === 'Justificado')) {
+                            solicitudEstado = 'Justificado';
+                          }                          // Variables para estilos de estado de justificación
+                          let justificacionStyle = "";
+                          let justificacionIcon = null;
+                          
+                          if (solicitudEstado === 'Pendiente') {
+                            justificacionStyle = "bg-blue-600 text-white";
+                            justificacionIcon = (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            );
+                          } else if (solicitudEstado === 'Justificado') {
+                            justificacionStyle = "bg-green-600 text-white";
+                            justificacionIcon = (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            );
+                          } else if (solicitudEstado === 'Rechazado' || solicitudEstado === 'No Justificado') {
+                            justificacionStyle = "bg-red-600 text-white";
+                            justificacionIcon = (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            );
+                          }
+                          
+                          return (
+                            <div key={falta.id} className={`rounded-xl shadow-sm border overflow-hidden transition-all hover:shadow-md ${statusBg}`}>
+                              {/* Card header with date and status */}
+                              <div className="bg-white px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+                                <div className="flex items-center">
+                                  <div className="text-blue-700 bg-blue-50 p-2 rounded-lg mr-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 012 2z" />
+                                    </svg>
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-gray-800">
+                                      {new Date(falta.sesionClase.fecha).toLocaleDateString('es-ES', {
+                                        day: 'numeric',
+                                        month: 'long',
+                                        year: 'numeric'
+                                      })}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {new Date(falta.sesionClase.fecha).toLocaleTimeString('es-ES', {
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center">
+                                  <span className={`${badgeStyle} text-xs px-3 py-1 rounded-full font-medium shadow-sm`}>
+                                    {estadoFalta}
+                                  </span>
+                                  {tieneSolicitud && (
+                                    <span className={`${justificacionStyle} ml-2 text-xs px-3 py-1 rounded-full font-medium shadow-sm flex items-center`}>
+                                      {justificacionIcon}
+                                      {solicitudEstado}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* Card body with details */}
+                              <div className="bg-white p-4">
+                                <div className="mb-3">
+                                  <h4 className="font-semibold text-gray-800">
+                                    {matriculaFalta.asignatura.Denominacion}
+                                  </h4>
+                                  <div className="mt-1 flex flex-wrap gap-2 text-sm">
+                                    <span className="inline-flex items-center text-gray-600">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                      </svg>
+                                      Grupo: {falta.sesionClase.grupo.denominacion}
+                                    </span>
+                                    
+                                    <span className="inline-flex items-center text-gray-600">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                      </svg>
+                                      {matriculaFalta.asignatura.user ?
+                                        `${matriculaFalta.asignatura.user.name || ''} ${matriculaFalta.asignatura.user.surname1 || ''}`
+                                        : 'No asignado'}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                {/* Status timeline if it has solicitudes */}
+                                {tieneSolicitud && (
+                                  <div className="mt-4 pt-3 border-t border-gray-100">
+                                    <h5 className="text-sm font-medium text-gray-700 mb-2">Historial de solicitud</h5>
+                                    <div className="flex items-center text-xs">
+                                      <span className="bg-blue-600 text-white px-2 py-0.5 rounded">Enviada</span>
+                                      <div className={`h-0.5 flex-grow mx-1 ${solicitudEstado !== 'Pendiente' ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                      <span className={`${solicitudEstado !== 'Pendiente' ? 'bg-green-600 text-white' : 'bg-gray-300 text-white'} px-2 py-0.5 rounded`}>
+                                        Revisada
+                                      </span>
+                                      <div className={`h-0.5 flex-grow mx-1 ${solicitudEstado === 'Justificado' ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                      <span className={`${solicitudEstado === 'Justificado' ? 'bg-green-600 text-white' : 'bg-gray-300 text-white'} px-2 py-0.5 rounded`}>
+                                        Aceptada
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                      Fecha solicitud: {new Date(falta.SolicitudJustificacion[0].fechaAlegacion).toLocaleDateString('es-ES')}
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                {/* Action buttons */}
+                                <div className="mt-4 flex justify-end">
+                                  {!tieneSolicitud || (solicitudEstado === 'Rechazado' || solicitudEstado === 'No Justificado') ? (
+                                    <Link
+                                      href={`/alumno/justificar?asistenciaId=${falta.id}`}
+                                      className="bg-[#0D3C68] hover:bg-[#072747] text-white font-medium px-4 py-2 rounded-lg shadow-sm hover:shadow transition-all flex items-center"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                      {tieneSolicitud ? 'Volver a justificar' : 'Justificar falta'}
+                                    </Link>
+                                  ) : (
+                                    <div className={`px-4 py-2 rounded-lg font-medium flex items-center ${
+                                      solicitudEstado === 'Pendiente' 
+                                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                                        : solicitudEstado === 'Justificado'
+                                          ? 'bg-green-100 text-green-700 border border-green-300'
+                                          : 'bg-gray-100 text-gray-600'
+                                    }`}>
+                                      {solicitudEstado === 'Pendiente' ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-blue-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                      ) : solicitudEstado === 'Justificado' ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                      )}                                      {solicitudEstado === 'Pendiente' 
+                                        ? 'En revisión'
+                                        : solicitudEstado === 'Justificado' 
+                                          ? 'Justificación aceptada' 
+                                          : solicitudEstado === 'Rechazado'
+                                            ? 'Justificación rechazada'
+                                            : solicitudEstado === 'No Justificado'
+                                              ? 'No justificado'
+                                              : 'Estado desconocido'}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <Link
-                              href={`/alumno/justificar?asistenciaId=${falta.id}`}
-                              className="bg-[#0D3C68] hover:bg-[#072747] text-white font-medium px-4 py-2 rounded transition-colors"
-                            >
-                              Justificar falta
-                            </Link>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   ) : (
                     <div className="text-center p-8">
-                      <div className="bg-blue-50 inline-block p-4 rounded-full">
-                        <FaCalendarCheck className="text-3xl text-[#0D3C68]" />
+                      <div className="bg-blue-50 inline-block p-5 rounded-full shadow-sm mb-3">
+                        <FaCalendarCheck className="text-4xl text-[#0D3C68]" />
                       </div>
-                      <p className="mt-3 text-gray-600 font-medium">No tienes faltas pendientes de justificar</p>
-                      <p className="text-gray-500 text-sm mt-1">Todas tus asistencias están en orden o ya han sido justificadas</p>
+                      <h4 className="text-lg font-semibold text-gray-700 mb-2">No tienes faltas pendientes de justificar</h4>
+                      <p className="text-gray-500 max-w-md mx-auto">
+                        Todas tus asistencias están en orden o ya han sido justificadas correctamente. Aquí aparecerán 
+                        tus faltas cuando necesites justificarlas.
+                      </p>
                     </div>
                   )}
-                </div>              </div>
+                </div>
+              </div>
 
               {/* División visual entre las secciones de faltas y dispensas */}
               <div className="flex items-center mb-6 mt-4">

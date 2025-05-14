@@ -100,7 +100,14 @@ interface AsistenciaAlumno {
     id: string;
     denominacion: string;
   };
-  SolicitudJustificacion: any[];
+  SolicitudJustificacion: Array<{
+    id: string;
+    estadoJustificacion: {
+      id: string;
+      denominacion: string;
+    };
+    fechaAlegacion: string;
+  }>;
 }
 
 interface ConfiguracionCarrera {
@@ -182,7 +189,6 @@ const renderActiveShape = (props: any) => {
         fill={isAsistencias ? "url(#greenGradient)" : "url(#redGradient)"}
         stroke="#FFF"
         strokeWidth={2}
-        style={{filter: 'drop-shadow(0px 2px 3px rgba(0,0,0,0.1))'}}
       />
       
       {/* Arco exterior */}
@@ -232,21 +238,19 @@ const StatCard = ({
   value, 
   bgColor, 
   textColor, 
-  icon: Icon,
-  delay = 0
+  icon: Icon
 }: { 
   title: string; 
   value: number | string;
   bgColor: string; 
   textColor: string;
   icon: React.ComponentType<any>;
-  delay?: number;
 }) => (
   <motion.div 
     className={`${bgColor} p-5 rounded-lg border shadow-sm`}
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5, delay }}
+    transition={{ duration: 0.5 }}
   >
     <div className="flex items-start justify-between">
       <div>
@@ -281,6 +285,7 @@ export default function AsistenciaDetallada() {
   const [activeIndex, setActiveIndex] = useState(0);
   // Almacena los grupos a los que pertenece el alumno para evitar consultas repetidas
   const [gruposDelAlumno, setGruposDelAlumno] = useState<string[]>([]);
+  
   // Efecto separado solo para obtener grupos del alumno, una sola vez
   useEffect(() => {
     // Obtener los grupos a los que pertenece el alumno para usarlos en múltiples funciones
@@ -289,14 +294,19 @@ export default function AsistenciaDetallada() {
       
       try {
         const response = await fetch(`/api/alumnos-grupo?alumnoId=${session.user.id}`, {
-          credentials: 'include'
+          credentials: 'include',
+          cache: 'no-store'
         });
         
         if (response.ok) {
           const data = await response.json();
-          const grupos = data.filter((ag: any) => ag.alumno_Id === session.user.id)
-                           .map((ag: any) => ag.grupo_Id);
+          // Flexibilidad para manejar diferentes formatos de respuesta
+          const grupos = data.map((ag: any) => ag.grupoId || ag.grupo_Id);
+          
+          console.log('Grupos obtenidos del alumno:', grupos);
           setGruposDelAlumno(grupos);
+        } else {
+          console.error("Error en la respuesta al obtener grupos del alumno:", response.status);
         }
       } catch (error) {
         console.error("Error al obtener grupos del alumno:", error);
@@ -306,25 +316,28 @@ export default function AsistenciaDetallada() {
     if (session?.user?.id) {
       obtenerGruposDelAlumno();
     }
-  }, [session?.user?.id]); // Solo depende de la sesión del usuario, no de gruposDelAlumno
+  }, [session?.user?.id]);
 
+  // Efecto principal para cargar los datos de la matrícula y asistencias
   useEffect(() => {
-    const fetchMatricula = async () => {
+    const cargarDatos = async () => {
       if (!matriculaId || !session?.user?.id) {
         router.push('/alumno/dashboard');
         return;
       }
       
       if (gruposDelAlumno.length === 0) {
-        // Si no tenemos los grupos cargados aún, esperamos
+        console.log('Esperando a que se carguen los grupos del alumno...');
         return;
       }
 
       try {
         setIsLoading(true);
+        console.log('Cargando datos para matrícula:', matriculaId);
         
         // Obtener la matrícula específica
-        const url = `/api/matriculas?alumno_id=${session.user.id}&porAlumno=true`;
+        const timestamp = new Date().getTime(); // Añadir timestamp para evitar caché
+        const url = `/api/matriculas?alumno_id=${session.user.id}&porAlumno=true&_ts=${timestamp}`;
         
         const response = await fetch(url, {
           credentials: 'include',
@@ -346,13 +359,10 @@ export default function AsistenciaDetallada() {
           throw new Error('Matrícula no encontrada');
         }
         
-        // Obtener estadísticas para la matrícula
-        const matriculaConEstadisticas = await enriquecerMatricula(matriculaEncontrada);
-        setMatricula(matriculaConEstadisticas);
-        
         // Obtener configuraciones de carrera para dispensas
         const configResponse = await fetch('/api/configuracion-carrera', {
-          credentials: 'include'
+          credentials: 'include',
+          cache: 'no-store'
         });
         
         if (configResponse.ok) {
@@ -360,25 +370,33 @@ export default function AsistenciaDetallada() {
           setConfiguracionesCarrera(configData);
         }
         
+        // Enriquecer matrícula con estadísticas de asistencia
+        const matriculaConEstadisticas = await enriquecerMatricula(matriculaEncontrada);
+        setMatricula(matriculaConEstadisticas);
+        
         // Cargar sesiones y asistencias
-        await fetchSesiones(matriculaConEstadisticas);
+        await cargarSesionesYAsistencias(matriculaConEstadisticas);
         
       } catch (error) {
-        console.error('Error:', error);
+        console.error('Error al cargar los datos:', error);
         setError(`Error al cargar los datos: ${error instanceof Error ? error.message : 'Error desconocido'}`);
       } finally {
         setIsLoading(false);
       }
     };
-      const enriquecerMatricula = async (matricula: Matricula): Promise<Matricula> => {
+    
+    const enriquecerMatricula = async (matricula: Matricula): Promise<Matricula> => {
       try {
         if (!session?.user?.id || gruposDelAlumno.length === 0) {
           return matricula;
         }
         
+        console.log('Enriqueciendo matrícula con estadísticas:', matricula.id);
+        
         // Obtener los grupos de la asignatura
         const gruposResponse = await fetch(`/api/grupos?asignaturaId=${matricula.asignatura.id}`, {
-          credentials: 'include'
+          credentials: 'include',
+          cache: 'no-store'
         });
         
         if (!gruposResponse.ok) {
@@ -392,28 +410,55 @@ export default function AsistenciaDetallada() {
           (grupo: any) => gruposDelAlumno.includes(grupo.id)
         );
         
+        console.log('Grupos filtrados del alumno para esta asignatura:', 
+          gruposFiltrados.map((g: any) => ({ id: g.id, nombre: g.denominacion })));
+        
+        if (gruposFiltrados.length === 0) {
+          console.warn('El alumno no está en ningún grupo de esta asignatura');
+        }
+        
         // Obtener todas las sesiones de los grupos relevantes
         const sesionesPromesas = gruposFiltrados.map(async (grupo: any) => {
-          const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}`, {
-            credentials: 'include'
+          const timestamp = new Date().getTime();
+          const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}&_ts=${timestamp}`, {
+            credentials: 'include',
+            cache: 'no-store'
           });
           
           if (!sesionesResponse.ok) return [];
-          return sesionesResponse.json();
+          const sesiones = await sesionesResponse.json();
+          return sesiones;
         });
         
         const sesionesResultados = await Promise.all(sesionesPromesas);
         const todasLasSesiones = sesionesResultados.flat();
         
+        console.log('Total sesiones encontradas para estadísticas:', todasLasSesiones.length);
+        
         let totalSesiones = todasLasSesiones.length;
         let asistencias = 0;
         let faltas = 0;
         
+        if (totalSesiones === 0) {
+          console.warn('No se encontraron sesiones para los grupos del alumno');
+          return {
+            ...matricula,
+            totalSesiones: 0,
+            asistencias: 0,
+            faltas: 0,
+            porcentajeAsistencia: 0
+          };
+        }
+        
         // Obtener asistencias para todas las sesiones en paralelo
         const asistenciasPromesas = todasLasSesiones.map(async (sesion: any) => {
+          const timestamp = new Date().getTime();
           const asistenciaResponse = await fetch(
-            `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}`,
-            { credentials: 'include' }
+            `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}&includeJustificaciones=true&_ts=${timestamp}`,
+            { 
+              credentials: 'include',
+              cache: 'no-store'
+            }
           );
           
           if (!asistenciaResponse.ok) return null;
@@ -428,7 +473,8 @@ export default function AsistenciaDetallada() {
         });
         
         const asistenciasResultados = await Promise.all(asistenciasPromesas);
-          // Contar asistencias y faltas con soporte para diversos tipos de asistencia
+        
+        // Contar asistencias y faltas con soporte para diversos tipos de asistencia
         for (const asistencia of asistenciasResultados) {
           if (asistencia) {
             const estado = asistencia.estado || (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);
@@ -463,14 +509,20 @@ export default function AsistenciaDetallada() {
             faltas++;
           }
         }
-          
+        
         // Calcular porcentaje de asistencia
         const porcentajeAsistencia = totalSesiones > 0 
           ? Math.round((asistencias / totalSesiones) * 100) 
           : 0;
         
+        console.log('Estadísticas calculadas para la matrícula:', {
+          totalSesiones,
+          asistencias,
+          faltas,
+          porcentajeAsistencia
+        });
+        
         // Asegurarse de que los valores sean números válidos
-        // para evitar problemas con la visualización
         return {
           ...matricula,
           totalSesiones: Number.isFinite(totalSesiones) ? totalSesiones : 0,
@@ -483,13 +535,21 @@ export default function AsistenciaDetallada() {
         return matricula;
       }
     };
-      const fetchSesiones = async (matricula: Matricula) => {
-      if (!session?.user?.id || gruposDelAlumno.length === 0) return;
+    
+    const cargarSesionesYAsistencias = async (matricula: Matricula) => {
+      if (!session?.user?.id || gruposDelAlumno.length === 0) {
+        console.log('No se pueden cargar sesiones y asistencias: faltan datos de sesión o grupos');
+        return;
+      }
 
       try {
+        console.log('Cargando sesiones y asistencias para la matrícula:', matricula.id);
+        
         // Obtener todos los grupos de la asignatura seleccionada
-        const gruposResponse = await fetch(`/api/grupos?asignaturaId=${matricula.asignatura.id}`, {
-          credentials: 'include'
+        const timestamp = new Date().getTime();
+        const gruposResponse = await fetch(`/api/grupos?asignaturaId=${matricula.asignatura.id}&_ts=${timestamp}`, {
+          credentials: 'include',
+          cache: 'no-store'
         });
         
         if (!gruposResponse.ok) {
@@ -503,17 +563,30 @@ export default function AsistenciaDetallada() {
           (grupo: any) => gruposDelAlumno.includes(grupo.id)
         );
         
-        // Para cada grupo, verificar si el estudiante está matriculado y obtener sus sesiones y asistencias
+        console.log('Grupos del alumno para sesiones y asistencias:', 
+          gruposDelAlumnoFiltrados.map((g: any) => ({ id: g.id, nombre: g.denominacion })));
+        
+        if (gruposDelAlumnoFiltrados.length === 0) {
+          console.warn('El alumno no está en ningún grupo de esta asignatura - No se pueden cargar sesiones');
+          setSesionesAlumno([]);
+          setFaltasJustificables([]);
+          return;
+        }
+        
+        // Para cada grupo, obtener las sesiones de clase
         const todasLasAsistencias: AsistenciaAlumno[] = [];
         
         // Obtener todas las sesiones de los grupos relevantes primero
         const sesionesPromesas = gruposDelAlumnoFiltrados.map(async (grupo: any) => {
-          const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}`, {
-            credentials: 'include'
+          const ts = new Date().getTime();
+          const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}&_ts=${ts}`, {
+            credentials: 'include',
+            cache: 'no-store'
           });
           
           if (!sesionesResponse.ok) return [];
-          return sesionesResponse.json();
+          const sesiones = await sesionesResponse.json();
+          return sesiones;
         });
         
         const sesionesResultados = await Promise.all(sesionesPromesas);
@@ -521,15 +594,29 @@ export default function AsistenciaDetallada() {
         // Aplanar todas las sesiones en una sola lista
         const todasLasSesiones = sesionesResultados.flat();
         
-        // Obtener asistencias para todas las sesiones en paralelo
+        console.log('Total sesiones encontradas para cargar asistencias detalladas:', todasLasSesiones.length);
+        
+        if (todasLasSesiones.length === 0) {
+          console.warn('No se encontraron sesiones para los grupos del alumno');
+          setSesionesAlumno([]);
+          setFaltasJustificables([]);
+          return;
+        }
+        
+        // Obtener asistencias para todas las sesiones en paralelo con timestamp para evitar caché
         const asistenciasPromesas = todasLasSesiones.map(async (sesion: any) => {
+          const ts = new Date().getTime();
           const asistenciaResponse = await fetch(
-            `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}`,
-            { credentials: 'include' }
+            `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}&includeJustificaciones=true&_ts=${ts}`,
+            { 
+              credentials: 'include',
+              cache: 'no-store'
+            }
           );
           
           if (!asistenciaResponse.ok) return [];
-          return asistenciaResponse.json();
+          const asistencias = await asistenciaResponse.json();
+          return asistencias;
         });
         
         const asistenciasResultados = await Promise.all(asistenciasPromesas);
@@ -541,24 +628,36 @@ export default function AsistenciaDetallada() {
           }
         }
         
+        console.log('Total asistencias encontradas para la vista detallada:', todasLasAsistencias.length);
+        
         setSesionesAlumno(todasLasAsistencias);
         
-        // Filtrar faltas que se pueden justificar (no tienen justificación)
+        // Filtrar faltas que se pueden justificar
         const faltas = todasLasAsistencias.filter(a => 
-          a.estado !== 'Asiste' && 
-          a.estadoAsistencia?.denominacion !== 'Asiste' && 
-          (!a.SolicitudJustificacion || a.SolicitudJustificacion.length === 0)
+          (a.estado === 'No Asiste' || 
+           a.estadoAsistencia?.denominacion === 'No Asiste' || 
+           a.estado === '50%' || 
+           a.estadoAsistencia?.denominacion === '50%') && 
+          (!a.SolicitudJustificacion || 
+           a.SolicitudJustificacion.length === 0 ||
+           a.SolicitudJustificacion.every(s => 
+             s.estadoJustificacion?.denominacion === 'Rechazado' || 
+             s.estadoJustificacion?.denominacion === 'No Justificado'
+           ))
         );
         
+        console.log('Faltas justificables encontradas:', faltas.length);
         setFaltasJustificables(faltas);
         
       } catch (error) {
-        console.error('Error al cargar sesiones:', error);
+        console.error('Error al cargar sesiones y asistencias:', error);
       }
-    };if (session?.user?.id && matriculaId && gruposDelAlumno.length > 0) {
-      fetchMatricula();
+    };
+
+    if (session?.user?.id && matriculaId && gruposDelAlumno.length > 0) {
+      cargarDatos();
     }
-  }, [session, matriculaId, router, gruposDelAlumno.length]);
+  }, [session?.user?.id, matriculaId, router, gruposDelAlumno.length]);
 
   // Determinar si las dispensas están disponibles
   const dispensasDisponibles = () => {
@@ -587,7 +686,8 @@ export default function AsistenciaDetallada() {
   return (
     <DashboardContainer roleName="Alumno">
       <div className="bg-gray-50 min-h-full pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">          {isLoading ? (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          {isLoading ? (
             <motion.div 
               className="bg-white rounded-lg shadow-md p-8 flex justify-center"
               initial={{ opacity: 0 }}
@@ -606,7 +706,7 @@ export default function AsistenciaDetallada() {
                   className="mt-4 text-gray-600 text-base"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
+                  transition={{ duration: 0.3, delay: 0.3 }}
                 >
                   Cargando información de asistencia...
                 </motion.p>
@@ -635,7 +735,8 @@ export default function AsistenciaDetallada() {
               </div>
             </motion.div>
           ) : matricula ? (
-            <>              {/* Encabezado de la asignatura */}
+            <>
+              {/* Encabezado de la asignatura */}
               <motion.div 
                 className="bg-white rounded-lg shadow-md mb-6 overflow-hidden"
                 initial={{ opacity: 0, y: -20 }}
@@ -769,7 +870,8 @@ export default function AsistenciaDetallada() {
                     <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
                       <FaChartPie className="mr-2 text-blue-600" />
                       Resumen de asistencia
-                    </h3>                      <div className="flex flex-col lg:flex-row items-center gap-8">                      
+                    </h3>
+                    <div className="flex flex-col lg:flex-row items-center gap-8">                      
                       <div className="w-full max-w-[450px] h-[400px] relative mx-auto">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
@@ -801,7 +903,8 @@ export default function AsistenciaDetallada() {
                             
                             <Pie
                               activeIndex={activeIndex}
-                              activeShape={renderActiveShape}                              data={
+                              activeShape={renderActiveShape}
+                              data={
                                 // Asegurarse de que haya sesiones para mostrar y al menos una asistencia o falta
                                 (matricula.totalSesiones && matricula.totalSesiones > 0 && 
                                  ((matricula.asistencias ?? 0) > 0 || (matricula.faltas ?? 0) > 0)) 
@@ -827,8 +930,6 @@ export default function AsistenciaDetallada() {
                               cornerRadius={6}
                               stroke="#ffffff"
                               strokeWidth={3}
-                              filter="url(#pieChartShadow)"
-                              label={(entry) => `${entry.name}: ${entry.value}`}
                               labelLine={false}
                             >
                               {((matricula.totalSesiones ?? 0) > 0)
@@ -845,26 +946,25 @@ export default function AsistenciaDetallada() {
                               contentStyle={{
                                 borderRadius: '12px',
                                 border: 'none',
-                                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
                                 padding: '12px 16px',
                                 backgroundColor: 'rgba(255,255,255,0.97)',
                                 fontSize: '14px',
-                                fontWeight: 500,
                               }}
                               itemStyle={{ color: '#334155' }}
                               cursor={{ fill: 'transparent' }}
                             />
-                            
-                            <Legend 
+                              <Legend 
                               verticalAlign="bottom"
                               layout="horizontal"
                               iconSize={14}
                               iconType="circle"
                               wrapperStyle={{
-                                paddingTop: '25px',
-                                fontWeight: 500
+                                paddingTop: '25px'
                               }}
-                              formatter={(value) => <span style={{ color: '#475569', fontSize: '16px', fontWeight: 500 }}>{value}</span>}
+                              formatter={(value, entry) => {
+                                const color = value === 'Asistencias' ? '#059669' : value === 'Faltas' ? '#DC2626' : '#475569';
+                                return <span style={{ color, fontSize: '16px', fontWeight: 500 }}>{value}</span>;
+                              }}
                             />
                           </PieChart>
                         </ResponsiveContainer>
@@ -878,7 +978,6 @@ export default function AsistenciaDetallada() {
                             bgColor="bg-gradient-to-br from-green-50 to-green-100"
                             textColor="text-green-800"
                             icon={FaCheck}
-                            delay={0.5}
                           />
                           <StatCard 
                             title="Faltas" 
@@ -886,7 +985,6 @@ export default function AsistenciaDetallada() {
                             bgColor="bg-gradient-to-br from-red-50 to-red-100"
                             textColor="text-red-800"
                             icon={FaTimes}
-                            delay={0.6}
                           />
                           <StatCard 
                             title="Total de sesiones" 
@@ -894,7 +992,6 @@ export default function AsistenciaDetallada() {
                             bgColor="bg-gradient-to-br from-blue-50 to-blue-100"
                             textColor="text-blue-800"
                             icon={FaClock}
-                            delay={0.7}
                           />
                           <StatCard 
                             title="Faltas justificables" 
@@ -902,14 +999,15 @@ export default function AsistenciaDetallada() {
                             bgColor="bg-gradient-to-br from-yellow-50 to-yellow-100"
                             textColor="text-yellow-800"
                             icon={FaFileAlt}
-                            delay={0.8}
                           />
                         </div>
                       </div>
                     </div>
                   </motion.div>
                 </div>
-              </motion.div>              {/* Listado de todas las sesiones */}
+              </motion.div>
+              
+              {/* Listado de todas las sesiones */}
               <motion.div 
                 className="bg-white rounded-lg shadow-md mb-8 overflow-hidden"
                 initial={{ opacity: 0, y: 20 }}
@@ -936,12 +1034,9 @@ export default function AsistenciaDetallada() {
                       <tbody className="text-sm divide-y divide-gray-100">
                         {sesionesAlumno.length > 0 ? (
                           sesionesAlumno.map((asistencia, index) => (
-                            <motion.tr 
+                            <tr 
                               key={asistencia.id} 
                               className="hover:bg-blue-50 transition-colors"
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.3, delay: 0.7 + index * 0.05 }}
                             >
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
@@ -966,21 +1061,41 @@ export default function AsistenciaDetallada() {
                                 <span className={`px-3 py-1.5 rounded-full text-xs font-medium inline-flex items-center gap-1.5
                                   ${asistencia.estado === 'Asiste' || asistencia.estadoAsistencia?.denominacion === 'Asiste' 
                                     ? 'bg-green-100 text-green-800' 
-                                    : 'bg-red-100 text-red-800'}`}>
+                                    : asistencia.estado === '50%' || asistencia.estadoAsistencia?.denominacion === '50%' 
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : 'bg-red-100 text-red-800'}`}>
                                   {asistencia.estado === 'Asiste' || asistencia.estadoAsistencia?.denominacion === 'Asiste' 
                                     ? <FaCheck className="text-xs" />
                                     : <FaTimes className="text-xs" />
                                   }
                                   {asistencia.estadoAsistencia?.denominacion || asistencia.estado}
                                 </span>
-                              </td>
-                              <td className="px-6 py-4">
+                              </td>                              <td className="px-6 py-4">
                                 {asistencia.SolicitudJustificacion && asistencia.SolicitudJustificacion.length > 0 ? (
-                                  <span className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-xs">
+                                  <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs ${
+                                    asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Pendiente')
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Justificado')
+                                        ? 'bg-green-100 text-green-800'
+                                        : asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Rechazado' || s.estadoJustificacion?.denominacion === 'No Justificado')
+                                          ? 'bg-red-100 text-red-800'
+                                          : 'bg-blue-100 text-blue-800'
+                                  }`}>
                                     <FaFileAlt className="mr-1.5 text-xs" />
-                                    Justificada
+                                    {asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Pendiente')
+                                      ? 'Pendiente'
+                                      : asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Justificado')
+                                        ? 'Justificada'
+                                        : asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Rechazado')
+                                          ? 'Rechazada'
+                                          : asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'No Justificado')
+                                            ? 'No Justificada'
+                                            : 'Justificación enviada'}
                                   </span>
-                                ) : asistencia.estado !== 'Asiste' && asistencia.estadoAsistencia?.denominacion !== 'Asiste' ? (
+                                ) : (asistencia.estado === 'No Asiste' || 
+                                     asistencia.estadoAsistencia?.denominacion === 'No Asiste' ||
+                                     asistencia.estado === '50%' || 
+                                     asistencia.estadoAsistencia?.denominacion === '50%') ? (
                                   <Link
                                     href={`/alumno/justificar?asistenciaId=${asistencia.id}`}
                                     className="inline-flex items-center px-3 py-1.5 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 rounded-full text-xs transition-colors"
@@ -990,7 +1105,7 @@ export default function AsistenciaDetallada() {
                                   </Link>
                                 ) : null}
                               </td>
-                            </motion.tr>
+                            </tr>
                           ))
                         ) : (
                           <tr>
@@ -1007,7 +1122,8 @@ export default function AsistenciaDetallada() {
                   </div>
                 </div>
               </motion.div>
-            </>          ) : (
+            </>
+          ) : (
             <motion.div 
               className="bg-white rounded-lg shadow-md p-6"
               initial={{ opacity: 0, y: 20 }}

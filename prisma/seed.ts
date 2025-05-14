@@ -64,8 +64,33 @@ async function main() {
       console.log(`✅ Estado de asistencia "${estadoData.denominacion}" created with ID: ${newEstado.id}`);
     }
   }
-
   console.log('✅ All attendance states have been created or verified.');
+  // Create or verify estados de justificación
+  const estadosJustificacion = [
+    { denominacion: 'Justificado' },
+    { denominacion: 'No Justificado' },
+    { denominacion: 'Pendiente' },
+    { denominacion: 'Rechazado' },
+  ];
+
+  console.log('🔄 Creating or verifying justification states...');
+  
+  for (const estadoData of estadosJustificacion) {
+    const existingEstado = await prisma.estadoJustificacion.findFirst({
+      where: { denominacion: estadoData.denominacion },
+    });
+
+    if (existingEstado) {
+      console.log(`ℹ️ Estado de justificación "${estadoData.denominacion}" already exists with ID: ${existingEstado.id}`);
+    } else {
+      const newEstado = await prisma.estadoJustificacion.create({
+        data: estadoData,
+      });
+      console.log(`✅ Estado de justificación "${estadoData.denominacion}" created with ID: ${newEstado.id}`);
+    }
+  }
+
+  console.log('✅ All justification states have been created or verified.');
 
   // Test user data
   const testUsers = [
