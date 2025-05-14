@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardContainer from '@/components/DashboardContainer';
 import Link from 'next/link';
-import { FaChartPie, FaSearch, FaArrowLeft, FaSync, FaCalendarAlt, FaCheck, FaTimes, FaUserGraduate, FaFileExcel, FaDownload } from 'react-icons/fa';
+import { FaChartPie, FaSearch, FaArrowLeft, FaSync, FaCalendarAlt, FaUserGraduate, FaFileExcel} from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 
 // Interfaces para el tipado

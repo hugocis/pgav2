@@ -20,7 +20,6 @@ import {
   FaUserFriends,
   FaUserGraduate,
   FaChevronDown,
-  FaChalkboardTeacher
 } from 'react-icons/fa';
 
 // Interfaces para el tipado

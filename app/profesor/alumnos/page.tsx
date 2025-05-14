@@ -55,6 +55,7 @@ interface Alumno {
   email?: string;
 }
 
+
 interface AsistenciaAlumno {
   id: string;
   fecha: string;
@@ -107,6 +108,10 @@ interface AlumnoEstadisticas {
   porcentajeTotal: number;
 }
 
+interface ExcelData {
+  [key: string]: string | number; // Allow any string key with string or number values
+}
+
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -126,9 +131,8 @@ export default function ProfesorAlumnos() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [alumnos, setAlumnos] = useState<AlumnoEstadisticas[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [estadosAsistencia, setEstadosAsistencia] = useState<Map<string, string>>(new Map());  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'ascending' | 'descending' }>({
+  const [error, setError] = useState<string | null>(null);  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'ascending' | 'descending' }>({
     key: 'nombreCompleto',
     direction: 'ascending'
   });
@@ -188,17 +192,9 @@ export default function ProfesorAlumnos() {
         // Cargar los estados de asistencia disponibles
         const estadosAsistenciaResponse = await fetch('/api/estados-asistencia', {
           credentials: 'include'
-        });
-        
-        if (estadosAsistenciaResponse.ok) {
-          const estadosData = await estadosAsistenciaResponse.json();
-          const mapaEstados = new Map();
-          
-          estadosData.forEach((estado: any) => {
-            mapaEstados.set(estado.id, estado.denominacion);
-          });
-          
-          setEstadosAsistencia(mapaEstados);
+        });        if (estadosAsistenciaResponse.ok) {
+          // Cargar estados de asistencia - solo para futuro uso
+          await estadosAsistenciaResponse.json();
         }
 
         // Ahora debemos cargar todos los alumnos para cada grupo y sus asistencias
@@ -384,7 +380,7 @@ export default function ProfesorAlumnos() {
   // Función para exportar a Excel
   const exportarExcel = () => {
     const dataExport = alumnos.map(alumno => {
-      const data: any = {
+      const data: ExcelData = {
         'Alumno': alumno.nombreCompleto,
       };
       
@@ -422,12 +418,7 @@ export default function ProfesorAlumnos() {
   // Obtener los alumnos de la página actual
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentAlumnos = alumnosFiltrados.slice(indexOfFirstItem, indexOfLastItem);  // Función para obtener el color de fondo según el porcentaje de asistencia
-  const getColorClase = (porcentaje: number) => {
-    if (porcentaje >= 85) return 'bg-green-100 text-green-800';
-    if (porcentaje >= 60) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-red-100 text-red-800';
-  };
+  const currentAlumnos = alumnosFiltrados.slice(indexOfFirstItem, indexOfLastItem);
   
   // Función para cambiar de página
   const paginate = (pageNumber: number) => {
@@ -435,12 +426,8 @@ export default function ProfesorAlumnos() {
       setCurrentPage(pageNumber);
     }
   };
-  // Función para obtener el color de fondo y borde para los gráficos
-  const getChartColors = (porcentaje: number) => {
-    if (porcentaje >= 85) return { bg: 'rgba(34, 197, 94, 0.8)', border: 'rgba(22, 163, 74, 1)' };
-    if (porcentaje >= 60) return { bg: 'rgba(234, 179, 8, 0.8)', border: 'rgba(202, 138, 4, 1)' };
-    return { bg: 'rgba(239, 68, 68, 0.8)', border: 'rgba(220, 38, 38, 1)' };
-  };// Componente para mostrar el gráfico de asistencia mejorado visualmente
+
+  // Componente para mostrar el gráfico de asistencia mejorado visualmente
   const AttendancePieChart = ({ 
     asistencias, 
     total, 
