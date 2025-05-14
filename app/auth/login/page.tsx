@@ -34,7 +34,7 @@ export default function AuthLogin() {
       clearTimeout(redirectTimer);
       clearInterval(progressTimer);
     };
-  }, [router]);
+  }, [router, steps]);
 
   return (
     <div 

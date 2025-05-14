@@ -269,7 +269,7 @@ export default function HistorialSesiones() {
     };
 
     fetchData();
-  }, [asignaturaId, session?.user?.id]);
+  }, [asignaturaId, estadisticas, session?.user?.id]);
 
   // Formatear la fecha para mostrar
   const formatearFecha = (fechaStr: string) => {

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { FaExclamationTriangle, FaArrowLeft, FaSpinner } from 'react-icons/fa';
+import { FaExclamationTriangle} from 'react-icons/fa';
 
 export default function AuthError() {
   const router = useRouter();

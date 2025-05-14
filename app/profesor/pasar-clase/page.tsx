@@ -8,8 +8,7 @@ import Link from 'next/link';
 import {   
   FaChalkboardTeacher, 
   FaSearch, 
-  FaArrowLeft, 
-  FaSync, 
+  FaArrowLeft,  
   FaCalendarAlt, 
   FaClock, 
   FaSave,
@@ -58,13 +57,8 @@ interface EstadoAsistencia {
   denominacion: string;
 }
 
-interface AsistenciaEstado {
-  alumnoId: string;
-  estado: string;
-}
-
 export default function PasarClase() {
-  const { data: session, status } = useSession({
+  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       router.push('/login');
@@ -79,7 +73,7 @@ export default function PasarClase() {
   const [grupoSeleccionado, setGrupoSeleccionado] = useState<string>('');
   const [alumnosGrupo, setAlumnosGrupo] = useState<AlumnoGrupo[]>([]);
   const [estadosAsistencia, setEstadosAsistencia] = useState<EstadoAsistencia[]>([]);
-  const [estadosPermitidos, setEstadosPermitidos] = useState<string[]>(['Asiste', 'No Asiste', '50%']);
+  const [estadosPermitidos] = useState<string[]>(['Asiste', 'No Asiste', '50%']);
   const [asistencias, setAsistencias] = useState<Map<string, string>>(new Map());
   const [fecha, setFecha] = useState<string>('');
   const [hora, setHora] = useState<string>('');
@@ -93,7 +87,7 @@ export default function PasarClase() {
   useEffect(() => {
     const now = new Date();
     const fechaActual = now.toISOString().split('T')[0];
-    let horaActual = now.toTimeString().split(' ')[0].substring(0, 5);
+    const horaActual = now.toTimeString().split(' ')[0].substring(0, 5);
     
     setFecha(fechaActual);
     setHora(horaActual);
@@ -456,19 +450,6 @@ export default function PasarClase() {
     }
   };
 
-  // Obtener clase para el estado de asistencia
-  const getEstadoClass = (estado: string) => {
-    switch (estado) {
-      case 'Asiste':
-        return 'bg-green-100 text-green-800 hover:bg-green-200';
-      case 'No Asiste':
-        return 'bg-red-100 text-red-800 hover:bg-red-200';
-      case '50%':
-        return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200';
-      default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
-    }
-  };
   return (
     <DashboardContainer roleName="Profesor">
       <div className="bg-gray-100 min-h-full pb-8">
@@ -692,7 +673,7 @@ export default function PasarClase() {
                 </div>
               ) : (                <div className="px-7 py-6 bg-gray-50">
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                    {alumnosFiltrados.map((alumnoGrupo, index) => {
+                    {alumnosFiltrados.map((alumnoGrupo) => {
                       if (!alumnoGrupo.user) return null;
                       
                       const alumno = alumnoGrupo.user;

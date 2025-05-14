@@ -12,9 +12,6 @@ import {
   FaFileAlt,
   FaUserCheck,
   FaExclamationTriangle,
-  FaCheckCircle,
-  FaCalendarCheck,
-  FaUserClock,
   FaUniversity,
   FaUsers,
   FaFileSignature,
@@ -57,7 +54,7 @@ interface DepartmentAttendance {
 }
 
 export default function ManagerDashboard() {
-  const { data: session, status } = useSession({
+  useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');
