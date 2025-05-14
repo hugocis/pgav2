@@ -20,6 +20,12 @@ const apiPermissions: {
     DELETE?: string[];
   }
 } = {
+  '/api/configuracion-carrera': {
+    GET:    [ROLE.ADMIN, ROLE.MANAGER, ROLE.ALUM, ROLE.PROF],
+    POST:   [ROLE.ADMIN],
+    PUT:    [ROLE.ADMIN],
+    DELETE: [ROLE.ADMIN],
+  },
   /*'/api/users': {
     GET:    [ROLE.ADMIN, ROLE.MANAGER],
     POST:   [ROLE.ADMIN],
