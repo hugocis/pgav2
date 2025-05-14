@@ -50,7 +50,7 @@ interface User {
 }
 
 export default function AdminDocencia() {
-  const { data: session, status } = useSession({
+  useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');
