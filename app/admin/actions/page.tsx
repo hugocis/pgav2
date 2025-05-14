@@ -183,10 +183,15 @@ const apiEndpoints: CategoryEndpoint[] = [
   }
 ];
 
-export default function AdminActions() {  const [activeEndpoint, setActiveEndpoint] = useState<any>(null);
+interface ApiResponse {
+  status: number;
+  data: unknown;
+}
+
+export default function AdminActions() {  const [activeEndpoint, setActiveEndpoint] = useState<Endpoint | null>(null);
   const [paramId, setParamId] = useState('');
   const [requestBody, setRequestBody] = useState('');
-  const [response, setResponse] = useState<any>(null);
+  const [response, setResponse] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -230,7 +235,7 @@ export default function AdminActions() {  const [activeEndpoint, setActiveEndpoi
           const parsedBody = JSON.parse(requestBody);
           options.body = JSON.stringify(parsedBody);
         } catch (e) {
-          setError('El cuerpo de la solicitud no es un JSON válido');
+          setError(`El cuerpo de la solicitud no es un JSON válido: ${e instanceof Error ? e.message : String(e)}`);
           setLoading(false);
           return;
         }
@@ -257,7 +262,7 @@ export default function AdminActions() {  const [activeEndpoint, setActiveEndpoi
     setLoading(false);
   };
   // Preparar un endpoint seleccionado
-  const prepareEndpoint = (endpoint: any) => {
+  const prepareEndpoint = (endpoint: Endpoint) => {
     setActiveEndpoint(endpoint);
     setParamId('');
     
@@ -322,7 +327,7 @@ export default function AdminActions() {  const [activeEndpoint, setActiveEndpoi
       
       try {
         // Construir la URL
-        let url = endpoint.url;
+        const url = endpoint.url;
         
         // Configurar opciones de fetch
         const options: RequestInit = {
@@ -633,7 +638,7 @@ export default function AdminActions() {  const [activeEndpoint, setActiveEndpoi
                                   try {
                                     const formatted = JSON.stringify(JSON.parse(requestBody), null, 2);
                                     setRequestBody(formatted);
-                                  } catch (e) {}
+                                  } catch {}
                                 }}
                               >
                                 Formatear
