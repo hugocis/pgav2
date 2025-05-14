@@ -51,12 +51,12 @@ interface ApiResponse {
   isOpen: boolean;
   isLoading: boolean;
   title: string;
-  data: any;
+  data: unknown;
   error: string | null;
 }
 
 export default function AdminDashboard() {
-  const { data: session, status } = useSession({
+  const { status } = useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');
@@ -131,7 +131,12 @@ export default function AdminDashboard() {
   const fetchStats = async (forceReload = false) => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/stats', {
+      // Añadimos un parámetro de tiempo para forzar la recarga cuando sea necesario
+      const url = forceReload 
+        ? `/api/stats?_t=${Date.now()}` 
+        : '/api/stats';
+      
+      const response = await fetch(url, {
         credentials: 'include',
         cache: 'no-store',
         // Añadimos un parámetro para evitar el almacenamiento en caché del navegador
@@ -657,8 +662,9 @@ export default function AdminDashboard() {
                       {stats.subjectDistribution.length > 5 && (
                         <div className="text-center pt-2">
                           <Link href="/admin/asignaturas" className="text-sm text-[#0D3C68] hover:text-opacity-75">
-                            Ver todas las asignaturas ({stats.subjectDistribution.length})
+                            Ver todas las asignaturas 
                           </Link>
+                          
                         </div>
                       )}
                     </div>
@@ -685,7 +691,7 @@ export default function AdminDashboard() {
                 <div className="overflow-hidden">
                   <ul role="list" className="divide-y divide-gray-100">
                     {stats.recentUsers && stats.recentUsers.length > 0 ? (
-                      stats.recentUsers.map((user, index) => (
+                      stats.recentUsers.map((user) => (
                         <li key={user.id} className="px-5 py-4 hover:bg-gray-50 transition-colors duration-150">
                           <div className="flex items-center space-x-3">
                             <div className="flex-shrink-0">
@@ -742,7 +748,7 @@ export default function AdminDashboard() {
                 <div className="p-5">
                   {stats.usersByRole && stats.usersByRole.length > 0 ? (
                     <div className="space-y-4">
-                      {stats.usersByRole.map((roleData, index) => {
+                      {stats.usersByRole.map((roleData) => {
                         // Calcular el porcentaje para la barra de progreso
                         const percentage = (roleData.count / stats.totalUsers) * 100;
                         
