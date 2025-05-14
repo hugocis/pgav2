@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import DashboardContainer from '@/components/DashboardContainer';
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaFilter, FaBookOpen, FaChevronLeft, FaChevronRight, FaUserGraduate } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaSearch, FaFilter, FaChevronLeft, FaChevronRight, FaUserGraduate } from 'react-icons/fa';
 
 // Interfaces para tipado
 interface Matricula {
@@ -50,7 +50,7 @@ interface User {
 }
 
 export default function AdminMatriculas() {
-  const { data: session, status } = useSession({
+  useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');
