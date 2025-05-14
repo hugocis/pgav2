@@ -46,8 +46,23 @@ interface AttendanceData {
   lastUpdateDate: string;
 }
 
+interface AcademicYear {
+  id: string;
+  name: string;
+}
+
+interface Department {
+  id: string;
+  name: string;
+}
+
+interface Subject {
+  id: string;
+  Denominacion: string; // Keeping the same property name as in the original code
+}
+
 export default function AttendanceReports() {
-  const { data: session, status } = useSession({
+  const { } = useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');
@@ -118,11 +133,10 @@ export default function AttendanceReports() {
           setAttendanceData(data);
           setFilteredData(data);
         }
-        
-        // Actualizar los filtros disponibles si la API los proporciona
-        if (data.academicYears) setAcademicYears(data.academicYears.map((year: any) => year.name));
-        if (data.departments) setDepartments(data.departments.map((dept: any) => dept.name));
-        if (data.subjects) setSubjects(['Todos', ...data.subjects.map((subj: any) => subj.Denominacion)]);
+          // Actualizar los filtros disponibles si la API los proporciona
+        if (data.academicYears) setAcademicYears(data.academicYears.map((year: AcademicYear) => year.name));
+        if (data.departments) setDepartments(data.departments.map((dept: Department) => dept.name));
+        if (data.subjects) setSubjects(['Todos', ...data.subjects.map((subj: Subject) => subj.Denominacion)]);
         if (data.courses) setCourses(data.courses);
         if (data.semesters) setSemesters(data.semesters);
         
