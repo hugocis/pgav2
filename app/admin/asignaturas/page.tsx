@@ -3,7 +3,6 @@
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
-import Link from 'next/link';
 import DashboardContainer from '@/components/DashboardContainer';
 import { FaPlus, FaEdit, FaTrash, FaSearch, FaFilter, FaBookOpen, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
@@ -47,7 +46,7 @@ interface Carrera {
 }
 
 export default function AdminAsignaturas() {
-  const { data: session, status } = useSession({
+  useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');
