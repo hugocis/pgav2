@@ -163,10 +163,35 @@ const renderActiveShape = (props: any) => {
       </g>
     );
   }
-  // Determinar colores basados en el tipo de dato (asistencias o faltas)
-  const isAsistencias = payload.name === 'Asistencias';
-  const mainColor = isAsistencias ? '#059669' : '#DC2626';
-  const secondaryColor = isAsistencias ? '#10B981' : '#EF4444';
+  // Determinar colores basados en el tipo de dato
+  let mainColor, secondaryColor;
+  
+  switch(payload.name) {
+    case 'Asistencias':
+      mainColor = '#059669';
+      secondaryColor = '#10B981';
+      break;
+    case 'Faltas':
+      mainColor = '#DC2626';
+      secondaryColor = '#EF4444';
+      break;
+    case '50%':
+      mainColor = '#EAB308';
+      secondaryColor = '#FBBF24';
+      break;
+    case 'Justificada':
+      mainColor = '#3B82F6';
+      secondaryColor = '#60A5FA';
+      break;
+    case 'Dispensado':
+      mainColor = '#8B5CF6';
+      secondaryColor = '#A78BFA';
+      break;
+    default:
+      mainColor = '#475569';
+      secondaryColor = '#64748B';
+      break;
+  }
   
   return (
     <g>
@@ -178,15 +203,18 @@ const renderActiveShape = (props: any) => {
         {`${value} (${(percent * 100).toFixed(0)}%)`}
       </text>
       
-      {/* Sector principal */}
-      <Sector
+      {/* Sector principal */}      <Sector
         cx={cx}
         cy={cy}
         innerRadius={innerRadius}
         outerRadius={outerRadius}
         startAngle={startAngle}
         endAngle={endAngle}
-        fill={isAsistencias ? "url(#greenGradient)" : "url(#redGradient)"}
+        fill={payload.name === 'Asistencias' 
+          ? "url(#greenGradient)" 
+          : payload.name === 'Faltas' 
+            ? "url(#redGradient)" 
+            : mainColor}
         stroke="#FFF"
         strokeWidth={2}
       />
@@ -874,8 +902,7 @@ export default function AsistenciaDetallada() {
                     <div className="flex flex-col lg:flex-row items-center gap-8">                      
                       <div className="w-full max-w-[450px] h-[400px] relative mx-auto">
                         <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            {/* Definición de gradientes y efectos para mejorar la visualización */}
+                          <PieChart>                            {/* Definición de gradientes y efectos para mejorar la visualización */}
                             <defs>
                               <linearGradient id="greenGradient" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="0%" stopColor="#10B981" stopOpacity={1} />
@@ -884,6 +911,18 @@ export default function AsistenciaDetallada() {
                               <linearGradient id="redGradient" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="0%" stopColor="#F87171" stopOpacity={1} />
                                 <stop offset="100%" stopColor="#DC2626" stopOpacity={1} />
+                              </linearGradient>
+                              <linearGradient id="yellowGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#FBBF24" stopOpacity={1} />
+                                <stop offset="100%" stopColor="#EAB308" stopOpacity={1} />
+                              </linearGradient>
+                              <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#60A5FA" stopOpacity={1} />
+                                <stop offset="100%" stopColor="#3B82F6" stopOpacity={1} />
+                              </linearGradient>
+                              <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#A78BFA" stopOpacity={1} />
+                                <stop offset="100%" stopColor="#8B5CF6" stopOpacity={1} />
                               </linearGradient>
                               <filter id="pieChartShadow" height="200%">
                                 <feDropShadow dx="0" dy="3" stdDeviation="4" floodOpacity="0.15"/>
@@ -899,9 +938,7 @@ export default function AsistenciaDetallada() {
                               stroke="#f1f5f9" 
                               strokeWidth={4} 
                               strokeDasharray="2 4"
-                            />
-                            
-                            <Pie
+                            />                              <Pie
                               activeIndex={activeIndex}
                               activeShape={renderActiveShape}
                               data={
@@ -909,10 +946,17 @@ export default function AsistenciaDetallada() {
                                 (matricula.totalSesiones && matricula.totalSesiones > 0 && 
                                  ((matricula.asistencias ?? 0) > 0 || (matricula.faltas ?? 0) > 0)) 
                                 ? [
-                                    { name: 'Asistencias', value: matricula.asistencias || 0 },
-                                    { name: 'Faltas', value: matricula.faltas || 0 },
+                                    { name: 'Asistencias', value: matricula.asistencias || 0, fill: '#059669' },
+                                    { name: 'Faltas', value: matricula.faltas || 0, fill: '#DC2626' },
+                                    // Añadimos estos elementos para que aparezcan en la leyenda aunque no se muestren en el gráfico
+                                    // Se comentan para evitar que aparezcan en el gráfico, pero se muestran en la leyenda personalizada
+                                    /* 
+                                    { name: '50%', value: 0, fill: '#EAB308' },
+                                    { name: 'Justificada', value: 0, fill: '#3B82F6' },
+                                    { name: 'Dispensado', value: 0, fill: '#8B5CF6' },
+                                    */
                                   ]
-                                : [{ name: 'Sin sesiones', value: 1 }]
+                                : [{ name: 'Sin sesiones', value: 1, fill: '#E2E8F0' }]
                               }
                               cx="50%"
                               cy="50%"
@@ -934,10 +978,10 @@ export default function AsistenciaDetallada() {
                             >
                               {((matricula.totalSesiones ?? 0) > 0)
                                 ? <>
-                                    <Cell fill="url(#greenGradient)" />
-                                    <Cell fill="url(#redGradient)" />
+                                    <Cell key="asistencias" fill="url(#greenGradient)" />
+                                    <Cell key="faltas" fill="url(#redGradient)" />
                                   </>
-                                : <Cell fill="#E2E8F0" />
+                                : <Cell key="sin-sesiones" fill="#E2E8F0" />
                               }
                             </Pie>
                             
@@ -952,8 +996,7 @@ export default function AsistenciaDetallada() {
                               }}
                               itemStyle={{ color: '#334155' }}
                               cursor={{ fill: 'transparent' }}
-                            />
-                              <Legend 
+                            />                              <Legend 
                               verticalAlign="bottom"
                               layout="horizontal"
                               iconSize={14}
@@ -964,6 +1007,35 @@ export default function AsistenciaDetallada() {
                               formatter={(value, entry) => {
                                 const color = value === 'Asistencias' ? '#059669' : value === 'Faltas' ? '#DC2626' : '#475569';
                                 return <span style={{ color, fontSize: '16px', fontWeight: 500 }}>{value}</span>;
+                              }}
+                              content={(props) => {
+                                // Definimos todos los estados posibles con sus colores respectivos
+                                const estadosAsistencia = [
+                                  { nombre: 'Asiste', color: '#059669' },
+                                  { nombre: 'No Asiste', color: '#DC2626' },
+                                  { nombre: '50%', color: '#EAB308' },
+                                  { nombre: 'Justificada', color: '#3B82F6' },
+                                  { nombre: 'Dispensado', color: '#8B5CF6' }
+                                ];
+                                  return (
+                                  <div className="flex flex-wrap justify-center mt-6 gap-x-6 gap-y-3">
+                                    {estadosAsistencia.map((estado, index) => (
+                                      <div 
+                                        key={`estado-${index}`} 
+                                        className="flex items-center px-2 py-1.5 rounded-md"
+                                        style={{ backgroundColor: `${estado.color}15` }} // Color con opacidad baja (15%)
+                                      >
+                                        <div 
+                                          className="w-3 h-3 rounded-full mr-2" 
+                                          style={{ backgroundColor: estado.color }}
+                                        />
+                                        <span style={{ color: estado.color, fontSize: '13px', fontWeight: 600 }}>
+                                          {estado.nombre}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
                               }}
                             />
                           </PieChart>
