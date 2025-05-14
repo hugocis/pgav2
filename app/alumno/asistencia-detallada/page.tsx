@@ -428,19 +428,43 @@ export default function AsistenciaDetallada() {
         });
         
         const asistenciasResultados = await Promise.all(asistenciasPromesas);
-        
-        // Contar asistencias y faltas
+          // Contar asistencias y faltas con soporte para diversos tipos de asistencia
         for (const asistencia of asistenciasResultados) {
-          if (asistencia && (
-              asistencia.estado === 'Asiste' || 
-              (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion === 'Asiste')
-          )) {
-            asistencias++;
+          if (asistencia) {
+            const estado = asistencia.estado || (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);
+            
+            switch(estado) {
+              case 'Asiste':
+                asistencias++;
+                break;
+              case '50%':
+                // Para 50% de asistencia, contamos como 0.5
+                asistencias += 0.5;
+                faltas += 0.5;
+                break;
+              case 'Erasmus T':
+              case 'Erasmus NT':
+                // No se cuentan como falta ni asistencia
+                // Reducimos el total de sesiones para este caso
+                totalSesiones--;
+                break;
+              case 'Dispensado':
+                // No se cuenta como falta
+                // Reducimos el total de sesiones para este caso
+                totalSesiones--;
+                break;
+              case 'No Asiste':
+              default:
+                faltas++;
+                break;
+            }
           } else {
+            // Si no hay registro, se considera falta
             faltas++;
           }
         }
-          // Calcular porcentaje de asistencia
+          
+        // Calcular porcentaje de asistencia
         const porcentajeAsistencia = totalSesiones > 0 
           ? Math.round((asistencias / totalSesiones) * 100) 
           : 0;

@@ -126,7 +126,7 @@ export default function AlumnoDashboard() {
   const [cursosAcademicos, setCursosAcademicos] = useState<{ id: string, denominacion: string, activo: boolean }[]>([]);
   const [faltasJustificables, setFaltasJustificables] = useState<AsistenciaAlumno[]>([]);
   const [configuracionesCarrera, setConfiguracionesCarrera] = useState<ConfiguracionCarrera[]>([]);
-    useEffect(() => {
+  useEffect(() => {
     const fetchMatriculas = async () => {
       try {
         setIsLoading(true);
@@ -134,47 +134,47 @@ export default function AlumnoDashboard() {
         const cursosResponse = await fetch('/api/cursos-academicos?activo=true', {
           credentials: 'include'
         });
-        
+
         if (!cursosResponse.ok) {
           throw new Error('Error al obtener el curso académico activo');
         }
-        
+
         const cursosData = await cursosResponse.json();
         setCursosAcademicos(cursosData);
-        
+
         const cursoActivo = cursosData.find((curso: any) => curso.activo);
         const cursoActivoId = cursoActivo ? cursoActivo.id : (cursosData.length > 0 ? cursosData[0].id : null);
         setCurrentCursoId(cursoActivoId);
-        
+
         // Obtener las matrículas del alumno usando su ID
         if (session?.user?.id) {
           // Llamada a la API de matrículas usando el ID del alumno
           const url = `/api/matriculas?alumno_id=${session.user.id}&porAlumno=true`;
-          
+
           const response = await fetch(url, {
             credentials: 'include',
             cache: 'no-store'
           });
-          
+
           if (!response.ok) {
             throw new Error(`Error al obtener las matrículas: ${response.status}`);
           }
-          
+
           const data = await response.json();
-          
+
           // Obtener todos los grupos del alumno en una sola llamada
           const alumnoGruposResponse = await fetch(`/api/alumnos-grupo?alumnoId=${session.user.id}`, {
             credentials: 'include'
           });
-          
+
           if (!alumnoGruposResponse.ok) {
             throw new Error('Error al obtener grupos del alumno');
           }
-          
+
           const alumnoGrupos = await alumnoGruposResponse.json();
           // Crear un conjunto de IDs de grupos a los que pertenece el alumno para búsqueda rápida
           const gruposDelAlumno = new Set(alumnoGrupos.map((ag: any) => ag.grupoId));
-            
+
           // Procesamos los datos recibidos
           if (Array.isArray(data)) {
             // Obtenemos estadísticas para cada matrícula
@@ -184,54 +184,82 @@ export default function AlumnoDashboard() {
                 const gruposResponse = await fetch(`/api/grupos?asignaturaId=${matricula.asignatura.id}`, {
                   credentials: 'include'
                 });
-                
+
                 if (!gruposResponse.ok) {
                   throw new Error(`Error al obtener grupos para asignatura ${matricula.asignatura.id}`);
                 }
-                
+
                 const gruposData = await gruposResponse.json();
-                
+
                 let totalSesiones = 0;
                 let asistencias = 0;
                 let faltas = 0;
-                
+
                 // Filtrar solo grupos a los que pertenece el alumno
                 const gruposDelAlumnoEnAsignatura = gruposData.grupos.filter(
                   (grupo: any) => gruposDelAlumno.has(grupo.id)
                 );
-                
+
                 // Procesar solo los grupos a los que pertenece el alumno
                 await Promise.all(gruposDelAlumnoEnAsignatura.map(async (grupo: any) => {
                   // Obtener sesiones de este grupo
                   const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}`, {
                     credentials: 'include'
                   });
-                  
+
                   if (sesionesResponse.ok) {
                     const sesiones = await sesionesResponse.json();
                     totalSesiones += sesiones.length;
-                    
+
                     // Obtener asistencias del alumno en estas sesiones
                     await Promise.all(sesiones.map(async (sesion: any) => {
                       const asistenciaResponse = await fetch(
                         `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}`,
                         { credentials: 'include' }
                       );
-                      
+
                       if (asistenciaResponse.ok) {
                         const asistenciasData = await asistenciaResponse.json();
-                        
+
                         if (Array.isArray(asistenciasData) && asistenciasData.length > 0) {
                           const asistencia = asistenciasData[0];
-                          if (asistencia.estado === 'Asiste' || 
-                              (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion === 'Asiste')) {
-                            asistencias++;
-                          } else {
-                            faltas++;
-                            // Comprobar si esta falta se puede justificar y agregarla a la lista
-                            if (!asistencia.SolicitudJustificacion || asistencia.SolicitudJustificacion.length === 0) {
-                              setFaltasJustificables(prevFaltas => [...prevFaltas, asistencia]);
-                            }
+                          const estado = asistencia.estado || (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);
+                          
+                          switch(estado) {
+                            case 'Asiste':
+                              asistencias++;
+                              break;
+                            case '50%':
+                              // Para 50% de asistencia, contamos como 0.5
+                              asistencias += 0.5;
+                              faltas += 0.5;
+                              break;
+                            case 'Erasmus T':
+                            case 'Erasmus NT':
+                              // No se cuentan como falta ni asistencia
+                              // Reducimos el total de sesiones para este caso
+                              totalSesiones--;
+                              break;
+                            case 'Dispensado':
+                              // No se cuenta como falta
+                              // Reducimos el total de sesiones para este caso
+                              totalSesiones--;
+                              break;
+                            case 'No Asiste':
+                            default:
+                              faltas++;
+                              // Comprobar si esta falta se puede justificar y agregarla a la lista (evitando duplicados)
+                              if (!asistencia.SolicitudJustificacion || asistencia.SolicitudJustificacion.length === 0) {
+                                setFaltasJustificables(prevFaltas => {
+                                  // Solo agregar la falta si no existe ya en la lista
+                                  const exists = prevFaltas.some(f => f.id === asistencia.id);
+                                  if (!exists) {
+                                    return [...prevFaltas, asistencia];
+                                  }
+                                  return prevFaltas;
+                                });
+                              }
+                              break;
                           }
                         } else {
                           // Si no hay registro, se considera falta
@@ -241,12 +269,12 @@ export default function AlumnoDashboard() {
                     }));
                   }
                 }));
-                
+
                 // Calcular porcentaje de asistencia
-                const porcentajeAsistencia = totalSesiones > 0 
-                  ? Math.round((asistencias / totalSesiones) * 100) 
+                const porcentajeAsistencia = totalSesiones > 0
+                  ? Math.round((asistencias / totalSesiones) * 100)
                   : 0;
-                
+
                 return {
                   ...matricula,
                   totalSesiones,
@@ -259,8 +287,8 @@ export default function AlumnoDashboard() {
                 return matricula;
               }
             }));
-            
-            setMatriculas(matriculasEnriquecidas.filter(m => !m.fechaBaja));
+
+            setMatriculas(matriculasEnriquecidas.filter((m: Matricula) => !m.fechaBaja));
           } else {
             setMatriculas([]);
           }
@@ -269,7 +297,7 @@ export default function AlumnoDashboard() {
           const configResponse = await fetch('/api/configuracion-carrera', {
             credentials: 'include'
           });
-          
+
           if (configResponse.ok) {
             const configData = await configResponse.json();
             setConfiguracionesCarrera(configData);
@@ -295,24 +323,24 @@ export default function AlumnoDashboard() {
   // Determinar si las dispensas están disponibles para una matrícula
   const isDispensaDisponible = (matricula: Matricula, configuracionesCarrera: ConfiguracionCarrera[]) => {
     if (!configuracionesCarrera.length) return false;
-    
+
     const configCarrera = configuracionesCarrera.find(
       c => c.carreraId === matricula.asignatura.carreraId
     );
-    
+
     if (!configCarrera) return false;
-    
+
     // Verificar si las dispensas están activadas y si estamos en el período permitido
     if (!configCarrera.SolDispensa) return false;
-    
+
     if (configCarrera.FechaInicioDispensa && configCarrera.FechaFinDispensa) {
       const ahora = new Date();
       const inicio = new Date(configCarrera.FechaInicioDispensa);
       const fin = new Date(configCarrera.FechaFinDispensa);
-      
+
       return ahora >= inicio && ahora <= fin;
     }
-    
+
     return configCarrera.SolDispensa;
   };
 
@@ -368,14 +396,13 @@ export default function AlumnoDashboard() {
                     <FaChartPie className="mr-2 text-blue-600" />                    <div>
                       <span className="text-sm text-gray-500">Asistencia Promedio:</span>
                       {typeof getPromedioPorcentaje(matriculas) === 'number' ? (
-                        <span className={`ml-2 font-medium ${
-                            typeof getPromedioPorcentaje(matriculas) === 'number'
-                              ? getPromedioPorcentaje(matriculas) >= "80"
-                                ? 'text-green-600' 
-                                : getPromedioPorcentaje(matriculas) >= "50" 
-                                  ? 'text-yellow-600' 
-                                  : 'text-red-600'
-                              : 'text-gray-500'
+                        <span className={`ml-2 font-medium ${typeof getPromedioPorcentaje(matriculas) === 'number'
+                            ? getPromedioPorcentaje(matriculas) >= "80"
+                              ? 'text-green-600'
+                              : getPromedioPorcentaje(matriculas) >= "50"
+                                ? 'text-yellow-600'
+                                : 'text-red-600'
+                            : 'text-gray-500'
                           }`}>{getPromedioPorcentaje(matriculas)}%</span>
                       ) : (
                         <span className="ml-2 font-medium text-gray-500">N/A</span>
@@ -415,8 +442,8 @@ export default function AlumnoDashboard() {
             <>
               {/* Vista principal: mostrar todas las asignaturas */}              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
                 {matriculas.map((matricula) => (
-                  <div 
-                    key={matricula.id} 
+                  <div
+                    key={matricula.id}
                     className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow border border-gray-100"
                   >
                     {/* Cabecera de la tarjeta */}
@@ -429,10 +456,10 @@ export default function AlumnoDashboard() {
                       </p>
                       <div className="flex justify-between items-center mt-2">
                         <p className="text-blue-100 text-sm">
-                          {matricula.asignatura.Curso} 
+                          {matricula.asignatura.Curso}
                           {matricula.asignatura.Curso && matricula.asignatura.Curso.includes('º') ? ' Curso' : ''}
-                          {matricula.asignatura.Cuatrimestre ? 
-                            ` • ${matricula.asignatura.Cuatrimestre}${matricula.asignatura.Cuatrimestre.includes('º') ? ' Cuatrimestre' : ''}` 
+                          {matricula.asignatura.Cuatrimestre ?
+                            ` • ${matricula.asignatura.Cuatrimestre}${matricula.asignatura.Cuatrimestre.includes('º') ? ' Cuatrimestre' : ''}`
                             : ''}
                         </p>
                         <span className="bg-white/20 text-white text-xs px-2 py-1 rounded">
@@ -442,7 +469,7 @@ export default function AlumnoDashboard() {
                     </div>
 
                     <div className="p-5">
-                      {/* Panel de estadísticas */}                    
+                      {/* Panel de estadísticas */}
                       <div className="flex mb-4 bg-gray-50 rounded-lg overflow-hidden border border-gray-100 divide-x divide-gray-200">
                         <div className="flex-1 p-3 text-center">
                           <div className="text-lg font-semibold text-gray-800">
@@ -455,49 +482,47 @@ export default function AlumnoDashboard() {
                             {matricula.asistencias !== undefined ? matricula.asistencias : "0"}
                           </div>
                           <div className="text-xs text-gray-500">Asistencias</div>
-                        </div>                        <div className="flex-1 p-3 text-center">                        
+                        </div>                        <div className="flex-1 p-3 text-center">
                           <div className="flex flex-col items-center">
-                            <div className={`text-lg font-semibold ${
-                              matricula.totalSesiones !== undefined && matricula.totalSesiones > 0
-                                ? matricula.porcentajeAsistencia !== undefined && matricula.porcentajeAsistencia >= 80 
+                            <div className={`text-lg font-semibold ${matricula.totalSesiones !== undefined && matricula.totalSesiones > 0
+                                ? matricula.porcentajeAsistencia !== undefined && matricula.porcentajeAsistencia >= 80
                                   ? 'text-green-700'
-                                  : matricula.porcentajeAsistencia !== undefined && matricula.porcentajeAsistencia >= 50 
+                                  : matricula.porcentajeAsistencia !== undefined && matricula.porcentajeAsistencia >= 50
                                     ? 'text-yellow-700'
-                                    : 'text-red-700' 
+                                    : 'text-red-700'
                                 : 'text-gray-500'
-                            }`}>
-                              {matricula.totalSesiones !== undefined && matricula.totalSesiones > 0 
-                                ? `${matricula.porcentajeAsistencia}%` 
+                              }`}>
+                              {matricula.totalSesiones !== undefined && matricula.totalSesiones > 0
+                                ? `${matricula.porcentajeAsistencia}%`
                                 : "N/A"}
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                              <div 
-                                className={`h-1.5 rounded-full ${
-                                  matricula.totalSesiones !== undefined && matricula.totalSesiones > 0
-                                    ? matricula.porcentajeAsistencia !== undefined && matricula.porcentajeAsistencia >= 80 
+                              <div
+                                className={`h-1.5 rounded-full ${matricula.totalSesiones !== undefined && matricula.totalSesiones > 0
+                                    ? matricula.porcentajeAsistencia !== undefined && matricula.porcentajeAsistencia >= 80
                                       ? 'bg-green-500'
-                                      : matricula.porcentajeAsistencia !== undefined && matricula.porcentajeAsistencia >= 50 
+                                      : matricula.porcentajeAsistencia !== undefined && matricula.porcentajeAsistencia >= 50
                                         ? 'bg-yellow-500'
-                                        : 'bg-red-500' 
+                                        : 'bg-red-500'
                                     : 'bg-gray-300'
-                                }`} 
+                                  }`}
                                 style={{ width: `${matricula.totalSesiones !== undefined && matricula.totalSesiones > 0 ? matricula.porcentajeAsistencia : 0}%` }}>
                               </div>
                             </div>
                           </div>
                           <div className="text-xs text-gray-500 mt-1">Asistencia</div>
                         </div>
-                      </div>                     
-                      
+                      </div>
+
                       <div className="mt-5 bg-gray-50 p-3 rounded-lg text-sm text-gray-600">
                         <p className="flex items-center">
                           <FaUserGraduate className="mr-2 text-blue-600" />
-                          Profesor: {matricula.asignatura.user ? 
+                          Profesor: {matricula.asignatura.user ?
                             `${matricula.asignatura.user.name || ''} ${matricula.asignatura.user.surname1 || ''}`
                             : 'No asignado'}
                         </p>
                       </div>
-                      
+
                       {/* Enlace a la página de detalles */}
                       <Link
                         href={`/alumno/asistencia-detallada?matriculaId=${matricula.id}`}
@@ -509,7 +534,7 @@ export default function AlumnoDashboard() {
                     </div>
                   </div>
                 ))}              </div>
-              
+
               {/* Divisor decorativo entre secciones */}
               <div className="relative py-5">
                 <div className="absolute inset-0 flex items-center">
@@ -521,7 +546,7 @@ export default function AlumnoDashboard() {
                   </span>
                 </div>
               </div>
-              
+
               {/* Sección de faltas pendientes de justificar */}
               <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
                 <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-4 border-b border-blue-700">
@@ -535,12 +560,12 @@ export default function AlumnoDashboard() {
                     <div className="space-y-4">
                       {faltasJustificables.map(falta => {
                         // Encontrar la matrícula correspondiente a esta falta
-                        const matriculaFalta = matriculas.find(m => 
+                        const matriculaFalta = matriculas.find(m =>
                           m.asignatura.id === falta.sesionClase.grupo.asignaturaId
                         );
-                        
+
                         if (!matriculaFalta) return null;
-                        
+
                         return (
                           <div key={falta.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-blue-50 rounded-md border border-blue-100">
                             <div className="mb-3 md:mb-0">
@@ -554,7 +579,7 @@ export default function AlumnoDashboard() {
                                 Grupo: {falta.sesionClase.grupo.denominacion}
                               </p>
                               <p className="text-gray-600 text-sm">
-                                Profesor: {matriculaFalta.asignatura.user ? 
+                                Profesor: {matriculaFalta.asignatura.user ?
                                   `${matriculaFalta.asignatura.user.name || ''} ${matriculaFalta.asignatura.user.surname1 || ''}`
                                   : 'No asignado'}
                               </p>
@@ -579,7 +604,7 @@ export default function AlumnoDashboard() {
                     </div>
                   )}
                 </div>              </div>
-              
+
               {/* División visual entre las secciones de faltas y dispensas */}
               <div className="flex items-center mb-6 mt-4">
                 <div className="flex-grow border-t border-gray-200"></div>
@@ -600,12 +625,12 @@ export default function AlumnoDashboard() {
                       <p className="mb-4 text-gray-600">
                         Las dispensas académicas te permiten justificar períodos prolongados de ausencia por motivos específicos (médicos, deportivos, etc.).
                       </p>
-                      
+
                       <div className="space-y-4">
                         {matriculas.some(m => isDispensaDisponible(m, configuracionesCarrera)) ? (
                           <>
                             <h4 className="font-medium text-gray-700">Asignaturas con dispensas disponibles:</h4>
-                            
+
                             <div className="grid gap-4 md:grid-cols-2">
                               {matriculas.filter(m => isDispensaDisponible(m, configuracionesCarrera)).map(m => (
                                 <div key={m.id} className="p-4 bg-gray-50 rounded-md border border-gray-200">
@@ -664,12 +689,12 @@ export default function AlumnoDashboard() {
 // Función para calcular el promedio de porcentaje de asistencia
 function getPromedioPorcentaje(matriculas: Matricula[]): number | string {
   if (matriculas.length === 0) return "N/A";
-  
+
   // Filtrar las asignaturas que tienen sesiones
   const matriculasConSesiones = matriculas.filter(m => m.totalSesiones && m.totalSesiones > 0);
-  
+
   if (matriculasConSesiones.length === 0) return "N/A";
-  
+
   const total = matriculasConSesiones.reduce((sum, m) => sum + (m.porcentajeAsistencia || 0), 0);
   return Math.round(total / matriculasConSesiones.length);
 }
