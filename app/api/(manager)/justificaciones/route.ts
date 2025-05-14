@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/authOptions';
+import { Prisma } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,14 +22,12 @@ export async function GET(req: NextRequest) {
     const dateToStr = searchParams.get('dateTo') || undefined;
     const subjectCode = searchParams.get('subjectCode') || undefined;
     const searchTerm = searchParams.get('searchTerm') || undefined;
-    const isUrgent = searchParams.get('isUrgent') === 'true' ? true : undefined;
-
-    // Convertir fechas si están presentes
+    const isUrgent = searchParams.get('isUrgent') === 'true' ? true : undefined;    // Convertir fechas si están presentes
     const dateFrom = dateFromStr ? new Date(dateFromStr) : undefined;
     const dateTo = dateToStr ? new Date(dateToStr) : undefined;
 
-    // Construir condiciones de filtro
-    const whereConditions: any = {};
+    // Construir condiciones de filtro usando el tipo de Prisma para SolicitudJustificacion
+    const whereConditions: Prisma.SolicitudJustificacionWhereInput = {};
     
     // Filtro por estado
     if (status !== 'all') {
@@ -43,10 +42,10 @@ export async function GET(req: NextRequest) {
       if (dateFrom) whereConditions.fechaAlegacion.gte = dateFrom;
       if (dateTo) whereConditions.fechaAlegacion.lte = dateTo;
     }
-    
-    // Filtro por urgencia (este campo podría no existir aún en el modelo)
+      // Filtro por urgencia (este campo podría no existir aún en el modelo)
     if (isUrgent !== undefined) {
-      whereConditions.isUrgent = isUrgent;
+      // Usando type assertion para campo que no existe en el modelo
+      (whereConditions as any).isUrgent = isUrgent;
     }
     
     // Filtro por código de asignatura
