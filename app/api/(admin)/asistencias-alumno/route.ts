@@ -5,12 +5,12 @@ import { logActivity } from '@/lib/logActivity';
 
 // GET - Obtener todos los registros de asistencia de alumnos
 export async function GET(request: NextRequest) {
-  try {
-    // Permitir filtrado por alumnoId, sesionClaseId y/o estadoAsistenciaId
+  try {    // Permitir filtrado por alumnoId, sesionClaseId y/o estadoAsistenciaId
     const { searchParams } = new URL(request.url);
     const alumnoId = searchParams.get('alumnoId');
     const sesionClaseId = searchParams.get('sesionClaseId');
     const estadoAsistenciaId = searchParams.get('estadoAsistenciaId');
+    const includeJustificaciones = searchParams.get('includeJustificaciones') === 'true';
 
     // Construir el filtro de búsqueda
     const where: Prisma.AsistenciaAlumnoWhereInput = {};
@@ -25,8 +25,7 @@ export async function GET(request: NextRequest) {
 
     if (estadoAsistenciaId) {
       where.estadoAsistenciaId = estadoAsistenciaId;
-    }
-
+    }    // Siempre incluir las solicitudes de justificación incluso si no se especifica en los parámetros
     const asistencias = await prisma.asistenciaAlumno.findMany({
       where,
       include: {
@@ -45,12 +44,27 @@ export async function GET(request: NextRequest) {
           }
         },
         estadoAsistencia: true,
-        SolicitudJustificacion: true
+        SolicitudJustificacion: {
+          include: {
+            estadoJustificacion: true,
+            DocumentacionJustificacion: true
+          }
+        }
       },
       orderBy: {
         fecha: 'desc',
       },
     });
+    
+    // Si hay solicitudes de justificación pendientes, asegurarse de que estén presentes
+    console.log(`Asistencias encontradas: ${asistencias.length}`);
+    const conSolicitudes = asistencias.filter(a => a.SolicitudJustificacion && a.SolicitudJustificacion.length > 0);
+    console.log(`Con solicitudes: ${conSolicitudes.length}`);
+    const conSolicitudesPendientes = conSolicitudes.filter(a => 
+      a.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Pendiente')
+    );
+    console.log(`Con solicitudes pendientes: ${conSolicitudesPendientes.length}`);
+    
 
     return NextResponse.json(asistencias, { status: 200 });
   } catch (error) {

@@ -2,14 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { logActivity } from '@/lib/logActivity';
 
-// GET: Obtener todos los alumnos-grupo con opción de filtrar por grupoId
+// GET: Obtener todos los alumnos-grupo con opción de filtrar por grupoId o alumnoId
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const grupoId = searchParams.get('grupoId');
+    const alumnoId = searchParams.get('alumnoId');
     
     // Configurar los filtros según los parámetros recibidos
-    const where = grupoId ? { grupoId } : {};
+    const where: any = {};
+    if (grupoId) {
+      where.grupoId = grupoId;
+    }
+    if (alumnoId) {
+      where.alumno_Id = alumnoId;
+    }
     
     const alumnosGrupo = await prisma.alumnoGrupo.findMany({
       where,
