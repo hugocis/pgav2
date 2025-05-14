@@ -445,7 +445,7 @@ export default function AdminUsers() {
             setUsers(users.map(user => 
               user.id === selectedUser.id ? { ...user, ...updatedUser } : user
             ));
-          } catch (e) {
+          } catch {
             console.warn("No se pudo obtener el usuario actualizado");
           }
         }
