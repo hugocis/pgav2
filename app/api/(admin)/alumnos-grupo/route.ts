@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { logActivity } from '@/lib/logActivity';
 
 // GET: Obtener todos los alumnos-grupo con opción de filtrar por grupoId o alumnoId
@@ -8,9 +9,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const grupoId = searchParams.get('grupoId');
     const alumnoId = searchParams.get('alumnoId');
-    
     // Configurar los filtros según los parámetros recibidos
-    const where: any = {};
+    const where: Prisma.AlumnoGrupoWhereInput = {};
     if (grupoId) {
       where.grupoId = grupoId;
     }
