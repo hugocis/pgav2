@@ -123,14 +123,48 @@ interface ConfiguracionCarrera {
   };
 }
 
+interface Grupo {
+  id: string;
+  denominacion: string;
+  asignaturaId: string;
+}
+
+interface SesionClase {
+  id: string;
+  fecha: string;
+  grupoId: string;
+  grupo: {
+    id: string;
+    denominacion: string;
+  };
+}
+
+// Interface para tipar las propiedades del sector activo en PieChart
+interface ActiveShapeProps {
+  cx: number;
+  cy: number;
+  midAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+  startAngle: number;
+  endAngle: number;
+  fill: string;
+  payload: {
+    name: string;
+    value: number;
+  };
+  percent: number;
+  value: number;
+}
+
 // Componente para renderizar un sector activo del PieChart
-const renderActiveShape = (props: any) => {
+const renderActiveShape = (props: ActiveShapeProps) => {
   const RADIAN = Math.PI / 180;
-  const { 
+  const {
     cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle,
-    fill, payload, percent, value
+    payload, percent, value
   } = props;
-  
+
   const sin = Math.sin(-RADIAN * midAngle);
   const cos = Math.cos(-RADIAN * midAngle);
   const sx = cx + (outerRadius + 10) * cos;
@@ -165,8 +199,8 @@ const renderActiveShape = (props: any) => {
   }
   // Determinar colores basados en el tipo de dato
   let mainColor, secondaryColor;
-  
-  switch(payload.name) {
+
+  switch (payload.name) {
     case 'Asistencias':
       mainColor = '#059669';
       secondaryColor = '#10B981';
@@ -192,17 +226,17 @@ const renderActiveShape = (props: any) => {
       secondaryColor = '#64748B';
       break;
   }
-  
+
   return (
     <g>
       {/* Centro del gráfico con información */}
-      <text x={cx} y={cy-15} textAnchor="middle" fill={mainColor} fontSize="16" fontWeight="600">
+      <text x={cx} y={cy - 15} textAnchor="middle" fill={mainColor} fontSize="16" fontWeight="600">
         {payload.name}
       </text>
-      <text x={cx} y={cy+15} textAnchor="middle" fill="#1E293B" fontSize="15" fontWeight="500">
+      <text x={cx} y={cy + 15} textAnchor="middle" fill="#1E293B" fontSize="15" fontWeight="500">
         {`${value} (${(percent * 100).toFixed(0)}%)`}
       </text>
-      
+
       {/* Sector principal */}      <Sector
         cx={cx}
         cy={cy}
@@ -210,15 +244,15 @@ const renderActiveShape = (props: any) => {
         outerRadius={outerRadius}
         startAngle={startAngle}
         endAngle={endAngle}
-        fill={payload.name === 'Asistencias' 
-          ? "url(#greenGradient)" 
-          : payload.name === 'Faltas' 
-            ? "url(#redGradient)" 
+        fill={payload.name === 'Asistencias'
+          ? "url(#greenGradient)"
+          : payload.name === 'Faltas'
+            ? "url(#redGradient)"
             : mainColor}
         stroke="#FFF"
         strokeWidth={2}
       />
-      
+
       {/* Arco exterior */}
       <Sector
         cx={cx}
@@ -230,27 +264,27 @@ const renderActiveShape = (props: any) => {
         fill={secondaryColor}
         opacity={0.7}
       />
-      
+
       {/* Línea conectora y etiqueta */}
-      <path 
-        d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} 
-        stroke={mainColor} 
+      <path
+        d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`}
+        stroke={mainColor}
         strokeWidth={1.5}
-        fill="none" 
+        fill="none"
       />
       <circle cx={ex} cy={ey} r={3} fill={mainColor} stroke="white" strokeWidth={1} />
-      <text 
-        x={ex + (cos >= 0 ? 1 : -1) * 12} 
-        y={ey - 4} 
-        textAnchor={textAnchor} 
+      <text
+        x={ex + (cos >= 0 ? 1 : -1) * 12}
+        y={ey - 4}
+        textAnchor={textAnchor}
         fill="#334155"
         fontSize="14"
         fontWeight="500"
       >{`${value} sesiones`}</text>
-      <text 
-        x={ex + (cos >= 0 ? 1 : -1) * 12} 
-        y={ey + 16} 
-        textAnchor={textAnchor} 
+      <text
+        x={ex + (cos >= 0 ? 1 : -1) * 12}
+        y={ey + 16}
+        textAnchor={textAnchor}
         fill="#64748B"
         fontSize="13"
       >
@@ -261,20 +295,20 @@ const renderActiveShape = (props: any) => {
 };
 
 // Componente para una tarjeta de estadísticas animada
-const StatCard = ({ 
-  title, 
-  value, 
-  bgColor, 
-  textColor, 
+const StatCard = ({
+  title,
+  value,
+  bgColor,
+  textColor,
   icon: Icon
-}: { 
-  title: string; 
+}: {
+  title: string;
   value: number | string;
-  bgColor: string; 
+  bgColor: string;
   textColor: string;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }) => (
-  <motion.div 
+  <motion.div
     className={`${bgColor} p-5 rounded-lg border shadow-sm`}
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -293,17 +327,17 @@ const StatCard = ({
 );
 
 export default function AsistenciaDetallada() {
-  const { data: session, status } = useSession({
+  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');
     }
   });
-  
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const matriculaId = searchParams.get('matriculaId');
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [matricula, setMatricula] = useState<Matricula | null>(null);
@@ -313,24 +347,28 @@ export default function AsistenciaDetallada() {
   const [activeIndex, setActiveIndex] = useState(0);
   // Almacena los grupos a los que pertenece el alumno para evitar consultas repetidas
   const [gruposDelAlumno, setGruposDelAlumno] = useState<string[]>([]);
-  
+
   // Efecto separado solo para obtener grupos del alumno, una sola vez
   useEffect(() => {
     // Obtener los grupos a los que pertenece el alumno para usarlos en múltiples funciones
     const obtenerGruposDelAlumno = async () => {
       if (!session?.user?.id) return;
-      
+
       try {
         const response = await fetch(`/api/alumnos-grupo?alumnoId=${session.user.id}`, {
           credentials: 'include',
           cache: 'no-store'
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           // Flexibilidad para manejar diferentes formatos de respuesta
-          const grupos = data.map((ag: any) => ag.grupoId || ag.grupo_Id);
-          
+          interface AlumnoGrupo {
+            grupoId?: string;
+            grupo_Id?: string;
+          }
+          const grupos = data.map((ag: AlumnoGrupo) => ag.grupoId || ag.grupo_Id);
+
           console.log('Grupos obtenidos del alumno:', grupos);
           setGruposDelAlumno(grupos);
         } else {
@@ -353,7 +391,7 @@ export default function AsistenciaDetallada() {
         router.push('/alumno/dashboard');
         return;
       }
-      
+
       if (gruposDelAlumno.length === 0) {
         console.log('Esperando a que se carguen los grupos del alumno...');
         return;
@@ -362,49 +400,49 @@ export default function AsistenciaDetallada() {
       try {
         setIsLoading(true);
         console.log('Cargando datos para matrícula:', matriculaId);
-        
+
         // Obtener la matrícula específica
         const timestamp = new Date().getTime(); // Añadir timestamp para evitar caché
         const url = `/api/matriculas?alumno_id=${session.user.id}&porAlumno=true&_ts=${timestamp}`;
-        
+
         const response = await fetch(url, {
           credentials: 'include',
           cache: 'no-store'
         });
-        
+
         if (!response.ok) {
           throw new Error(`Error al obtener la matrícula: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         // Buscar la matrícula específica
-        const matriculaEncontrada = Array.isArray(data) 
+        const matriculaEncontrada = Array.isArray(data)
           ? data.find((m: Matricula) => m.id === matriculaId)
           : null;
-        
+
         if (!matriculaEncontrada) {
           throw new Error('Matrícula no encontrada');
         }
-        
+
         // Obtener configuraciones de carrera para dispensas
         const configResponse = await fetch('/api/configuracion-carrera', {
           credentials: 'include',
           cache: 'no-store'
         });
-        
+
         if (configResponse.ok) {
           const configData = await configResponse.json();
           setConfiguracionesCarrera(configData);
         }
-        
+
         // Enriquecer matrícula con estadísticas de asistencia
         const matriculaConEstadisticas = await enriquecerMatricula(matriculaEncontrada);
         setMatricula(matriculaConEstadisticas);
-        
+
         // Cargar sesiones y asistencias
         await cargarSesionesYAsistencias(matriculaConEstadisticas);
-        
+
       } catch (error) {
         console.error('Error al cargar los datos:', error);
         setError(`Error al cargar los datos: ${error instanceof Error ? error.message : 'Error desconocido'}`);
@@ -412,61 +450,60 @@ export default function AsistenciaDetallada() {
         setIsLoading(false);
       }
     };
-    
+
     const enriquecerMatricula = async (matricula: Matricula): Promise<Matricula> => {
       try {
         if (!session?.user?.id || gruposDelAlumno.length === 0) {
           return matricula;
         }
-        
+
         console.log('Enriqueciendo matrícula con estadísticas:', matricula.id);
-        
+
         // Obtener los grupos de la asignatura
         const gruposResponse = await fetch(`/api/grupos?asignaturaId=${matricula.asignatura.id}`, {
           credentials: 'include',
           cache: 'no-store'
         });
-        
+
         if (!gruposResponse.ok) {
           throw new Error(`Error al obtener grupos para asignatura ${matricula.asignatura.id}`);
         }
-        
+
         const gruposData = await gruposResponse.json();
-        
         // Filtrar solo los grupos en los que el alumno está matriculado
         const gruposFiltrados = gruposData.grupos.filter(
-          (grupo: any) => gruposDelAlumno.includes(grupo.id)
+          (grupo: Grupo) => gruposDelAlumno.includes(grupo.id)
         );
-        
-        console.log('Grupos filtrados del alumno para esta asignatura:', 
-          gruposFiltrados.map((g: any) => ({ id: g.id, nombre: g.denominacion })));
-        
+
+        console.log('Grupos filtrados del alumno para esta asignatura:',
+          gruposFiltrados.map((g: Grupo) => ({ id: g.id, nombre: g.denominacion })));
+
         if (gruposFiltrados.length === 0) {
           console.warn('El alumno no está en ningún grupo de esta asignatura');
         }
-        
+
         // Obtener todas las sesiones de los grupos relevantes
-        const sesionesPromesas = gruposFiltrados.map(async (grupo: any) => {
+        const sesionesPromesas = gruposFiltrados.map(async (grupo: Grupo) => {
           const timestamp = new Date().getTime();
           const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}&_ts=${timestamp}`, {
             credentials: 'include',
             cache: 'no-store'
           });
-          
+
           if (!sesionesResponse.ok) return [];
           const sesiones = await sesionesResponse.json();
           return sesiones;
         });
-        
+
         const sesionesResultados = await Promise.all(sesionesPromesas);
         const todasLasSesiones = sesionesResultados.flat();
-        
+
         console.log('Total sesiones encontradas para estadísticas:', todasLasSesiones.length);
-        
+
         let totalSesiones = todasLasSesiones.length;
         let asistencias = 0;
         let faltas = 0;
-        
+
         if (totalSesiones === 0) {
           console.warn('No se encontraron sesiones para los grupos del alumno');
           return {
@@ -477,37 +514,36 @@ export default function AsistenciaDetallada() {
             porcentajeAsistencia: 0
           };
         }
-        
         // Obtener asistencias para todas las sesiones en paralelo
-        const asistenciasPromesas = todasLasSesiones.map(async (sesion: any) => {
+        const asistenciasPromesas = todasLasSesiones.map(async (sesion: SesionClase) => {
           const timestamp = new Date().getTime();
           const asistenciaResponse = await fetch(
             `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}&includeJustificaciones=true&_ts=${timestamp}`,
-            { 
+            {
               credentials: 'include',
               cache: 'no-store'
             }
           );
-          
+
           if (!asistenciaResponse.ok) return null;
-          
+
           const asistenciasData = await asistenciaResponse.json();
-          
+
           if (Array.isArray(asistenciasData) && asistenciasData.length > 0) {
             return asistenciasData[0];
           }
-          
+
           return null; // Si no hay registro, se considera falta
         });
-        
+
         const asistenciasResultados = await Promise.all(asistenciasPromesas);
-        
+
         // Contar asistencias y faltas con soporte para diversos tipos de asistencia
         for (const asistencia of asistenciasResultados) {
           if (asistencia) {
             const estado = asistencia.estado || (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);
-            
-            switch(estado) {
+
+            switch (estado) {
               case 'Asiste':
                 asistencias++;
                 break;
@@ -537,19 +573,19 @@ export default function AsistenciaDetallada() {
             faltas++;
           }
         }
-        
+
         // Calcular porcentaje de asistencia
-        const porcentajeAsistencia = totalSesiones > 0 
-          ? Math.round((asistencias / totalSesiones) * 100) 
+        const porcentajeAsistencia = totalSesiones > 0
+          ? Math.round((asistencias / totalSesiones) * 100)
           : 0;
-        
+
         console.log('Estadísticas calculadas para la matrícula:', {
           totalSesiones,
           asistencias,
           faltas,
           porcentajeAsistencia
         });
-        
+
         // Asegurarse de que los valores sean números válidos
         return {
           ...matricula,
@@ -563,7 +599,7 @@ export default function AsistenciaDetallada() {
         return matricula;
       }
     };
-    
+
     const cargarSesionesYAsistencias = async (matricula: Matricula) => {
       if (!session?.user?.id || gruposDelAlumno.length === 0) {
         console.log('No se pueden cargar sesiones y asistencias: faltan datos de sesión o grupos');
@@ -572,111 +608,104 @@ export default function AsistenciaDetallada() {
 
       try {
         console.log('Cargando sesiones y asistencias para la matrícula:', matricula.id);
-        
+
         // Obtener todos los grupos de la asignatura seleccionada
         const timestamp = new Date().getTime();
         const gruposResponse = await fetch(`/api/grupos?asignaturaId=${matricula.asignatura.id}&_ts=${timestamp}`, {
           credentials: 'include',
           cache: 'no-store'
         });
-        
-        if (!gruposResponse.ok) {
-          throw new Error('Error al obtener los grupos');
-        }
-        
+
         const gruposData = await gruposResponse.json();
-        
         // Solo incluir los grupos donde el alumno está matriculado
         const gruposDelAlumnoFiltrados = gruposData.grupos.filter(
-          (grupo: any) => gruposDelAlumno.includes(grupo.id)
+          (grupo: Grupo) => gruposDelAlumno.includes(grupo.id)
         );
-        
-        console.log('Grupos del alumno para sesiones y asistencias:', 
-          gruposDelAlumnoFiltrados.map((g: any) => ({ id: g.id, nombre: g.denominacion })));
-        
+
+        console.log('Grupos del alumno para sesiones y asistencias:',
+          gruposDelAlumnoFiltrados.map((g: Grupo) => ({ id: g.id, nombre: g.denominacion })));
+
         if (gruposDelAlumnoFiltrados.length === 0) {
           console.warn('El alumno no está en ningún grupo de esta asignatura - No se pueden cargar sesiones');
           setSesionesAlumno([]);
           setFaltasJustificables([]);
           return;
         }
-        
+
         // Para cada grupo, obtener las sesiones de clase
         const todasLasAsistencias: AsistenciaAlumno[] = [];
-        
         // Obtener todas las sesiones de los grupos relevantes primero
-        const sesionesPromesas = gruposDelAlumnoFiltrados.map(async (grupo: any) => {
+        const sesionesPromesas = gruposDelAlumnoFiltrados.map(async (grupo: Grupo) => {
           const ts = new Date().getTime();
           const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}&_ts=${ts}`, {
             credentials: 'include',
             cache: 'no-store'
           });
-          
+
           if (!sesionesResponse.ok) return [];
           const sesiones = await sesionesResponse.json();
           return sesiones;
         });
-        
+
         const sesionesResultados = await Promise.all(sesionesPromesas);
-        
+
         // Aplanar todas las sesiones en una sola lista
         const todasLasSesiones = sesionesResultados.flat();
-        
+
         console.log('Total sesiones encontradas para cargar asistencias detalladas:', todasLasSesiones.length);
-        
+
         if (todasLasSesiones.length === 0) {
           console.warn('No se encontraron sesiones para los grupos del alumno');
           setSesionesAlumno([]);
           setFaltasJustificables([]);
           return;
         }
-        
         // Obtener asistencias para todas las sesiones en paralelo con timestamp para evitar caché
-        const asistenciasPromesas = todasLasSesiones.map(async (sesion: any) => {
+        const asistenciasPromesas = todasLasSesiones.map(async (sesion: SesionClase) => {
           const ts = new Date().getTime();
           const asistenciaResponse = await fetch(
             `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}&includeJustificaciones=true&_ts=${ts}`,
-            { 
+            {
               credentials: 'include',
               cache: 'no-store'
             }
           );
-          
+
           if (!asistenciaResponse.ok) return [];
           const asistencias = await asistenciaResponse.json();
           return asistencias;
         });
-        
+
         const asistenciasResultados = await Promise.all(asistenciasPromesas);
-        
+
         // Aplanar todas las asistencias
         for (const asistencias of asistenciasResultados) {
           if (Array.isArray(asistencias) && asistencias.length > 0) {
             todasLasAsistencias.push(...asistencias);
           }
         }
-        
+
         console.log('Total asistencias encontradas para la vista detallada:', todasLasAsistencias.length);
-        
+
         setSesionesAlumno(todasLasAsistencias);
-        
+
         // Filtrar faltas que se pueden justificar
-        const faltas = todasLasAsistencias.filter(a => 
-          (a.estado === 'No Asiste' || 
-           a.estadoAsistencia?.denominacion === 'No Asiste' || 
-           a.estado === '50%' || 
-           a.estadoAsistencia?.denominacion === '50%') && 
-          (!a.SolicitudJustificacion || 
-           a.SolicitudJustificacion.length === 0 ||
-           a.SolicitudJustificacion.every(s => 
-             s.estadoJustificacion?.denominacion === 'Rechazado' || 
-             s.estadoJustificacion?.denominacion === 'No Justificado'
-           ))
+        const faltas = todasLasAsistencias.filter(a =>
+          (a.estado === 'No Asiste' ||
+            a.estadoAsistencia?.denominacion === 'No Asiste' ||
+            a.estado === '50%' ||
+            a.estadoAsistencia?.denominacion === '50%') &&
+          (!a.SolicitudJustificacion ||
+            a.SolicitudJustificacion.length === 0 ||
+            a.SolicitudJustificacion.every(s =>
+              s.estadoJustificacion?.denominacion === 'Rechazado' ||
+              s.estadoJustificacion?.denominacion === 'No Justificado'
+            ))
         );
-        
+
         console.log('Faltas justificables encontradas:', faltas.length);
         setFaltasJustificables(faltas);
-        
+
       } catch (error) {
         console.error('Error al cargar sesiones y asistencias:', error);
       }
@@ -685,38 +714,14 @@ export default function AsistenciaDetallada() {
     if (session?.user?.id && matriculaId && gruposDelAlumno.length > 0) {
       cargarDatos();
     }
-  }, [session?.user?.id, matriculaId, router, gruposDelAlumno.length]);
-
-  // Determinar si las dispensas están disponibles
-  const dispensasDisponibles = () => {
-    if (!configuracionesCarrera.length || !matricula) return false;
-    
-    const configCarrera = configuracionesCarrera.find(
-      c => c.carreraId === matricula.asignatura.carreraId
-    );
-    
-    if (!configCarrera) return false;
-    
-    // Verificar si las dispensas están activadas y si estamos en el período permitido
-    if (!configCarrera.SolDispensa) return false;
-    
-    if (configCarrera.FechaInicioDispensa && configCarrera.FechaFinDispensa) {
-      const ahora = new Date();
-      const inicio = new Date(configCarrera.FechaInicioDispensa);
-      const fin = new Date(configCarrera.FechaFinDispensa);
-      
-      return ahora >= inicio && ahora <= fin;
-    }
-    
-    return configCarrera.SolDispensa;
-  };
+  }, [session?.user?.id, matriculaId, router, gruposDelAlumno]);
 
   return (
     <DashboardContainer roleName="Alumno">
       <div className="bg-gray-50 min-h-full pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           {isLoading ? (
-            <motion.div 
+            <motion.div
               className="bg-white rounded-lg shadow-md p-8 flex justify-center"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -725,12 +730,12 @@ export default function AsistenciaDetallada() {
               <div className="text-center flex flex-col items-center">
                 <div className="relative">
                   <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200"></div>
-                  <div 
+                  <div
                     className="absolute top-0 left-0 animate-spin rounded-full h-16 w-16 border-4 border-t-transparent border-blue-600"
                     style={{ animationDuration: '1s' }}
                   ></div>
                 </div>
-                <motion.p 
+                <motion.p
                   className="mt-4 text-gray-600 text-base"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -741,7 +746,7 @@ export default function AsistenciaDetallada() {
               </div>
             </motion.div>
           ) : error ? (
-            <motion.div 
+            <motion.div
               className="bg-white rounded-lg shadow-md p-8"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -753,7 +758,7 @@ export default function AsistenciaDetallada() {
                 </div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">Ha ocurrido un error</h3>
                 <p className="text-gray-600 mb-6">{error}</p>
-                <Link 
+                <Link
                   href="/alumno/dashboard"
                   className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md hover:from-blue-700 hover:to-blue-800 transition-colors shadow-md flex items-center gap-2"
                 >
@@ -765,7 +770,7 @@ export default function AsistenciaDetallada() {
           ) : matricula ? (
             <>
               {/* Encabezado de la asignatura */}
-              <motion.div 
+              <motion.div
                 className="bg-white rounded-lg shadow-md mb-6 overflow-hidden"
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -774,20 +779,20 @@ export default function AsistenciaDetallada() {
                 <div className="bg-gradient-to-r from-[#0D3C68] via-[#164673] to-[#1a5590] px-6 py-6 text-white relative">
                   <div className="flex justify-between items-center">
                     <div>
-                      <motion.div 
+                      <motion.div
                         initial={{ x: -20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         transition={{ duration: 0.4 }}
                       >
-                        <Link 
-                          href="/alumno/dashboard" 
+                        <Link
+                          href="/alumno/dashboard"
                           className="mb-3 flex items-center text-sm text-blue-100 hover:text-white transition-colors group"
                         >
-                          <FaArrowLeft className="mr-1.5 group-hover:transform group-hover:-translate-x-1 transition-transform" /> 
+                          <FaArrowLeft className="mr-1.5 group-hover:transform group-hover:-translate-x-1 transition-transform" />
                           Volver al dashboard
                         </Link>
                       </motion.div>
-                      <motion.h2 
+                      <motion.h2
                         className="text-2xl font-bold"
                         initial={{ y: 10, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
@@ -795,7 +800,7 @@ export default function AsistenciaDetallada() {
                       >
                         {matricula.asignatura.Denominacion}
                       </motion.h2>
-                      <motion.p 
+                      <motion.p
                         className="text-blue-100 text-sm mt-2"
                         initial={{ y: 10, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
@@ -804,7 +809,7 @@ export default function AsistenciaDetallada() {
                         {matricula.asignatura.carrera.denominacion} • {matricula.asignatura.Curso} Curso • {matricula.asignatura.Cuatrimestre}
                       </motion.p>
                     </div>
-                    <motion.div 
+                    <motion.div
                       className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-3 shadow-lg"
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -819,10 +824,10 @@ export default function AsistenciaDetallada() {
                   {/* Decorative line constrained to container */}
                   <div className="absolute bottom-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
                 </div>
-                
+
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <motion.div 
+                    <motion.div
                       className="bg-gradient-to-br from-gray-50 to-gray-100 px-5 py-4 rounded-lg shadow-sm flex items-center"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -834,14 +839,14 @@ export default function AsistenciaDetallada() {
                       <div>
                         <p className="text-xs text-gray-500 uppercase mb-1 tracking-wider">Profesor</p>
                         <p className="text-gray-800 font-medium">
-                          {matricula.asignatura.user ? 
+                          {matricula.asignatura.user ?
                             `${matricula.asignatura.user.name || ''} ${matricula.asignatura.user.surname1 || ''} ${matricula.asignatura.user.surname2 || ''}`
                             : 'No asignado'}
                         </p>
                       </div>
                     </motion.div>
-                    
-                    <motion.div 
+
+                    <motion.div
                       className="bg-gradient-to-br from-gray-50 to-gray-100 px-5 py-4 rounded-lg shadow-sm"
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -849,17 +854,16 @@ export default function AsistenciaDetallada() {
                     >
                       <p className="text-xs text-gray-500 uppercase mb-2 tracking-wider">Porcentaje de asistencia</p>
                       <div className="flex items-center gap-3">
-                        <div className={`text-2xl font-bold ${
-                          matricula.totalSesiones && matricula.totalSesiones > 0
-                            ? (matricula.porcentajeAsistencia !== undefined 
-                                ? matricula.porcentajeAsistencia >= 80
-                                  ? 'text-green-600'
-                                  : matricula.porcentajeAsistencia >= 50
-                                    ? 'text-yellow-600'
-                                    : 'text-red-600'
-                                : 'text-gray-800')
-                            : 'text-gray-500'
-                        }`}>
+                        <div className={`text-2xl font-bold ${matricula.totalSesiones && matricula.totalSesiones > 0
+                          ? (matricula.porcentajeAsistencia !== undefined
+                            ? matricula.porcentajeAsistencia >= 80
+                              ? 'text-green-600'
+                              : matricula.porcentajeAsistencia >= 50
+                                ? 'text-yellow-600'
+                                : 'text-red-600'
+                            : 'text-gray-800')
+                          : 'text-gray-500'
+                          }`}>
                           {matricula.totalSesiones && matricula.totalSesiones > 0
                             ? `${matricula.porcentajeAsistencia || 0}%`
                             : "N/A"}
@@ -867,21 +871,20 @@ export default function AsistenciaDetallada() {
                         <div className="w-full max-w-[200px] bg-gray-200 rounded-full h-3">
                           <motion.div
                             initial={{ width: 0 }}
-                            animate={{ 
-                              width: `${(matricula.totalSesiones && matricula.totalSesiones > 0) ? (matricula.porcentajeAsistencia || 0) : 0}%` 
+                            animate={{
+                              width: `${(matricula.totalSesiones && matricula.totalSesiones > 0) ? (matricula.porcentajeAsistencia || 0) : 0}%`
                             }}
                             transition={{ duration: 0.8, delay: 0.5 }}
-                            className={`h-3 rounded-full ${
-                              matricula.totalSesiones && matricula.totalSesiones > 0
-                                ? (matricula.porcentajeAsistencia !== undefined
-                                    ? matricula.porcentajeAsistencia >= 80
-                                      ? 'bg-gradient-to-r from-green-400 to-green-600'
-                                      : matricula.porcentajeAsistencia >= 50
-                                        ? 'bg-gradient-to-r from-yellow-300 to-yellow-500'
-                                        : 'bg-gradient-to-r from-red-400 to-red-600'
-                                    : 'bg-gray-300')
-                                : 'bg-gray-300'
-                            }`}
+                            className={`h-3 rounded-full ${matricula.totalSesiones && matricula.totalSesiones > 0
+                              ? (matricula.porcentajeAsistencia !== undefined
+                                ? matricula.porcentajeAsistencia >= 80
+                                  ? 'bg-gradient-to-r from-green-400 to-green-600'
+                                  : matricula.porcentajeAsistencia >= 50
+                                    ? 'bg-gradient-to-r from-yellow-300 to-yellow-500'
+                                    : 'bg-gradient-to-r from-red-400 to-red-600'
+                                : 'bg-gray-300')
+                              : 'bg-gray-300'
+                              }`}
                           ></motion.div>
                         </div>
                       </div>
@@ -889,7 +892,7 @@ export default function AsistenciaDetallada() {
                   </div>
 
                   {/* Gráfico de asistencia */}
-                  <motion.div 
+                  <motion.div
                     className="mt-8 bg-white border border-gray-100 rounded-lg p-6 shadow-md"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -899,7 +902,7 @@ export default function AsistenciaDetallada() {
                       <FaChartPie className="mr-2 text-blue-600" />
                       Resumen de asistencia
                     </h3>
-                    <div className="flex flex-col lg:flex-row items-center gap-8">                      
+                    <div className="flex flex-col lg:flex-row items-center gap-8">
                       <div className="w-full max-w-[450px] h-[400px] relative mx-auto">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>                            {/* Definición de gradientes y efectos para mejorar la visualización */}
@@ -925,38 +928,31 @@ export default function AsistenciaDetallada() {
                                 <stop offset="100%" stopColor="#8B5CF6" stopOpacity={1} />
                               </linearGradient>
                               <filter id="pieChartShadow" height="200%">
-                                <feDropShadow dx="0" dy="3" stdDeviation="4" floodOpacity="0.15"/>
+                                <feDropShadow dx="0" dy="3" stdDeviation="4" floodOpacity="0.15" />
                               </filter>
                             </defs>
-                            
+
                             {/* Círculo decorativo de fondo */}
-                            <circle 
-                              cx="50%" 
-                              cy="50%" 
-                              r="45%" 
-                              fill="none" 
-                              stroke="#f1f5f9" 
-                              strokeWidth={4} 
+                            <circle
+                              cx="50%"
+                              cy="50%"
+                              r="45%"
+                              fill="none"
+                              stroke="#f1f5f9"
+                              strokeWidth={4}
                               strokeDasharray="2 4"
                             />                              <Pie
                               activeIndex={activeIndex}
-                              activeShape={renderActiveShape}
+                              activeShape={(props: unknown) => renderActiveShape(props as ActiveShapeProps)}
                               data={
                                 // Asegurarse de que haya sesiones para mostrar y al menos una asistencia o falta
-                                (matricula.totalSesiones && matricula.totalSesiones > 0 && 
-                                 ((matricula.asistencias ?? 0) > 0 || (matricula.faltas ?? 0) > 0)) 
-                                ? [
+                                (matricula.totalSesiones && matricula.totalSesiones > 0 &&
+                                  ((matricula.asistencias ?? 0) > 0 || (matricula.faltas ?? 0) > 0))
+                                  ? [
                                     { name: 'Asistencias', value: matricula.asistencias || 0, fill: '#059669' },
                                     { name: 'Faltas', value: matricula.faltas || 0, fill: '#DC2626' },
-                                    // Añadimos estos elementos para que aparezcan en la leyenda aunque no se muestren en el gráfico
-                                    // Se comentan para evitar que aparezcan en el gráfico, pero se muestran en la leyenda personalizada
-                                    /* 
-                                    { name: '50%', value: 0, fill: '#EAB308' },
-                                    { name: 'Justificada', value: 0, fill: '#3B82F6' },
-                                    { name: 'Dispensado', value: 0, fill: '#8B5CF6' },
-                                    */
                                   ]
-                                : [{ name: 'Sin sesiones', value: 1, fill: '#E2E8F0' }]
+                                  : [{ name: 'Sin sesiones', value: 1, fill: '#E2E8F0' }]
                               }
                               cx="50%"
                               cy="50%"
@@ -978,14 +974,14 @@ export default function AsistenciaDetallada() {
                             >
                               {((matricula.totalSesiones ?? 0) > 0)
                                 ? <>
-                                    <Cell key="asistencias" fill="url(#greenGradient)" />
-                                    <Cell key="faltas" fill="url(#redGradient)" />
-                                  </>
+                                  <Cell key="asistencias" fill="url(#greenGradient)" />
+                                  <Cell key="faltas" fill="url(#redGradient)" />
+                                </>
                                 : <Cell key="sin-sesiones" fill="#E2E8F0" />
                               }
                             </Pie>
-                            
-                            <Tooltip 
+
+                            <Tooltip
                               formatter={(value, name) => [`${value} ${name.toString().toLowerCase()}`, '']}
                               contentStyle={{
                                 borderRadius: '12px',
@@ -996,19 +992,18 @@ export default function AsistenciaDetallada() {
                               }}
                               itemStyle={{ color: '#334155' }}
                               cursor={{ fill: 'transparent' }}
-                            />                              <Legend 
+                            />                              <Legend
                               verticalAlign="bottom"
                               layout="horizontal"
                               iconSize={14}
                               iconType="circle"
                               wrapperStyle={{
                                 paddingTop: '25px'
-                              }}
-                              formatter={(value, entry) => {
+                              }} formatter={(value) => {
                                 const color = value === 'Asistencias' ? '#059669' : value === 'Faltas' ? '#DC2626' : '#475569';
                                 return <span style={{ color, fontSize: '16px', fontWeight: 500 }}>{value}</span>;
                               }}
-                              content={(props) => {
+                              content={() => {
                                 // Definimos todos los estados posibles con sus colores respectivos
                                 const estadosAsistencia = [
                                   { nombre: 'Asiste', color: '#059669' },
@@ -1017,16 +1012,16 @@ export default function AsistenciaDetallada() {
                                   { nombre: 'Justificada', color: '#3B82F6' },
                                   { nombre: 'Dispensado', color: '#8B5CF6' }
                                 ];
-                                  return (
+                                return (
                                   <div className="flex flex-wrap justify-center mt-6 gap-x-6 gap-y-3">
                                     {estadosAsistencia.map((estado, index) => (
-                                      <div 
-                                        key={`estado-${index}`} 
+                                      <div
+                                        key={`estado-${index}`}
                                         className="flex items-center px-2 py-1.5 rounded-md"
                                         style={{ backgroundColor: `${estado.color}15` }} // Color con opacidad baja (15%)
                                       >
-                                        <div 
-                                          className="w-3 h-3 rounded-full mr-2" 
+                                        <div
+                                          className="w-3 h-3 rounded-full mr-2"
                                           style={{ backgroundColor: estado.color }}
                                         />
                                         <span style={{ color: estado.color, fontSize: '13px', fontWeight: 600 }}>
@@ -1041,32 +1036,32 @@ export default function AsistenciaDetallada() {
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
-                      
+
                       <div className="flex-1 w-full">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                          <StatCard 
-                            title="Asistencias registradas" 
+                          <StatCard
+                            title="Asistencias registradas"
                             value={matricula.asistencias || 0}
                             bgColor="bg-gradient-to-br from-green-50 to-green-100"
                             textColor="text-green-800"
                             icon={FaCheck}
                           />
-                          <StatCard 
-                            title="Faltas" 
+                          <StatCard
+                            title="Faltas"
                             value={matricula.faltas || 0}
                             bgColor="bg-gradient-to-br from-red-50 to-red-100"
                             textColor="text-red-800"
                             icon={FaTimes}
                           />
-                          <StatCard 
-                            title="Total de sesiones" 
+                          <StatCard
+                            title="Total de sesiones"
                             value={matricula.totalSesiones || 0}
                             bgColor="bg-gradient-to-br from-blue-50 to-blue-100"
                             textColor="text-blue-800"
                             icon={FaClock}
                           />
-                          <StatCard 
-                            title="Faltas justificables" 
+                          <StatCard
+                            title="Faltas justificables"
                             value={faltasJustificables.length}
                             bgColor="bg-gradient-to-br from-yellow-50 to-yellow-100"
                             textColor="text-yellow-800"
@@ -1078,9 +1073,9 @@ export default function AsistenciaDetallada() {
                   </motion.div>
                 </div>
               </motion.div>
-              
+
               {/* Listado de todas las sesiones */}
-              <motion.div 
+              <motion.div
                 className="bg-white rounded-lg shadow-md mb-8 overflow-hidden"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1105,11 +1100,8 @@ export default function AsistenciaDetallada() {
                       </thead>
                       <tbody className="text-sm divide-y divide-gray-100">
                         {sesionesAlumno.length > 0 ? (
-                          sesionesAlumno.map((asistencia, index) => (
-                            <tr 
-                              key={asistencia.id} 
-                              className="hover:bg-blue-50 transition-colors"
-                            >
+                          sesionesAlumno.map((asistencia) => (
+                            <tr key={asistencia.id} className="hover:bg-blue-50 transition-colors">
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                   <div className="bg-blue-100 rounded-full p-1.5 mr-3">
@@ -1118,7 +1110,7 @@ export default function AsistenciaDetallada() {
                                   <span className="font-medium text-gray-700">
                                     {new Date(asistencia.sesionClase.fecha).toLocaleDateString('es-ES', {
                                       day: 'numeric',
-                                      month: 'long', 
+                                      month: 'long',
                                       year: 'numeric'
                                     })}
                                   </span>
@@ -1131,28 +1123,27 @@ export default function AsistenciaDetallada() {
                               </td>
                               <td className="px-6 py-4">
                                 <span className={`px-3 py-1.5 rounded-full text-xs font-medium inline-flex items-center gap-1.5
-                                  ${asistencia.estado === 'Asiste' || asistencia.estadoAsistencia?.denominacion === 'Asiste' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : asistencia.estado === '50%' || asistencia.estadoAsistencia?.denominacion === '50%' 
+                                  ${asistencia.estado === 'Asiste' || asistencia.estadoAsistencia?.denominacion === 'Asiste'
+                                    ? 'bg-green-100 text-green-800'
+                                    : asistencia.estado === '50%' || asistencia.estadoAsistencia?.denominacion === '50%'
                                       ? 'bg-yellow-100 text-yellow-800'
                                       : 'bg-red-100 text-red-800'}`}>
-                                  {asistencia.estado === 'Asiste' || asistencia.estadoAsistencia?.denominacion === 'Asiste' 
+                                  {asistencia.estado === 'Asiste' || asistencia.estadoAsistencia?.denominacion === 'Asiste'
                                     ? <FaCheck className="text-xs" />
                                     : <FaTimes className="text-xs" />
-                                  }
-                                  {asistencia.estadoAsistencia?.denominacion || asistencia.estado}
+                                  }                                  {asistencia.estadoAsistencia?.denominacion || asistencia.estado}
                                 </span>
-                              </td>                              <td className="px-6 py-4">
+                              </td>
+                              <td className="px-6 py-4">
                                 {asistencia.SolicitudJustificacion && asistencia.SolicitudJustificacion.length > 0 ? (
-                                  <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs ${
-                                    asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Pendiente')
-                                      ? 'bg-blue-100 text-blue-800'
-                                      : asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Justificado')
-                                        ? 'bg-green-100 text-green-800'
-                                        : asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Rechazado' || s.estadoJustificacion?.denominacion === 'No Justificado')
-                                          ? 'bg-red-100 text-red-800'
-                                          : 'bg-blue-100 text-blue-800'
-                                  }`}>
+                                  <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs ${asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Pendiente')
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Justificado')
+                                      ? 'bg-green-100 text-green-800'
+                                      : asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Rechazado' || s.estadoJustificacion?.denominacion === 'No Justificado')
+                                        ? 'bg-red-100 text-red-800'
+                                        : 'bg-blue-100 text-blue-800'
+                                    }`}>
                                     <FaFileAlt className="mr-1.5 text-xs" />
                                     {asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Pendiente')
                                       ? 'Pendiente'
@@ -1164,10 +1155,14 @@ export default function AsistenciaDetallada() {
                                             ? 'No Justificada'
                                             : 'Justificación enviada'}
                                   </span>
-                                ) : (asistencia.estado === 'No Asiste' || 
-                                     asistencia.estadoAsistencia?.denominacion === 'No Asiste' ||
-                                     asistencia.estado === '50%' || 
-                                     asistencia.estadoAsistencia?.denominacion === '50%') ? (
+                                ) : (asistencia.estado === 'No Asiste' ||
+                                  asistencia.estadoAsistencia?.denominacion === 'No Asiste' ||
+                                  asistencia.estado === '50%' ||
+                                  asistencia.estadoAsistencia?.denominacion === '50%') &&
+                                  (() => {
+                                    const configCarrera = configuracionesCarrera.find(c => c.carreraId === matricula.asignatura.carrera.id);
+                                    return configCarrera?.SolJustificacion;
+                                  })() ? (
                                   <Link
                                     href={`/alumno/justificar?asistenciaId=${asistencia.id}`}
                                     className="inline-flex items-center px-3 py-1.5 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 rounded-full text-xs transition-colors"
@@ -1196,14 +1191,14 @@ export default function AsistenciaDetallada() {
               </motion.div>
             </>
           ) : (
-            <motion.div 
+            <motion.div
               className="bg-white rounded-lg shadow-md p-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
               <div className="text-center p-8 flex flex-col items-center max-w-md mx-auto">
-                <motion.div 
+                <motion.div
                   className="bg-blue-50 p-5 rounded-full mb-5"
                   initial={{ scale: 0.5 }}
                   animate={{ scale: 1 }}
@@ -1211,7 +1206,7 @@ export default function AsistenciaDetallada() {
                 >
                   <FaInfoCircle className="text-5xl text-blue-400" />
                 </motion.div>
-                <motion.h2 
+                <motion.h2
                   className="text-2xl font-semibold text-gray-700 mb-3"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -1219,7 +1214,7 @@ export default function AsistenciaDetallada() {
                 >
                   Información no disponible
                 </motion.h2>
-                <motion.p 
+                <motion.p
                   className="text-gray-500 mb-6"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -1232,7 +1227,7 @@ export default function AsistenciaDetallada() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 }}
                 >
-                  <Link 
+                  <Link
                     href="/alumno/dashboard"
                     className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md hover:from-blue-700 hover:to-blue-800 transition-colors shadow-md flex items-center gap-2"
                   >
