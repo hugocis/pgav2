@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/lib/logActivity";
+import { Prisma } from "@prisma/client";
 
 // GET /api/docencia/[id]
 export async function GET(
@@ -52,16 +53,15 @@ export async function GET(
       // Extraer los parámetros de consulta opcionales
       const url = new URL(req.url);
       const cursoAcademicoId = url.searchParams.get('cursoAcademicoId');
-
       // Construir el filtro con condiciones opcionales
-      const whereConditions: any = {
+      const whereConditions: Prisma.DocenciaWhereInput = {
         profesorId: idStr
       };
 
       // Añadir filtro por curso académico si se proporciona
       if (cursoAcademicoId) {
         whereConditions.asignatura = {
-          cursoAcademicoId: parseInt(cursoAcademicoId)
+          cursoAcademicoId: cursoAcademicoId
         };
       }
 
