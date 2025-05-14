@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/authOptions';
+import { Prisma } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
   try {
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
     const dateTo = dateToStr ? new Date(dateToStr) : undefined;
 
     // Construir condiciones de filtro
-    const whereConditions: any = {};
+    const whereConditions: Prisma.SolicitudDispensaWhereInput = {};
     
     // Filtro por estado
     if (status !== 'all') {
