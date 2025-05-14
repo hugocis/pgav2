@@ -41,11 +41,10 @@ export async function GET(req: NextRequest) {
       whereConditions.fechaAlegacion = {};
       if (dateFrom) whereConditions.fechaAlegacion.gte = dateFrom;
       if (dateTo) whereConditions.fechaAlegacion.lte = dateTo;
-    }
-      // Filtro por urgencia (este campo podría no existir aún en el modelo)
+    }    // Filtro por urgencia (este campo podría no existir aún en el modelo)
     if (isUrgent !== undefined) {
-      // Usando type assertion para campo que no existe en el modelo
-      (whereConditions as any).isUrgent = isUrgent;
+      // Usando un tipo más específico para el campo adicional
+      (whereConditions as Prisma.SolicitudJustificacionWhereInput & { isUrgent?: boolean }).isUrgent = isUrgent;
     }
     
     // Filtro por código de asignatura
