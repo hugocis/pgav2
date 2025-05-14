@@ -18,7 +18,7 @@ interface CursoAcademico {
 }
 
 export default function AdminCursoAcademico() {
-  const { data: session, status } = useSession({
+  useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');
@@ -56,8 +56,6 @@ export default function AdminCursoAcademico() {
   
   // Referencias para los campos del formulario de creación
   const newDenominacionRef = useRef<HTMLInputElement>(null);
-  const newCursoAnteriorRef = useRef<HTMLInputElement>(null);
-  const newCursoSiguienteRef = useRef<HTMLInputElement>(null);
   const newActivoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -201,7 +199,7 @@ export default function AdminCursoAcademico() {
         throw new Error('Error al actualizar el estado del curso académico');
       }
       
-      const updatedCurso = await response.json();
+      await response.json(); 
 
       // Al activar un curso, actualizar el estado de todos los demás cursos a inactivo
       if (!cursoToToggle.currentStatus) {
@@ -491,11 +489,22 @@ export default function AdminCursoAcademico() {
       setIsCreating(false);
     }
   };
+  // Definición del tipo para el resultado de creación automática
+  interface AutoCreationResult {
+    resultados?: {
+      procesados: number;
+      creados: number;
+      yaExistentes?: string[];
+      errores?: string[];
+    };
+    mensaje?: string;
+  }
+
   // Estados para la creación automática de cursos académicos
   const [isCreatingAuto, setIsCreatingAuto] = useState(false);
   const [autoCreationMessage, setAutoCreationMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [showAutoDialog, setShowAutoDialog] = useState(false);
-  const [autoCreationResult, setAutoCreationResult] = useState<any>(null);
+  const [autoCreationResult, setAutoCreationResult] = useState<AutoCreationResult | null>(null);
 
   // Función para manejar la creación automática de cursos académicos
   const handleAutoCreateCurso = async () => {
@@ -1275,7 +1284,7 @@ export default function AdminCursoAcademico() {
                           <p>Cursos procesados: {autoCreationResult.resultados?.procesados || 0}</p>
                           <p>Cursos creados: {autoCreationResult.resultados?.creados || 0}</p>
                           <p>Cursos existentes: {autoCreationResult.resultados?.yaExistentes?.length || 0}</p>
-                          {autoCreationResult.resultados?.errores?.length > 0 && (
+                          {(autoCreationResult?.resultados?.errores && autoCreationResult.resultados.errores.length > 0) && (
                             <p>Errores: {autoCreationResult.resultados.errores.length}</p>
                           )}
                         </div>
