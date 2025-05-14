@@ -12,12 +12,9 @@ import {
   FaSync, 
   FaChevronDown,
   FaFileExcel, 
-  FaDownload,
-  FaFilter,
   FaChartPie
 } from 'react-icons/fa';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Pie } from 'react-chartjs-2';
 import * as XLSX from 'xlsx';
 
 // Interfaces para el tipado
@@ -114,7 +111,7 @@ interface AlumnoEstadisticas {
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 export default function ProfesorAlumnos() {
-  const { data: session, status } = useSession({
+  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       router.push('/login');
@@ -455,9 +452,6 @@ export default function ProfesorAlumnos() {
     porcentaje: number,
     size?: 'sm' | 'md' | 'lg'
   }) => {
-    const ausencias = total - asistencias;
-    const { bg, border } = getChartColors(porcentaje);
-    
     const chartSize = {
       sm: { width: 54, height: 54, fontSize: '0.75rem', strokeWidth: 3 },
       md: { width: 72, height: 72, fontSize: '0.875rem', strokeWidth: 4 },
@@ -697,7 +691,7 @@ export default function ProfesorAlumnos() {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      {alumnosFiltrados.length} resultados para "{searchTerm}"
+                      {alumnosFiltrados.length} resultados para &quot;{searchTerm}&quot;
                     </div>
                   )}
                 </div><div className="grid grid-cols-3 gap-4 md:gap-8">
@@ -805,7 +799,7 @@ export default function ProfesorAlumnos() {
                   <div className="flex flex-col items-center">
                     <p className="text-gray-600 mb-2">No se encontraron alumnos que coincidan con:</p>
                     <div className="bg-amber-50 py-2 px-4 rounded-full border border-amber-200 mb-6 inline-block">
-                      <p className="text-amber-700 font-medium">"{searchTerm}"</p>
+                      <p className="text-amber-700 font-medium">&quot;{searchTerm}&quot;</p>
                     </div>
                   </div>
                   <button 

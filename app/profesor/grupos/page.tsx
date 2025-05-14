@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardContainer from '@/components/DashboardContainer';
-import { FaUserFriends, FaPlus, FaTrash, FaSearch, FaArrowLeft, FaUsers, FaUserCog, FaSync } from 'react-icons/fa';
+import { FaUserFriends, FaPlus, FaTrash, FaSearch, FaArrowLeft, FaSync } from 'react-icons/fa';
 import Link from 'next/link';
 
 // Interfaces para el tipado
@@ -51,7 +51,7 @@ interface AlumnoGrupo {
 }
 
 export default function ProfesorGrupos() {
-  const { data: session, status } = useSession({
+  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       router.push('/login');

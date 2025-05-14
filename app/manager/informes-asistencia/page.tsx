@@ -13,7 +13,6 @@ import {
   FaFilter,
   FaCalendarAlt,
   FaUserGraduate,
-  FaChalkboardTeacher,
   FaBook,
   FaUniversity,
   FaChevronDown,

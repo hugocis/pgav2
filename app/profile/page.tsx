@@ -184,7 +184,7 @@ export default function ProfilePage() {
               
               <div className="mt-4 sm:mt-0 flex flex-wrap gap-2">
                 {session?.user?.roles?.map((role: string) => {
-                  let bgColor = 'bg-white/10';
+                  const bgColor = 'bg-white/10';
                   
                   return (
                     <span 

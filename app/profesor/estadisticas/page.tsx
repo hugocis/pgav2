@@ -489,7 +489,7 @@ export default function ProfesorEstadisticas() {
       resumenRow.push(`${mediaAsistencia}%`); // % Asistencia
       
       // Añadir estadísticas para cada sesión
-      sesiones.forEach((sesion, index) => {
+      sesiones.forEach((sesion) => {
         const asistentes = asistencias.filter(a => 
           a.sesionClaseId === sesion.id && 
           a.estadoAsistencia?.denominacion.toLowerCase() === 'asiste'
