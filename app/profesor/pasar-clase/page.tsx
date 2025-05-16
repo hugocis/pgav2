@@ -31,6 +31,13 @@ interface Asignatura {
   };
 }
 
+interface SesionClase {
+  id: string;
+  fecha: string;
+  grupoId: string;
+  docenteId: string;
+}
+
 interface Grupo {
   id: string;
   denominacion: string;
@@ -297,9 +304,8 @@ export default function PasarClase() {
         
         if (sesionesResponse.ok) {
           const sesionesData = await sesionesResponse.json();
-          
-          // Extraer solo las fechas (formato YYYY-MM-DD) de las sesiones
-          const fechas = sesionesData.map((sesion: any) => {
+            // Extraer solo las fechas (formato YYYY-MM-DD) de las sesiones
+          const fechas = sesionesData.map((sesion: SesionClase) => {
             const fecha = new Date(sesion.fecha);
             return fecha.toISOString().split('T')[0];
           });
