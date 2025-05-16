@@ -54,8 +54,21 @@ interface AsistenciaAlumno {
   user: Alumno;
 }
 
+interface EstadoAsistencia {
+  id: string;
+  denominacion: string;
+  nombre?: string;
+}
+
+interface AlumnoGrupo {
+  id: string;
+  alumno_Id: string;
+  grupoId: string;
+  user: Alumno;
+}
+
 export default function ProfesorEstadisticas() {
-  const { data: session, status } = useSession({
+  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       router.push('/login');
@@ -71,10 +84,10 @@ export default function ProfesorEstadisticas() {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [sesiones, setSesiones] = useState<SesionClase[]>([]);
   const [asistencias, setAsistencias] = useState<AsistenciaAlumno[]>([]);
-  const [grupoSeleccionado, setGrupoSeleccionado] = useState<string>('');  const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [grupoSeleccionado, setGrupoSeleccionado] = useState<string>('');  const [searchTerm, setSearchTerm] = useState('');  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [estadosAsistencia, setEstadosAsistencia] = useState<Map<string, string>>(new Map());
+  // Removing unused state variable
+  // const [estadosAsistencia, setEstadosAsistencia] = useState<Map<string, string>>(new Map());
   const [isExporting, setIsExporting] = useState(false);
   // Cargar datos iniciales
   useEffect(() => {
@@ -136,15 +149,14 @@ export default function ProfesorEstadisticas() {
         
         if (!estadosAsistenciaResponse.ok) {
           console.warn('No se pudieron cargar los estados de asistencia');
-        } else {
-          const estadosData = await estadosAsistenciaResponse.json();
-          const mapaEstados = new Map();
-          
-          estadosData.forEach((estado: any) => {
+        } else {          const estadosData = await estadosAsistenciaResponse.json();
+          const mapaEstados = new Map<string, string>();
+            estadosData.forEach((estado: EstadoAsistencia) => {
             mapaEstados.set(estado.id, estado.denominacion);
           });
           
-          setEstadosAsistencia(mapaEstados);
+          // Commenting out since the state variable is now also commented out
+          // setEstadosAsistencia(mapaEstados);
         }
         
         setIsLoading(false);
@@ -175,11 +187,10 @@ export default function ProfesorEstadisticas() {
         }
         
         const alumnosGrupoData = await alumnosGrupoResponse.json();
-        
-        // Extraer alumnos del grupo
+          // Extraer alumnos del grupo
         const alumnosDelGrupo = alumnosGrupoData
-          .filter((ag: any) => ag.user && ag.user.id) // Filtrar relaciones válidas
-          .map((ag: any) => ag.user); // Extraer los datos de usuario
+          .filter((ag: AlumnoGrupo) => ag.user && ag.user.id) // Filtrar relaciones válidas
+          .map((ag: AlumnoGrupo) => ag.user); // Extraer los datos de usuario
         
         // Ordenar los alumnos por apellido y nombre
         alumnosDelGrupo.sort((a: Alumno, b: Alumno) => {
@@ -235,9 +246,8 @@ export default function ProfesorEstadisticas() {
         setIsLoading(false);
       }
     };
-    
-    fetchSesionesYAsistencias();
-  }, [grupoSeleccionado]);
+      fetchSesionesYAsistencias();
+  }, [grupoSeleccionado, alumnos.length]);
 
   // Filtrar alumnos por término de búsqueda
   const alumnosFiltrados = searchTerm
@@ -352,9 +362,9 @@ export default function ProfesorEstadisticas() {
       const ws = XLSX.utils.aoa_to_sheet([headers, ...alumnosData]);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Asistencias');
-      
-      // Obtener referencias de celdas para aplicar estilos
-      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+        // Obtener referencias de celdas para aplicar estilos
+      // Removing unused variable
+      // const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
       const totalRows = alumnosData.length + 1; // +1 por el header
       const totalCols = headers.length;
       
@@ -713,7 +723,7 @@ export default function ProfesorEstadisticas() {
                   ) : (
                     <div className="flex items-center text-gray-500 italic bg-gray-50 p-3 rounded-md border border-gray-200">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 10-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                       </svg>
                       No hay grupos disponibles para esta asignatura.
                     </div>
