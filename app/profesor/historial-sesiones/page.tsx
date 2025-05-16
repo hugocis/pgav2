@@ -110,8 +110,7 @@ const animationStyles = `
   }
 `;
 
-export default function HistorialSesiones() {
-  const { data: session, status } = useSession({
+export default function HistorialSesiones() {  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       router.push('/login');
@@ -135,11 +134,11 @@ export default function HistorialSesiones() {
   const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
   const [sesionIdToDelete, setSesionIdToDelete] = useState<string | null>(null);
   const [estadisticas, setEstadisticas] = useState<{ [key: string]: EstadisticasSesion }>({});
-
   // States for pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
+  // Commented out as these are currently not being used
+  // const [currentPage, setCurrentPage] = useState(1);
+  // const [itemsPerPage, setItemsPerPage] = useState(10);
+  // const [totalPages, setTotalPages] = useState(1);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -472,9 +471,14 @@ export default function HistorialSesiones() {
 
           if (!estadosResponse.ok) {
             throw new Error('No se pudieron obtener los estados de asistencia');
-          } const estadosData = await estadosResponse.json();
-          // Buscar el objeto de estado por nombre o denominación
-          const estadoObj = estadosData.find((e: any) =>
+          } const estadosData = await estadosResponse.json();          // Buscar el objeto de estado por nombre o denominación
+          interface EstadoAsistencia {
+            id: string;
+            nombre?: string;
+            denominacion?: string;
+          }
+          
+          const estadoObj = estadosData.find((e: EstadoAsistencia) =>
             e.nombre === nuevoEstado || e.denominacion === nuevoEstado
           );
 
@@ -579,10 +583,8 @@ export default function HistorialSesiones() {
 
               if (asistenciasResponse.ok) {
                 const asistenciasActualizadas = await asistenciasResponse.json();
-                console.log("Asistencias actualizadas recibidas:", asistenciasActualizadas);
-
-                // Verificar si hay datos de alumnos completos
-                const datosIncompletos = asistenciasActualizadas.filter((a: any) => !a.alumno && !a.user);
+                console.log("Asistencias actualizadas recibidas:", asistenciasActualizadas);                // Verificar si hay datos de alumnos completos
+                const datosIncompletos = asistenciasActualizadas.filter((a: Asistencia) => !a.alumno && !a.user);
                 if (datosIncompletos.length > 0) {
                   console.warn(`Se encontraron ${datosIncompletos.length} registros con datos incompletos:`, datosIncompletos);
                 }

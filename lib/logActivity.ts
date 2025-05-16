@@ -24,8 +24,6 @@ export async function logActivity({
   prevValue?: any;
 }) {
   try {
-    // Intentamos obtener la sesión del usuario
-    // En Next.js 13+ App Router, usamos getServerSession
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id || null;
 
