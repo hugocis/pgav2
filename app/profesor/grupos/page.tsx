@@ -50,6 +50,13 @@ interface AlumnoGrupo {
   grupo: Grupo;
 }
 
+interface Matricula {
+  id: string;
+  alumno_id: string;
+  asignaturaId: string;
+  user: Alumno;
+}
+
 export default function ProfesorGrupos() {
   const { data: session } = useSession({
     required: true,
@@ -154,17 +161,15 @@ export default function ProfesorGrupos() {
         }
         
         const alumnosAsignaturaData = await alumnosResponse.json();
-        console.log("Respuesta API alumnos-asignatura:", alumnosAsignaturaData);
-        
-        // Extraer alumnos de la asignatura (solo los matriculados en esta asignatura específica)
-        let alumnosMatriculados = [];
+        console.log("Respuesta API alumnos-asignatura:", alumnosAsignaturaData);        // Extraer alumnos de la asignatura (solo los matriculados en esta asignatura específica)
+        let alumnosMatriculados: Alumno[] = [];
         if (alumnosAsignaturaData && Array.isArray(alumnosAsignaturaData)) {
-          alumnosMatriculados = alumnosAsignaturaData.map((matricula: any) => {
+          alumnosMatriculados = alumnosAsignaturaData.map((matricula: Matricula) => {
             if (matricula && matricula.user) {
               return matricula.user;
             }
             return null;
-          }).filter((a: any) => a !== null);
+          }).filter((a: Alumno | null) => a !== null);
           
           console.log("Alumnos matriculados en la asignatura:", alumnosMatriculados.length);
         }
