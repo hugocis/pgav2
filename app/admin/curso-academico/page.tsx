@@ -453,17 +453,45 @@ export default function AdminCursoAcademico() {
           updatedAt: createdCurso.updatedAt
         };
 
-        // Si el curso es activo, desactivar todos los demás
-        if (newCurso.activo) {
-          const updatedCursos = cursosAcademicos.map(curso => ({
-            ...curso,
-            activo: false
-          }));
-          setCursosAcademicos([...updatedCursos, newCurso]);
-          setFilteredCursos([...updatedCursos, newCurso]);
-        } else {
-          setCursosAcademicos(prevCursos => [...prevCursos, newCurso]);
-          setFilteredCursos(prevFiltered => [...prevFiltered, newCurso]);
+        // Si el curso es activo, desactivar todos los demás        // Actualizar directamente desde el servidor para asegurar que tenemos todos los datos completos
+        try {
+          const fetchResponse = await fetch('/api/cursos-academicos', {
+            credentials: 'include',
+            cache: 'no-store'
+          });
+          
+          if (fetchResponse.ok) {
+            const updatedCursos = await fetchResponse.json();
+            setCursosAcademicos(updatedCursos);
+            setFilteredCursos(updatedCursos);
+          } else {
+            // Si hay error al obtener los datos actualizados, usamos la alternativa local
+            if (newCurso.activo) {
+              const updatedCursos = cursosAcademicos.map(curso => ({
+                ...curso,
+                activo: false
+              }));
+              setCursosAcademicos([...updatedCursos, newCurso]);
+              setFilteredCursos([...updatedCursos, newCurso]);
+            } else {
+              setCursosAcademicos(prevCursos => [...prevCursos, newCurso]);
+              setFilteredCursos(prevFiltered => [...prevFiltered, newCurso]);
+            }
+          }
+        } catch (error) {
+          console.error('Error al actualizar la lista de cursos académicos:', error);
+          // En caso de error, utilizamos la actualización local
+          if (newCurso.activo) {
+            const updatedCursos = cursosAcademicos.map(curso => ({
+              ...curso,
+              activo: false
+            }));
+            setCursosAcademicos([...updatedCursos, newCurso]);
+            setFilteredCursos([...updatedCursos, newCurso]);
+          } else {
+            setCursosAcademicos(prevCursos => [...prevCursos, newCurso]);
+            setFilteredCursos(prevFiltered => [...prevFiltered, newCurso]);
+          }
         }
         
         setCreateMessage({ text: 'Curso académico creado correctamente', type: 'success' });
