@@ -650,8 +650,8 @@ export default function ProfesorGrupos() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {alumnosFiltrados && alumnosFiltrados.map((alumno, index) => {
                         if (!alumno || !alumno.id) return null;
-                          return (
-                          <tr key={alumno.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        return (
+                        <tr key={alumno.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div 

@@ -230,10 +230,10 @@ export default function HistorialSesiones() {  const { data: session } = useSess
               console.log(`Asistencias encontradas: ${asistenciasData.length}`);
                 // Comprobar solicitudes de justificación (manera segura)
               const conSolicitudes = asistenciasData.filter((a: Asistencia) => 
-                Array.isArray(a.solicitudesJustificacion) && a.solicitudesJustificacion.length > 0);
+                Array.isArray(a.solicitudesJustificacion) && a.solicitudesJustificacion.length > 0);              
               const conSolicitudesPendientes = asistenciasData.filter((a: Asistencia) => 
                 Array.isArray(a.solicitudesJustificacion) && 
-                a.solicitudesJustificacion.some((s: any) => s.estadoJustificacionId === 'pendiente'));
+                a.solicitudesJustificacion.some((s: {estadoJustificacionId: string}) => s.estadoJustificacionId === 'pendiente'));
                 
               console.log(`Con solicitudes: ${conSolicitudes.length}`);
               console.log(`Con solicitudes pendientes: ${conSolicitudesPendientes.length}`);
@@ -268,12 +268,12 @@ export default function HistorialSesiones() {  const { data: session } = useSess
             })
           );
             // Actualizar estadísticas en un solo paso después de procesar todas las sesiones
-          const nuevoEstadisticas: { [key: string]: EstadisticasSesion } = {};
-          sesionesConEstadisticas.forEach((sesion: any) => {
+          const nuevoEstadisticas: { [key: string]: EstadisticasSesion } = {};          sesionesConEstadisticas.forEach((sesion: SesionClase & {estadisticas?: EstadisticasSesion}) => {
             if (sesion && sesion.id && sesion.estadisticas) {
               nuevoEstadisticas[sesion.id] = sesion.estadisticas;
-              // Remover estadísticas temporales del objeto para evitar duplicación
-              delete (sesion as any).estadisticas;
+              // Usar una variable temporal para la eliminación segura
+              const sesionTemp = sesion as {estadisticas?: EstadisticasSesion};
+              delete sesionTemp.estadisticas;
             }
           });
           setEstadisticas(nuevoEstadisticas);
@@ -876,7 +876,8 @@ export default function HistorialSesiones() {  const { data: session } = useSess
                         </div>
                       </div>
                     </div>
-                    <div className="overflow-x-auto">                      <table className="min-w-full divide-y divide-gray-200">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -948,7 +949,6 @@ export default function HistorialSesiones() {  const { data: session } = useSess
                                         ({stats.asisten} / {stats.total})
                                       </span>
                                     </div>
-                                    {/* Barra de progreso */}
                                     <div className="w-full bg-gray-100 rounded-full h-1.5">
                                       <div
                                         className={`h-1.5 rounded-full ${stats.porcentajeAsistencia >= 80 ? 'bg-green-500' :
@@ -959,7 +959,8 @@ export default function HistorialSesiones() {  const { data: session } = useSess
                                     </div>
                                   </div>
                                 </div>
-                              </td>                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 <div className="flex justify-center space-x-1">
                                   <button
                                     onClick={() => verDetallesSesion(sesion)}
@@ -1123,7 +1124,8 @@ export default function HistorialSesiones() {  const { data: session } = useSess
                     {sesionSeleccionada.asistencias?.length || 0} registros
                   </div>
                 </div>
-                {sesionSeleccionada.asistencias && sesionSeleccionada.asistencias.length > 0 ? (                  <table className="min-w-full divide-y divide-gray-200">
+                {sesionSeleccionada.asistencias && sesionSeleccionada.asistencias.length > 0 ? (
+                  <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
                         <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1153,15 +1155,16 @@ export default function HistorialSesiones() {  const { data: session } = useSess
                       // Si después de filtrar y unir sigue vacío, esto indica que no hay datos de nombre
                       nombreCompleto = nombreCompleto.trim();
 
-                      return (                          <tr key={asistencia.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 whitespace-nowrap text-sm">
-                              <div className="flex items-center">
-                                <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 mr-3">
-                                  <FaUserGraduate />
-                                </div>
-                                <span>{nombreCompleto ? nombreCompleto : 'Alumno no disponible'}</span>
+                      return (
+                        <tr key={asistencia.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            <div className="flex items-center">
+                              <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 mr-3">
+                                <FaUserGraduate />
                               </div>
-                            </td>
+                              <span>{nombreCompleto ? nombreCompleto : 'Alumno no disponible'}</span>
+                            </div>
+                          </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${getEstadoAsistenciaClass(asistencia.estado || (asistencia.estadoAsistencia?.denominacion || 'Sin registro'))}`}>
                               {asistencia.estado || (asistencia.estadoAsistencia?.denominacion || 'Sin registro')}
@@ -1276,7 +1279,8 @@ export default function HistorialSesiones() {  const { data: session } = useSess
                 </div>
 
                 <div className="overflow-x-auto max-h-[400px]">
-                  {asistenciasEdicion.length > 0 ? (                    <table className="min-w-full">
+                  {asistenciasEdicion.length > 0 ? (
+                    <table className="min-w-full">
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
                           <th scope="col" className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1326,30 +1330,31 @@ export default function HistorialSesiones() {  const { data: session } = useSess
 
                         const estado = estadosModificados[asistencia.id] || asistencia.estado;
 
-                        return (                          <tr key={asistencia.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-5 py-3">
-                              <div className="flex items-center">
-                                <div className="h-10 w-10 flex-shrink-0">
-                                  <div className="h-full w-full rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
-                                    <FaUserGraduate />
-                                  </div>
-                                </div>
-                                <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {nombreCompleto ? nombreCompleto : 'Alumno no disponible'}
-                                  </div>
+                        return (
+                        <tr key={asistencia.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-5 py-3">
+                            <div className="flex items-center">
+                              <div className="h-10 w-10 flex-shrink-0">
+                                <div className="h-full w-full rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
+                                  <FaUserGraduate />
                                 </div>
                               </div>
-                            </td>
-                            <td className="px-5 py-3 text-center">
-                              <button
-                                onClick={() => cambiarEstadoAsistencia(asistencia.id)}
-                                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${getEstadoAsistenciaClass(estado)}`}
-                              >
-                                {estado}
-                              </button>
-                            </td>
-                          </tr>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {nombreCompleto ? nombreCompleto : 'Alumno no disponible'}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-3 text-center">
+                            <button
+                              onClick={() => cambiarEstadoAsistencia(asistencia.id)}
+                              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${getEstadoAsistenciaClass(estado)}`}
+                            >
+                              {estado}
+                            </button>
+                          </td>
+                        </tr>
                         );
                       })}
                       </tbody>

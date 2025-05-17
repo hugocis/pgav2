@@ -871,7 +871,8 @@ export default function ProfesorEstadisticas() {
                           </th>
                         ))}
                       </tr>
-                    </thead>                    <tbody className="bg-white divide-y divide-gray-200">
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
                       {alumnosFiltrados.map((alumno, index) => {
                         if (!alumno || !alumno.id) return null;
                         
