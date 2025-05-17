@@ -202,7 +202,6 @@ export default function AdminConfiguracionCarreras() {
     setIsDialogOpen(false);
     setSelectedConfiguracion(null);
   };
-
   const handleUpdateConfiguracion = async () => {
     if (!selectedConfiguracion) return;
     
@@ -227,30 +226,37 @@ export default function AdminConfiguracionCarreras() {
         },
         credentials: 'include',
         body: JSON.stringify(updatedData),
-      });      if (response.ok) {
+      });      
+      
+      if (response.ok) {
         // Actualizar la configuración en el estado local
         const updatedConfiguracion = await response.json();
-          // Construir la configuración actualizada manteniendo la referencia a carrera
+          
+        // Construir la configuración actualizada manteniendo la referencia a carrera
         const updatedConfig = {
           ...selectedConfiguracion,
           ...updatedConfiguracion,
-          carrera: selectedConfiguracion.carrera
+          carrera: selectedConfiguracion.carrera,
+          FechaInicioDispensa: fechaInicio ? new Date(fechaInicio).toISOString() : null,
+          FechaFinDispensa: fechaFin ? new Date(fechaFin).toISOString() : null,
+          SolDispensa: solDispensaRef.current?.checked || false,
+          SolJustificacion: solJustificacionRef.current?.checked || false
         };
 
-        // Actualizar configuraciones
+        // Actualizar configuraciones - copia inmutable para asegurar re-renderizado
         setConfiguraciones(prevConfigs => {
           const newConfigs = prevConfigs.map(config => 
-            config.id === selectedConfiguracion.id ? updatedConfig : config
+            config.id === selectedConfiguracion.id ? { ...updatedConfig } : config
           );
-          return newConfigs;
+          return [...newConfigs];
         });
 
-        // Actualizar configuraciones filtradas
+        // Actualizar configuraciones filtradas - copia inmutable para asegurar re-renderizado
         setFilteredConfiguraciones(prevFiltered => {
           const newFiltered = prevFiltered.map(config => 
-            config.id === selectedConfiguracion.id ? updatedConfig : config
+            config.id === selectedConfiguracion.id ? { ...updatedConfig } : config
           );
-          return newFiltered;
+          return [...newFiltered];
         });
         
         setUpdateMessage({ text: 'Configuración actualizada correctamente', type: 'success' });
@@ -331,15 +337,12 @@ export default function AdminConfiguracionCarreras() {
           ...createdConfig,
           carrera: carrera
         };
-        
-        // Actualizar ambos estados
+          // Actualizar ambos estados - hacer copias inmutables para forzar re-renderizado
         setConfiguraciones(prevConfigs => {
-          const newConfigs = [...prevConfigs, newConfig];
-          return newConfigs;
+          return [...prevConfigs, { ...newConfig }];
         });
         setFilteredConfiguraciones(prevFiltered => {
-          const newFiltered = [...prevFiltered, newConfig];
-          return newFiltered;
+          return [...prevFiltered, { ...newConfig }];
         });
         
         setCreateMessage({ text: 'Configuración creada correctamente', type: 'success' });        // Actualizar la lista de carreras sin configuración
@@ -385,6 +388,128 @@ export default function AdminConfiguracionCarreras() {
     if (!dateString) return '';
     const date = new Date(dateString);
     return date.toISOString().split('T')[0]; // Formato YYYY-MM-DD para inputs type="date"
+  };
+  const handleToggleDispensa = async (configId: string, currentValue: boolean, e: React.MouseEvent) => {
+    e.stopPropagation(); // Evitar que se abra el modal
+    
+    try {
+      // Primero encontrar la configuración actual para mantener los otros campos
+      const currentConfig = configuraciones.find(config => config.id === configId);
+      if (!currentConfig) {
+        console.error('No se encontró la configuración con ID:', configId);
+        return;
+      }
+
+      // Crear objeto con todos los campos necesarios
+      const updatedData = {
+        FechaInicioDispensa: currentConfig.FechaInicioDispensa,
+        FechaFinDispensa: currentConfig.FechaFinDispensa,
+        SolDispensa: !currentValue,
+        SolJustificacion: currentConfig.SolJustificacion
+      };
+      
+      const response = await fetch(`/api/configuracion-carrera/${configId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(updatedData),
+      });
+      
+      if (response.ok) {
+        // Actualizar inmediatamente la UI
+        setConfiguraciones(prevConfigs => {
+          return prevConfigs.map(config => {
+            if (config.id === configId) {
+              return { ...config, SolDispensa: !currentValue };
+            }
+            return config;
+          });
+        });
+        
+        // Actualizar también las configuraciones filtradas
+        setFilteredConfiguraciones(prevFiltered => {
+          return prevFiltered.map(config => {
+            if (config.id === configId) {
+              return { ...config, SolDispensa: !currentValue };
+            }
+            return config;
+          });
+        });      } else {
+        try {
+          const errorData = await response.json();
+          console.error('Error de API:', errorData);
+          alert(`Error al actualizar el estado de dispensas: ${errorData.message || response.statusText}`);
+        } catch (e) {
+          alert(`Error al actualizar el estado de dispensas: ${response.status} ${response.statusText}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error de conexión:', error);
+      alert('Error de conexión al actualizar las dispensas');
+    }
+  };
+  const handleToggleJustificacion = async (configId: string, currentValue: boolean, e: React.MouseEvent) => {
+    e.stopPropagation(); // Evitar que se abra el modal
+    
+    try {
+      // Primero encontrar la configuración actual para mantener los otros campos
+      const currentConfig = configuraciones.find(config => config.id === configId);
+      if (!currentConfig) {
+        console.error('No se encontró la configuración con ID:', configId);
+        return;
+      }
+
+      // Crear objeto con todos los campos necesarios
+      const updatedData = {
+        FechaInicioDispensa: currentConfig.FechaInicioDispensa,
+        FechaFinDispensa: currentConfig.FechaFinDispensa,
+        SolDispensa: currentConfig.SolDispensa,
+        SolJustificacion: !currentValue
+      };
+      
+      const response = await fetch(`/api/configuracion-carrera/${configId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(updatedData),
+      });
+      
+      if (response.ok) {
+        // Actualizar inmediatamente la UI
+        setConfiguraciones(prevConfigs => {
+          return prevConfigs.map(config => {
+            if (config.id === configId) {
+              return { ...config, SolJustificacion: !currentValue };
+            }
+            return config;
+          });
+        });
+        
+        // Actualizar también las configuraciones filtradas
+        setFilteredConfiguraciones(prevFiltered => {
+          return prevFiltered.map(config => {
+            if (config.id === configId) {
+              return { ...config, SolJustificacion: !currentValue };
+            }
+            return config;
+          });
+        });      } else {
+        try {
+          const errorData = await response.json();
+          console.error('Error de API:', errorData);
+          alert(`Error al actualizar el estado de justificaciones: ${errorData.message || response.statusText}`);
+        } catch (e) {
+          alert(`Error al actualizar el estado de justificaciones: ${response.status} ${response.statusText}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error de conexión:', error);
+      alert('Error de conexión al actualizar las justificaciones');
+    }
   };
 
   return (
@@ -486,8 +611,8 @@ export default function AdminConfiguracionCarreras() {
               <div className="text-center text-red-600">{error}</div>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">                <table className="min-w-full divide-y divide-gray-200">
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrera</th>
@@ -509,82 +634,86 @@ export default function AdminConfiguracionCarreras() {
                           Justificaciones
                         </div>
                       </th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredConfiguraciones.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
-                          No se encontraron configuraciones con los criterios de búsqueda.
-                        </td>
-                      </tr>
-                    ) : (
-                      getCurrentPageItems().map(config => (
-                        <tr key={config.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleRowClick(config)}>
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                            {config.carrera ? config.carrera.denominacion : 'No disponible'}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            <div className="flex items-center justify-center space-x-2">
-                              {config.FechaInicioDispensa && config.FechaFinDispensa ? (
-                                <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-center border border-blue-200">
-                                  {new Date(config.FechaInicioDispensa).toLocaleDateString('es-ES', { 
-                                    day: '2-digit',
-                                    month: 'short'
-                                  })} 
-                                  <span className="mx-1">→</span>
-                                  {new Date(config.FechaFinDispensa).toLocaleDateString('es-ES', { 
-                                    day: '2-digit',
-                                    month: 'short'
-                                  })}
-                                </div>
-                              ) : (
-                                <span className="text-gray-400 italic">Sin periodo definido</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex justify-center">
-                              {config.SolDispensa ? (
-                                <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full flex items-center border border-emerald-200">
-                                  <FaToggleOn className="mr-2" /> Habilitado
-                                </div>
-                              ) : (
-                                <div className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full flex items-center border border-gray-200">
-                                  <FaToggleOff className="mr-2" /> Deshabilitado
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex justify-center">
-                              {config.SolJustificacion ? (
-                                <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full flex items-center border border-emerald-200">
-                                  <FaToggleOn className="mr-2" /> Habilitado
-                                </div>
-                              ) : (
-                                <div className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full flex items-center border border-gray-200">
-                                  <FaToggleOff className="mr-2" /> Deshabilitado
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-right">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteConfiguracion(config.id);
-                              }} 
-                              className="text-red-600 hover:text-red-900"
-                              title="Eliminar configuración"
-                            >
-                              <FaTrash className="inline" /> Eliminar
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
+                  <tbody className="bg-white divide-y divide-gray-200">{filteredConfiguraciones.length === 0 ? (
+<tr>
+<td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+No se encontraron configuraciones con los criterios de búsqueda.
+</td>
+</tr>
+) : (
+getCurrentPageItems().map(config => (
+<tr key={config.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleRowClick(config)}>
+<td className="px-6 py-4 text-sm font-medium text-gray-900">
+{config.carrera ? config.carrera.denominacion : 'No disponible'}
+</td>
+<td className="px-6 py-4 text-sm text-gray-500">
+<div className="flex items-center justify-center space-x-2">
+{config.FechaInicioDispensa && config.FechaFinDispensa ? (
+<div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-center border border-blue-200">
+{new Date(config.FechaInicioDispensa).toLocaleDateString('es-ES', { 
+day: '2-digit',
+month: 'short'
+})} 
+<span className="mx-1">→</span>
+{new Date(config.FechaFinDispensa).toLocaleDateString('es-ES', { 
+day: '2-digit',
+month: 'short'
+})}
+</div>
+) : (
+<span className="text-gray-400 italic">Sin periodo definido</span>
+)}
+</div>
+</td>
+<td className="px-6 py-4">
+<div className="flex justify-center">
+<button 
+onClick={(e) => handleToggleDispensa(config.id, config.SolDispensa, e)}
+className={`px-3 py-1 rounded-full flex items-center transition-all duration-200 border ${
+config.SolDispensa 
+? 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200' 
+: 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
+}`}
+>
+{config.SolDispensa ? (
+<>
+<FaToggleOn className="mr-2" /> Habilitado
+</>
+) : (
+<>
+<FaToggleOff className="mr-2" /> Deshabilitado
+</>
+)}
+</button>
+</div>
+</td>
+<td className="px-6 py-4">
+<div className="flex justify-center">
+<button 
+onClick={(e) => handleToggleJustificacion(config.id, config.SolJustificacion, e)}
+className={`px-3 py-1 rounded-full flex items-center transition-all duration-200 border ${
+config.SolJustificacion 
+? 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200' 
+: 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
+}`}
+>
+{config.SolJustificacion ? (
+<>
+<FaToggleOn className="mr-2" /> Habilitado
+</>
+) : (
+<>
+<FaToggleOff className="mr-2" /> Deshabilitado
+</>
+)}
+</button>
+</div>
+</td>
+</tr>
+))
+)}
                   </tbody>
                 </table>
               </div>
