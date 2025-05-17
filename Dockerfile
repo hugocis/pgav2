@@ -1,23 +1,25 @@
-FROM node:slim AS base
+FROM node:20-slim AS base
 
-# Install dependencies only when needed
+# Instalar dependencias para Prisma y otras herramientas básicas
+RUN apt-get update && apt-get install -y openssl dumb-init && rm -rf /var/lib/apt/lists/*
+
+# Instalar dependencias solo cuando sea necesario
 FROM base AS deps
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
+# Instalar dependencias según el gestor de paquetes preferido
 COPY package.json package-lock.json* ./
 RUN npm ci
 
-# Rebuild the source code only when needed
+# Reconstruir el código fuente solo cuando sea necesario
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Environment variables must be present at build time
-# https://nextjs.org/docs/basic-features/environment-variables
-ARG DATABASE_URL
-ENV DATABASE_URL=$DATABASE_URL
+# Prisma genera el cliente durante la construcción pero no necesita conectarse a la DB en este punto
+# Usamos una URL ficticia durante la construcción
+ENV DATABASE_URL="postgresql://fake:fake@localhost:5432/fake"
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -51,11 +53,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
+# Copiar el script de inicialización para ejecutar migraciones
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/init-db.sh ./scripts/init-db.sh
+
 EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# server.js is created by next build from the standalone output
-# https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD ["node", "server.js"]
+# Usamos dumb-init para manejar señales correctamente y evitar procesos zombies
+# El script de inicio ejecuta primero las migraciones y luego inicia el servidor
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["sh", "-c", "sh ./scripts/init-db.sh && node server.js"]

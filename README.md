@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portal de Gestión Académica (PGA)
 
-## Getting Started
+Aplicación web para la gestión académica universitaria, desarrollada con Next.js, Prisma y PostgreSQL. Facilita la administración de asistencia a clase, gestión de matrículas, dispensas académicas, justificaciones y otros aspectos relacionados con la vida académica.
 
-First, run the development server:
+## Características
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Gestión de asistencia**: Permite a los profesores registrar asistencia y a los alumnos revisar sus registros.
+- **Múltiples roles**: Funcionalidad adaptada para alumnos, profesores, administradores y gestores académicos.
+- **Justificaciones**: Sistema para solicitar, revisar y aprobar justificaciones de ausencia.
+- **Dispensas académicas**: Gestión de solicitudes de dispensas para actividades académicas específicas.
+- **Dashboard personalizado**: Interfaz adaptada a cada tipo de usuario.
+- **Registro de actividad**: Control detallado de acciones realizadas en el sistema.
+
+## Tecnologías
+
+- **Frontend**: Next.js 15, React 19, Tailwind CSS
+- **Backend**: API Routes de Next.js
+- **Base de datos**: PostgreSQL con Prisma ORM
+- **Autenticación**: NextAuth.js
+- **Contenedorización**: Docker y Docker Compose
+
+## Requisitos
+
+- Node.js (versión 20 o superior)
+- npm (versión 10 o superior)
+- PostgreSQL (opcional si usas Docker)
+- Docker y Docker Compose (opcional)
+
+## Instalación y Ejecución
+
+### Desarrollo Local
+
+1. **Clonar el repositorio**
+   ```bash
+   git clone <url-del-repositorio>
+   cd pga
+   ```
+
+2. **Instalar dependencias**
+   ```bash
+   npm install
+   ```
+
+3. **Configurar variables de entorno**
+   ```bash
+   cp .env.example .env
+   ```
+   Edita `.env` con tus configuraciones locales.
+
+4. **Configurar la base de datos**
+   ```bash
+   npx prisma migrate dev
+   npx prisma generate
+   ```
+
+5. **Ejecutar el servidor de desarrollo**
+   ```bash
+   npm run dev
+   ```
+
+La aplicación estará disponible en [http://localhost:3000](http://localhost:3000).
+
+### Usando Docker
+
+1. **Configurar variables de entorno para Docker**
+   ```bash
+   cp .env.example .env.production
+   ```
+   Edita `.env.production` con las configuraciones para Docker.
+
+2. **Construir e iniciar los contenedores**
+   ```bash
+   npm run docker:build
+   npm run docker:up
+   ```
+
+3. **Ver logs (opcional)**
+   ```bash
+   npm run docker:logs
+   ```
+
+La aplicación estará disponible en [http://localhost:3000](http://localhost:3000).
+
+Para más detalles sobre la configuración de Docker, consulta [README-docker.md](README-docker.md).
+
+## Estructura del proyecto
+
+```
+app/                      # Código de la aplicación Next.js
+  api/                    # API Routes (backend)
+  (rutas de frontend)     # Páginas de la aplicación
+components/               # Componentes React reutilizables
+lib/                      # Utilidades y configuraciones
+prisma/                   # Esquemas y migraciones de Prisma
+public/                   # Archivos estáticos
+scripts/                  # Scripts de utilidad
+types/                    # Declaraciones de tipos TypeScript
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Entornos de ejecución
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Desarrollo**: Ejecuta `npm run dev` para desarrollo local
+- **Producción con Docker**: Usa Docker Compose como se describe en la sección Docker
+- **Producción sin Docker**: Construye la aplicación con `npm run build` y ejecútala con `npm start`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Licencia
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Este proyecto es privado y está destinado exclusivamente para uso académico.
