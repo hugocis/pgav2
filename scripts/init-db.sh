@@ -35,9 +35,26 @@ export PGPASSWORD=$DB_PASSWORD
 CONN_TEST=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "SELECT 'Conexión exitosa';" 2>&1 || echo "Error de conexión")
 echo "$CONN_TEST"
 
+# Asegurarnos de que existe el directorio .npm y tiene los permisos correctos
+mkdir -p $HOME/.npm
+chmod 700 $HOME/.npm
+
+# Verificar que el archivo schema.prisma existe
+echo "Verificando la ubicación del schema.prisma..."
+if [ -f "./prisma/schema.prisma" ]; then
+  echo "✅ Schema encontrado en ./prisma/schema.prisma"
+  SCHEMA_PATH="./prisma/schema.prisma"
+else
+  echo "❌ No se encontró el archivo schema.prisma"
+  ls -la ./prisma/
+  echo "Contenido del directorio actual:"
+  ls -la ./
+  exit 1
+fi
+
 # Intentamos ejecutar migraciones de Prisma
 echo "Ejecutando migraciones de Prisma..."
-npx prisma migrate deploy
+HOME=$HOME npx prisma migrate deploy --schema=$SCHEMA_PATH
 
 MIGRATE_EXIT_CODE=$?
 if [ $MIGRATE_EXIT_CODE -eq 0 ]; then
@@ -46,7 +63,14 @@ if [ $MIGRATE_EXIT_CODE -eq 0 ]; then
   # Comprobamos si debemos ejecutar el seeder
   if [ "$RUN_SEEDER" = "true" ]; then
     echo "🌱 Ejecutando seeder de Prisma..."
-    npx prisma db seed
+    echo "Verificando que ts-node está instalado..."
+    if ! command -v ts-node >/dev/null 2>&1; then
+      echo "⚠️ ts-node no encontrado, intentando instalarlo globalmente..."
+      npm install -g ts-node typescript
+    fi
+    
+    echo "Ejecutando seed con HOME=$HOME"
+    HOME=$HOME npx prisma db seed --schema=$SCHEMA_PATH
     if [ $? -eq 0 ]; then
       echo "✅ Seed ejecutado correctamente."
     else

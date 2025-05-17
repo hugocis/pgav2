@@ -45,8 +45,8 @@ if (-not $seedEnabled) {
     }
 }
 
-Write-Host "[BUILD] Reconstruyendo la imagen de la aplicación web..." -ForegroundColor Magenta
-docker-compose -f $dockerComposeFile build web
+Write-Host "[BUILD] Reconstruyendo la imagen de la aplicación web sin cache..." -ForegroundColor Magenta
+docker-compose -f $dockerComposeFile build --no-cache web
 
 Write-Host "[START] Iniciando los contenedores..." -ForegroundColor Green
 docker-compose -f $dockerComposeFile up -d
