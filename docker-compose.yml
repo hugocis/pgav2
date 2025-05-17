@@ -1,34 +1,33 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: pga-postgres
     restart: always
-    ports:
-      - "5432:5432"
+    # No exponemos el puerto externamente, solo accesible dentro de la red docker
+    expose:
+      - "5432"
     env_file:
       - .env.production
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-pga2}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    networks:
+      - pga-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
       timeout: 5s
       retries: 5
-
+  
   # Next.js Web Application
   web:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        DATABASE_URL: ${DATABASE_URL}
     container_name: pga-web
     restart: always
     ports:
@@ -40,8 +39,23 @@ services:
       - .env.production
     environment:
       NODE_ENV: production
-      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/pga}
+      # Configuración para conectarse a la base de datos
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-pga2}?schema=public
+      # Variables para debugging de conexión
+      PGUSER: ${POSTGRES_USER:-postgres}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATABASE: ${POSTGRES_DB:-pga2}
+      PGHOST: postgres
+      # Activar el seeder (establecer a "true" para ejecutar el seed)
+      RUN_SEEDER: ${RUN_SEEDER:-true}
+    networks:
+      - pga-network
 
 volumes:
   postgres-data:
     name: pga-postgres-data
+
+networks:
+  pga-network:
+    name: pga-network
+    driver: bridge

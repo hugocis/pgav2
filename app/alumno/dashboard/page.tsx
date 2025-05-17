@@ -117,8 +117,36 @@ interface ConfiguracionCarrera {
   };
 }
 
+// Nuevas interfaces añadidas
+interface AlumnoGrupo {
+  grupoId?: string;
+  grupo_Id?: string;
+}
+
+interface CursoAcademico {
+  id: string;
+  denominacion: string;
+  activo: boolean;
+}
+
+interface Grupo {
+  id: string;
+  denominacion: string;
+  asignaturaId: string;
+}
+
+interface SesionClase {
+  id: string;
+  fecha: string;
+  grupo: {
+    id: string;
+    denominacion: string;
+    asignaturaId: string;
+  };
+}
+
 export default function AlumnoDashboard() {
-  const { data: session, status } = useSession({
+  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');
@@ -179,12 +207,10 @@ export default function AlumnoDashboard() {
 
         if (!cursosResponse.ok) {
           throw new Error('Error al obtener el curso académico activo');
-        }
-
-        const cursosData = await cursosResponse.json();
+        }        const cursosData = await cursosResponse.json();
         setCursosAcademicos(cursosData);
 
-        const cursoActivo = cursosData.find((curso: any) => curso.activo);
+        const cursoActivo = cursosData.find((curso: CursoAcademico) => curso.activo);
         const cursoActivoId = cursoActivo ? cursoActivo.id : (cursosData.length > 0 ? cursosData[0].id : null);
         setCurrentCursoId(cursoActivoId);
 
@@ -211,11 +237,9 @@ export default function AlumnoDashboard() {
 
           if (!alumnoGruposResponse.ok) {
             throw new Error('Error al obtener grupos del alumno');
-          }
-
-          const alumnoGrupos = await alumnoGruposResponse.json();
+          }          const alumnoGrupos = await alumnoGruposResponse.json();
           // Crear un conjunto de IDs de grupos a los que pertenece el alumno para búsqueda rápida
-          const gruposDelAlumno = new Set(alumnoGrupos.map((ag: any) => ag.grupoId));
+          const gruposDelAlumno = new Set(alumnoGrupos.map((ag: AlumnoGrupo) => ag.grupoId));
 
           // Procesamos los datos recibidos
           if (Array.isArray(data)) {
@@ -235,15 +259,11 @@ export default function AlumnoDashboard() {
 
                 let totalSesiones = 0;
                 let asistencias = 0;
-                let faltas = 0;
-
-                // Filtrar solo grupos a los que pertenece el alumno
+                let faltas = 0;                // Filtrar solo grupos a los que pertenece el alumno
                 const gruposDelAlumnoEnAsignatura = gruposData.grupos.filter(
-                  (grupo: any) => gruposDelAlumno.has(grupo.id)
-                );
-
-                // Procesar solo los grupos a los que pertenece el alumno
-                await Promise.all(gruposDelAlumnoEnAsignatura.map(async (grupo: any) => {
+                  (grupo: Grupo) => gruposDelAlumno.has(grupo.id)
+                );                // Procesar solo los grupos a los que pertenece el alumno
+                await Promise.all(gruposDelAlumnoEnAsignatura.map(async (grupo: Grupo) => {
                   // Obtener sesiones de este grupo
                   const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}`, {
                     credentials: 'include'
@@ -251,10 +271,8 @@ export default function AlumnoDashboard() {
 
                   if (sesionesResponse.ok) {
                     const sesiones = await sesionesResponse.json();
-                    totalSesiones += sesiones.length;
-
-                    // Obtener asistencias del alumno en estas sesiones
-                    await Promise.all(sesiones.map(async (sesion: any) => {                      // Incluir explícitamente la solicitud de incluir justificaciones                      // Usamos un timestamp para evitar la caché del navegador y obtener datos frescos
+                    totalSesiones += sesiones.length;                    // Obtener asistencias del alumno en estas sesiones
+                    await Promise.all(sesiones.map(async (sesion: SesionClase) => {                      // Incluir explícitamente la solicitud de incluir justificaciones                      // Usamos un timestamp para evitar la caché del navegador y obtener datos frescos
                       const timestamp = new Date().getTime();
                       const asistenciaResponse = await fetch(
                         `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}&includeJustificaciones=true&_ts=${timestamp}`,

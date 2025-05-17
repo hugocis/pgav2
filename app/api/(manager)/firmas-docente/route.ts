@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/authOptions';
+import { Prisma } from '@prisma/client';
+
+// Define the type for the where conditions
+type SesionClaseWhereInput = Prisma.SesionClaseWhereInput;
 
 export async function GET(req: NextRequest) {
   try {
@@ -31,7 +35,7 @@ export async function GET(req: NextRequest) {
     // utilizaremos las SesionClase para representarlas
     
     // Construir condiciones de filtro
-    const whereConditions: any = {};
+    const whereConditions: SesionClaseWhereInput = {};
     
     // Filtro por fecha
     if (dateFrom || dateTo) {
@@ -39,27 +43,37 @@ export async function GET(req: NextRequest) {
       if (dateFrom) whereConditions.fecha.gte = dateFrom;
       if (dateTo) whereConditions.fecha.lte = dateTo;
     }
+      // Preparar objeto para filtros de la asignatura
+    let asignaturaFilter: Prisma.AsignaturaWhereInput = {};
+    let grupoFilter: Prisma.GrupoWhereInput = {};
     
     // Filtro por departamento (a través de la carrera asociada a la asignatura)
     if (department) {
-      whereConditions.grupo = {
-        asignatura: {
-          carrera: {
-            denominacion: department
-          }
+      asignaturaFilter = {
+        ...asignaturaFilter,
+        carrera: {
+          denominacion: department
         }
       };
     }
     
     // Filtro por código de asignatura
     if (subjectCode) {
-      whereConditions.grupo = {
-        ...whereConditions.grupo,
-        asignatura: {
-          ...whereConditions.grupo?.asignatura,
-          CodAsignatura: subjectCode
-        }
+      asignaturaFilter = {
+        ...asignaturaFilter,
+        CodAsignatura: subjectCode
       };
+    }
+    
+    // Aplicar filtros de asignatura al filtro de grupo
+    if (Object.keys(asignaturaFilter).length > 0) {
+      grupoFilter = {
+        ...grupoFilter,
+        asignatura: asignaturaFilter
+      };
+      
+      // Aplicar filtro de grupo completo a whereConditions
+      whereConditions.grupo = grupoFilter;
     }
     
     // Filtro por término de búsqueda (nombre de profesor o email)

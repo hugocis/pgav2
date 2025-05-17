@@ -7,20 +7,17 @@ import Link from 'next/link';
 import DashboardContainer from '@/components/DashboardContainer';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import {
-  FaBook,
+import {  FaBook,
   FaArrowLeft,
   FaSearch,
   FaCalendarAlt,
   FaEdit,
-  FaTrash,
   FaSortAmountDown,
   FaSortAmountUp,
   FaEye,
   FaUserFriends,
   FaUserGraduate,
   FaChevronDown,
-  FaChalkboardTeacher
 } from 'react-icons/fa';
 
 // Interfaces para el tipado
@@ -48,6 +45,14 @@ interface SesionClase {
   docenteId: string;
   grupo: Grupo;
   asistencias: Asistencia[];
+  estadisticas?: {
+    total: number;
+    asisten: number;
+    noAsisten: number;
+    parcial: number;
+    otros: number;
+    porcentajeAsistencia: number;
+  };
 }
 
 // Interfaz para datos de usuario/alumno
@@ -82,6 +87,11 @@ interface Asistencia {
     id: string;
     denominacion: string;
   };
+  solicitudesJustificacion?: Array<{
+    id: string;
+    estadoJustificacionId: string;
+    observaciones?: string;
+  }>;
 }
 
 interface EstadisticasSesion {
@@ -111,8 +121,7 @@ const animationStyles = `
   }
 `;
 
-export default function HistorialSesiones() {
-  const { data: session, status } = useSession({
+export default function HistorialSesiones() {  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       router.push('/login');
@@ -131,18 +140,9 @@ export default function HistorialSesiones() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' });
-  const [modalVisible, setModalVisible] = useState(false);
-  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
-  const [sesionIdToDelete, setSesionIdToDelete] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' });  const [modalVisible, setModalVisible] = useState(false);
   const [estadisticas, setEstadisticas] = useState<{ [key: string]: EstadisticasSesion }>({});
 
-  // States for pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-
-  // Cargar datos iniciales
   useEffect(() => {
     if (!asignaturaId || !session?.user?.id) return;
 
@@ -226,6 +226,17 @@ export default function HistorialSesiones() {
                 return { ...sesion, asistencias: [] };
               }
               const asistenciasData = await asistenciasResponse.json();
+              
+              console.log(`Asistencias encontradas: ${asistenciasData.length}`);
+                // Comprobar solicitudes de justificación (manera segura)
+              const conSolicitudes = asistenciasData.filter((a: Asistencia) => 
+                Array.isArray(a.solicitudesJustificacion) && a.solicitudesJustificacion.length > 0);              
+              const conSolicitudesPendientes = asistenciasData.filter((a: Asistencia) => 
+                Array.isArray(a.solicitudesJustificacion) && 
+                a.solicitudesJustificacion.some((s: {estadoJustificacionId: string}) => s.estadoJustificacionId === 'pendiente'));
+                
+              console.log(`Con solicitudes: ${conSolicitudes.length}`);
+              console.log(`Con solicitudes pendientes: ${conSolicitudesPendientes.length}`);
 
               // Comprobar si hay alumnos con datos incompletos y registrarlo en consola
               const alumnosIncompletos = asistenciasData.filter((a: Asistencia) => !a.alumno || !a.alumno.name);
@@ -241,22 +252,31 @@ export default function HistorialSesiones() {
               const otros = total - asisten - noAsisten - parcial;
               const porcentajeAsistencia = total > 0 ? (asisten + parcial * 0.5) / total * 100 : 0;
 
-              // Guardar estadísticas
-              const nuevasEstadisticas = { ...estadisticas };
-              nuevasEstadisticas[sesion.id] = {
-                total,
-                asisten,
-                noAsisten,
-                parcial,
-                otros,
-                porcentajeAsistencia
+              // Guardar estadísticas sin invocar el setter dentro del useEffect
+              return { 
+                ...sesion, 
+                asistencias: asistenciasData,
+                estadisticas: {
+                  total,
+                  asisten,
+                  noAsisten,
+                  parcial,
+                  otros,
+                  porcentajeAsistencia
+                }
               };
-              setEstadisticas(nuevasEstadisticas);
-
-              return { ...sesion, asistencias: asistenciasData };
             })
           );
-
+            // Actualizar estadísticas en un solo paso después de procesar todas las sesiones
+          const nuevoEstadisticas: { [key: string]: EstadisticasSesion } = {};          sesionesConEstadisticas.forEach((sesion: SesionClase & {estadisticas?: EstadisticasSesion}) => {
+            if (sesion && sesion.id && sesion.estadisticas) {
+              nuevoEstadisticas[sesion.id] = sesion.estadisticas;
+              // Usar una variable temporal para la eliminación segura
+              const sesionTemp = sesion as {estadisticas?: EstadisticasSesion};
+              delete sesionTemp.estadisticas;
+            }
+          });
+          setEstadisticas(nuevoEstadisticas);
           setSesiones(sesionesConEstadisticas);
         }
 
@@ -345,53 +365,7 @@ export default function HistorialSesiones() {
 
     setModalVisible(true);
   };
-
-  // Confirmar eliminación de una sesión
-  const confirmarEliminarSesion = (sesionId: string) => {
-    setSesionIdToDelete(sesionId);
-    setConfirmDeleteVisible(true);
-  };
-
-  // Eliminar sesión
-  const eliminarSesion = async () => {
-    if (!sesionIdToDelete) return;
-
-    try {
-      // Primero eliminar todas las asistencias asociadas
-      const asistenciasResponse = await fetch(`/api/asistencias-alumno?sesionClaseId=${sesionIdToDelete}`, {
-        credentials: 'include'
-      });
-
-      if (asistenciasResponse.ok) {
-        const asistencias = await asistenciasResponse.json();
-        // Eliminar cada asistencia
-        for (const asistencia of asistencias) {
-          await fetch(`/api/asistencias-alumno/${asistencia.id}`, {
-            method: 'DELETE',
-            credentials: 'include'
-          });
-        }
-      }
-
-      // Luego eliminar la sesión
-      const response = await fetch(`/api/sesiones-clase/${sesionIdToDelete}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        // Actualizar la lista de sesiones
-        setSesiones(sesiones.filter(sesion => sesion.id !== sesionIdToDelete));
-        setConfirmDeleteVisible(false);
-        setSesionIdToDelete(null);
-      } else {
-        throw new Error('Error al eliminar la sesión');
-      }
-    } catch (error) {
-      console.error('Error al eliminar sesión:', error);
-      setError(`Error al eliminar la sesión: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-    }
-  };
+  // Las funciones de eliminación han sido removidas
   // Estados para el modal de edición
   const [modalEdicionVisible, setModalEdicionVisible] = useState(false);
   const [sesionParaEditar, setSesionParaEditar] = useState<SesionClase | null>(null);
@@ -473,9 +447,14 @@ export default function HistorialSesiones() {
 
           if (!estadosResponse.ok) {
             throw new Error('No se pudieron obtener los estados de asistencia');
-          } const estadosData = await estadosResponse.json();
-          // Buscar el objeto de estado por nombre o denominación
-          const estadoObj = estadosData.find((e: any) =>
+          } const estadosData = await estadosResponse.json();          // Buscar el objeto de estado por nombre o denominación
+          interface EstadoAsistencia {
+            id: string;
+            nombre?: string;
+            denominacion?: string;
+          }
+          
+          const estadoObj = estadosData.find((e: EstadoAsistencia) =>
             e.nombre === nuevoEstado || e.denominacion === nuevoEstado
           );
 
@@ -580,10 +559,8 @@ export default function HistorialSesiones() {
 
               if (asistenciasResponse.ok) {
                 const asistenciasActualizadas = await asistenciasResponse.json();
-                console.log("Asistencias actualizadas recibidas:", asistenciasActualizadas);
-
-                // Verificar si hay datos de alumnos completos
-                const datosIncompletos = asistenciasActualizadas.filter((a: any) => !a.alumno && !a.user);
+                console.log("Asistencias actualizadas recibidas:", asistenciasActualizadas);                // Verificar si hay datos de alumnos completos
+                const datosIncompletos = asistenciasActualizadas.filter((a: Asistencia) => !a.alumno && !a.user);
                 if (datosIncompletos.length > 0) {
                   console.warn(`Se encontraron ${datosIncompletos.length} registros con datos incompletos:`, datosIncompletos);
                 }
@@ -899,7 +876,8 @@ export default function HistorialSesiones() {
                         </div>
                       </div>
                     </div>
-                    <div className="overflow-x-auto">                      <table className="min-w-full divide-y divide-gray-200">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -971,7 +949,6 @@ export default function HistorialSesiones() {
                                         ({stats.asisten} / {stats.total})
                                       </span>
                                     </div>
-                                    {/* Barra de progreso */}
                                     <div className="w-full bg-gray-100 rounded-full h-1.5">
                                       <div
                                         className={`h-1.5 rounded-full ${stats.porcentajeAsistencia >= 80 ? 'bg-green-500' :
@@ -998,13 +975,6 @@ export default function HistorialSesiones() {
                                     title="Editar sesión"
                                   >
                                     <FaEdit />
-                                  </button>
-                                  <button
-                                    onClick={() => confirmarEliminarSesion(sesion.id)}
-                                    className="text-red-600 hover:text-red-800 hover:bg-red-100 transition-colors p-2 rounded-full"
-                                    title="Eliminar sesión"
-                                  >
-                                    <FaTrash />
                                   </button>
                                 </div>
                               </td>
@@ -1154,7 +1124,8 @@ export default function HistorialSesiones() {
                     {sesionSeleccionada.asistencias?.length || 0} registros
                   </div>
                 </div>
-                {sesionSeleccionada.asistencias && sesionSeleccionada.asistencias.length > 0 ? (                  <table className="min-w-full divide-y divide-gray-200">
+                {sesionSeleccionada.asistencias && sesionSeleccionada.asistencias.length > 0 ? (
+                  <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
                         <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1184,15 +1155,16 @@ export default function HistorialSesiones() {
                       // Si después de filtrar y unir sigue vacío, esto indica que no hay datos de nombre
                       nombreCompleto = nombreCompleto.trim();
 
-                      return (                          <tr key={asistencia.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 whitespace-nowrap text-sm">
-                              <div className="flex items-center">
-                                <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 mr-3">
-                                  <FaUserGraduate />
-                                </div>
-                                <span>{nombreCompleto ? nombreCompleto : 'Alumno no disponible'}</span>
+                      return (
+                        <tr key={asistencia.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            <div className="flex items-center">
+                              <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 mr-3">
+                                <FaUserGraduate />
                               </div>
-                            </td>
+                              <span>{nombreCompleto ? nombreCompleto : 'Alumno no disponible'}</span>
+                            </div>
+                          </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${getEstadoAsistenciaClass(asistencia.estado || (asistencia.estadoAsistencia?.denominacion || 'Sin registro'))}`}>
                               {asistencia.estado || (asistencia.estadoAsistencia?.denominacion || 'Sin registro')}
@@ -1211,9 +1183,7 @@ export default function HistorialSesiones() {
                     <p className="text-sm">No hay registros de asistencia para esta sesión</p>
                   </div>
                 )}
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6">
+              </div>              <div className="flex justify-end gap-3 mt-6">
                 <button
                   onClick={() => setModalVisible(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors shadow-sm flex items-center"
@@ -1236,66 +1206,7 @@ export default function HistorialSesiones() {
               </div>
             </div>
           </div>
-        </div>
-      )}      {/* Modal de confirmación de eliminación */}
-      {confirmDeleteVisible && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn" onClick={() => {
-          setConfirmDeleteVisible(false);
-          setSesionIdToDelete(null);
-        }}>
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full transform transition-all animate-scaleIn" onClick={(e) => e.stopPropagation()}>
-            <div className="p-5 border-b border-gray-200 bg-red-50">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-lg font-semibold text-red-800">
-                    Confirmar Eliminación
-                  </h3>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6">
-              <div className="mb-5">
-                <p className="text-gray-700 mb-3">
-                  ¿Estás seguro de que deseas eliminar esta sesión? Esta acción:
-                </p>
-                <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600">
-                  <li>Eliminará todos los registros de asistencia asociados</li>
-                  <li>No podrás recuperar la información</li>
-                  <li>Esta acción no se puede deshacer</li>
-                </ul>
-              </div>
-
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => {
-                    setConfirmDeleteVisible(false);
-                    setSesionIdToDelete(null);
-                  }}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors shadow-sm flex items-center"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Cancelar
-                </button>
-                <button
-                  onClick={eliminarSesion}
-                  className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-md hover:from-red-700 hover:to-red-800 transition-colors shadow-sm flex items-center"
-                >
-                  <FaTrash className="mr-2" />
-                  Eliminar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}      {/* Modal de edición de asistencias */}
+        </div>      )}      {/* Modal de edición de asistencias */}
       {modalEdicionVisible && sesionParaEditar && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn" onClick={() => setModalEdicionVisible(false)}>
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto transform transition-all animate-scaleIn" onClick={(e) => e.stopPropagation()}>
@@ -1368,7 +1279,8 @@ export default function HistorialSesiones() {
                 </div>
 
                 <div className="overflow-x-auto max-h-[400px]">
-                  {asistenciasEdicion.length > 0 ? (                    <table className="min-w-full">
+                  {asistenciasEdicion.length > 0 ? (
+                    <table className="min-w-full">
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
                           <th scope="col" className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1418,30 +1330,31 @@ export default function HistorialSesiones() {
 
                         const estado = estadosModificados[asistencia.id] || asistencia.estado;
 
-                        return (                          <tr key={asistencia.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-5 py-3">
-                              <div className="flex items-center">
-                                <div className="h-10 w-10 flex-shrink-0">
-                                  <div className="h-full w-full rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
-                                    <FaUserGraduate />
-                                  </div>
-                                </div>
-                                <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {nombreCompleto ? nombreCompleto : 'Alumno no disponible'}
-                                  </div>
+                        return (
+                        <tr key={asistencia.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-5 py-3">
+                            <div className="flex items-center">
+                              <div className="h-10 w-10 flex-shrink-0">
+                                <div className="h-full w-full rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
+                                  <FaUserGraduate />
                                 </div>
                               </div>
-                            </td>
-                            <td className="px-5 py-3 text-center">
-                              <button
-                                onClick={() => cambiarEstadoAsistencia(asistencia.id)}
-                                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${getEstadoAsistenciaClass(estado)}`}
-                              >
-                                {estado}
-                              </button>
-                            </td>
-                          </tr>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {nombreCompleto ? nombreCompleto : 'Alumno no disponible'}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-3 text-center">
+                            <button
+                              onClick={() => cambiarEstadoAsistencia(asistencia.id)}
+                              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${getEstadoAsistenciaClass(estado)}`}
+                            >
+                              {estado}
+                            </button>
+                          </td>
+                        </tr>
                         );
                       })}
                       </tbody>

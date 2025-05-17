@@ -1,14 +1,20 @@
 .git
 node_modules
 npm-debug.log
+yarn-debug.log
+yarn-error.log
 README.md
 .next
+out
 .vscode
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+# No excluímos el .env.production ya que necesitamos acceder a él durante la construcción
 Dockerfile
 docker-compose.yml
 .dockerignore
+.github
+*.md

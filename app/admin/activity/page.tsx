@@ -10,7 +10,6 @@ import {
   FaFilter, 
   FaDownload, 
   FaEye, 
-  FaTrash, 
   FaChevronLeft, 
   FaChevronRight,
   FaSortAmountDown, 
@@ -46,14 +45,13 @@ interface ActivityLog {
 }
 
 export default function AdminActivity() {
-  const { data: session, status } = useSession({
+  useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');
     }
   });
 
-  const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<ActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -110,13 +108,11 @@ export default function AdminActivity() {
         if (!response.ok) {
           throw new Error('Error al cargar registros de actividad');
         }
-        
+        // Procesar la respuesta
         const data = await response.json();
-        setActivities(data.activities);
         setFilteredActivities(data.activities);
         setTotalActivities(data.totalActivities);
         setTotalPages(data.totalPages);
-        
         // Extraer los tipos de entidades y usuarios únicos si no están cargados ya
         if (entityTypes.length === 0 && data.activities.length > 0) {
           const types = [...new Set(data.activities.map((a: ActivityLog) => a.entityType))].filter(Boolean) as string[];
@@ -131,8 +127,16 @@ export default function AdminActivity() {
           });
           
           if (usersResponse.ok) {
+            // Define a proper type for the minimal user data structure
+            interface MinimalUser {
+              id: string;
+              name?: string;
+              surname1?: string;
+              username?: string;
+            }
+            
             const usersData = await usersResponse.json();
-            setUsers(usersData.map((u: any) => ({
+            setUsers(usersData.map((u: MinimalUser) => ({
               id: u.id,
               name: `${u.name || ''} ${u.surname1 || ''} ${u.username ? `(${u.username})` : ''}`.trim()
             })));
@@ -147,7 +151,7 @@ export default function AdminActivity() {
     };
 
     fetchActivities();
-  }, [currentPage, selectedAction, selectedEntityType, selectedUserId, startDate, endDate, searchTerm, sortField, sortDirection]);
+  }, [currentPage, selectedAction, selectedEntityType, selectedUserId, startDate, endDate, searchTerm, sortField, sortDirection, entityTypes.length, itemsPerPage, users.length]);
 
   // Función para formatear fechas
   const formatDateTime = (dateString: string | null) => {
@@ -155,7 +159,7 @@ export default function AdminActivity() {
     try {
       const date = new Date(dateString);
       return format(date, "dd/MM/yyyy HH:mm:ss", { locale: es });
-    } catch (error) {
+    } catch {
       return dateString;
     }
   };

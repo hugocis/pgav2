@@ -146,7 +146,7 @@ export async function PUT(request: NextRequest) {
     let body;
     try {
       body = await request.json();
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         { error: 'El cuerpo de la solicitud está vacío o no es un JSON válido' },
         { status: 400 }

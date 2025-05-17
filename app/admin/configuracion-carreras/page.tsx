@@ -8,27 +8,27 @@ import { FaPlus, FaEdit, FaTrash, FaSearch, FaFilter, FaUniversity, FaChevronLef
 
 // Interfaces para tipado
 interface ConfiguracionCarrera {
-  id: number;
+  id: string;
   FechaInicioDispensa: string | null;
   FechaFinDispensa: string | null;
   SolDispensa: boolean;
   SolJustificacion: boolean;
-  carreraId: number;
+  carreraId: string;
   createdAt: string;
   updatedAt: string;
   carrera: {
-    id: number;
+    id: string;
     denominacion: string;
   };
 }
 
 interface Carrera {
-  id: number;
+  id: string;
   denominacion: string;
 }
 
 export default function AdminConfiguracionCarreras() {
-  const { data: session, status } = useSession({
+  useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');
@@ -127,18 +127,16 @@ export default function AdminConfiguracionCarreras() {
       result = result.filter(config => 
         config.carrera?.denominacion.toLowerCase().includes(searchTerm.toLowerCase())
       );
-    }
-
-    if (selectedCarrera) {
-      result = result.filter(config => config.carreraId === parseInt(selectedCarrera));
+    }    if (selectedCarrera) {
+      result = result.filter(config => config.carreraId === selectedCarrera);
     }
 
     setFilteredConfiguraciones(result);
     setCurrentPage(1); // Resetear página cuando cambian los filtros
-    
-    // Calcular carreras sin configuración para mostrarlas como opciones en el diálogo de creación
+      // Calcular carreras sin configuración para mostrarlas como opciones en el diálogo de creación
+    // Asegurar que las comparaciones sean del mismo tipo (número)
     const carrerasConConfig = configuraciones.map(config => config.carreraId);
-    setCarrerasSinConfig(carreras.filter(carrera => !carrerasConConfig.includes(carrera.id)));
+    setCarrerasSinConfig(carreras.filter(carrera => !carrerasConConfig.some(id => id === carrera.id)));
     
   }, [searchTerm, selectedCarrera, configuraciones, carreras]);
   
@@ -171,8 +169,7 @@ export default function AdminConfiguracionCarreras() {
       });
     }
   };
-
-  const handleDeleteConfiguracion = async (id: number) => {
+  const handleDeleteConfiguracion = async (id: string) => {
     if (!confirm('¿Estás seguro de que deseas eliminar esta configuración de carrera? Esta acción no se puede deshacer.')) {
       return;
     }
@@ -214,8 +211,8 @@ export default function AdminConfiguracionCarreras() {
     
     try {
       // Formatear fechas para el API
-      let fechaInicio = fechaInicioDispensaRef.current?.value || null;
-      let fechaFin = fechaFinDispensaRef.current?.value || null;
+      const fechaInicio = fechaInicioDispensaRef.current?.value || null;
+      const fechaFin = fechaFinDispensaRef.current?.value || null;
       
       const updatedData = {
         FechaInicioDispensa: fechaInicio ? new Date(fechaInicio).toISOString() : null,
@@ -283,8 +280,7 @@ export default function AdminConfiguracionCarreras() {
   const handleCreateConfiguracion = async () => {
     setIsCreating(true);
     setCreateMessage(null);
-    
-    try {
+      try {
       // Validación básica
       if (!newCarreraRef.current?.value) {
         setCreateMessage({ 
@@ -294,18 +290,29 @@ export default function AdminConfiguracionCarreras() {
         setIsCreating(false);
         return;
       }
+        // Formatear fechas para el API
+      const fechaInicio = newFechaInicioDispensaRef.current?.value || null;
+      const fechaFin = newFechaFinDispensaRef.current?.value || null;      // Obtener y validar el ID de la carrera
+      const carreraValue = newCarreraRef.current?.value;
+      if (!carreraValue) {
+        setCreateMessage({ 
+          text: 'Debe seleccionar una carrera', 
+          type: 'error' 
+        });
+        setIsCreating(false);
+        return;
+      }
       
-      // Formatear fechas para el API
-      let fechaInicio = newFechaInicioDispensaRef.current?.value || null;
-      let fechaFin = newFechaFinDispensaRef.current?.value || null;
+      // Guardar el carreraId tal como está (string UUID), sin convertir a número
+      const carreraId = carreraValue;
       
       const newConfigData = {
-        carreraId: parseInt(newCarreraRef.current?.value),
+        carreraId: carreraId,
         FechaInicioDispensa: fechaInicio ? new Date(fechaInicio).toISOString() : null,
         FechaFinDispensa: fechaFin ? new Date(fechaFin).toISOString() : null,
         SolDispensa: newSolDispensaRef.current?.checked || false,
         SolJustificacion: newSolJustificacionRef.current?.checked || false
-      };
+      };console.log('Datos enviados al API:', newConfigData);
       
       const response = await fetch('/api/configuracion-carrera', {
         method: 'POST',
@@ -314,11 +321,12 @@ export default function AdminConfiguracionCarreras() {
         },
         credentials: 'include',
         body: JSON.stringify(newConfigData),
-      });      if (response.ok) {        // Añadir la nueva configuración al estado local
-        const createdConfig = await response.json();
-        
-        // Encontrar la carrera correspondiente para añadirla a la configuración
-        const carrera = carreras.find(c => c.id === parseInt(newCarreraRef.current?.value || ''));
+      });if (response.ok) {        // Añadir la nueva configuración al estado local
+    const createdConfig = await response.json();        // Encontrar la carrera correspondiente para añadirla a la configuración
+        const carreraIdValue = newCarreraRef.current?.value || '';
+        // No necesitamos convertir a número, c.id es un string UUID
+        const carreraId = carreraIdValue;
+        const carrera = carreras.find(c => c.id === carreraId);
         const newConfig = {
           ...createdConfig,
           carrera: carrera
@@ -334,21 +342,25 @@ export default function AdminConfiguracionCarreras() {
           return newFiltered;
         });
         
-        setCreateMessage({ text: 'Configuración creada correctamente', type: 'success' });
-        
-        // Actualizar la lista de carreras sin configuración
+        setCreateMessage({ text: 'Configuración creada correctamente', type: 'success' });        // Actualizar la lista de carreras sin configuración
         setCarrerasSinConfig(prevCarreras => 
-          prevCarreras.filter(c => c.id !== newConfig.carreraId)
+          prevCarreras.filter(c => c.id !== carreraId) // carreraId es una string (UUID)
         );
         
         // Esperar 1.5 segundos antes de cerrar el diálogo
         setTimeout(() => {
           handleCloseCreateDialog();
-        }, 1500);
-      } else {
-        const errorData = await response.json();
+        }, 1500);      } else {
+        let errorMessage = 'Error al crear la configuración';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (jsonError) {
+          console.error('Error al parsear la respuesta JSON:', jsonError);
+        }
+        
         setCreateMessage({ 
-          text: errorData.message || 'Error al crear la configuración', 
+          text: errorMessage, 
           type: 'error' 
         });
       }
@@ -758,8 +770,7 @@ export default function AdminConfiguracionCarreras() {
             </div>
             
             <div className="p-6">
-              <div className="space-y-4">
-                <div>
+              <div className="space-y-4">                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Carrera *</label>
                   <select
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -768,7 +779,7 @@ export default function AdminConfiguracionCarreras() {
                   >
                     <option value="">Seleccione una carrera</option>
                     {carrerasSinConfig.map(carrera => (
-                      <option key={carrera.id} value={carrera.id}>
+                      <option key={carrera.id} value={carrera.id.toString()}>
                         {carrera.denominacion}
                       </option>
                     ))}

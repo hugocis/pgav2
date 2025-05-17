@@ -5,7 +5,7 @@ import { logActivity } from '@/lib/logActivity';
 // GET - Obtener un registro específico de alumno-grupo por ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
@@ -50,7 +50,7 @@ export async function GET(
 // DELETE - Eliminar un registro específico de alumno-grupo por ID
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;

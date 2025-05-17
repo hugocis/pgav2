@@ -5,10 +5,49 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import DashboardContainer from '@/components/DashboardContainer';
-import { FaArrowLeft, FaUpload, FaSave, FaExclamationTriangle } from 'react-icons/fa';
+import { FaArrowLeft, FaExclamationTriangle } from 'react-icons/fa';
+
+interface EstadoJustificacion {
+  id: string;
+  denominacion: string;
+}
+
+interface Grupo {
+  id: string;
+  denominacion: string;
+  asignaturaId?: string;
+}
+
+interface SesionClase {
+  id: string;
+  fecha: string;
+  grupo: Grupo;
+}
+
+interface AsistenciaAlumno {
+  id: string;
+  fecha: string;
+  estado: string;
+  sesionClaseId: string;
+  alumnoId: string;
+  estadoAsistenciaId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  sesionClase: SesionClase;
+  SolicitudJustificacion?: SolicitudJustificacion[];
+}
+
+interface SolicitudJustificacion {
+  id: string;
+  fechaAlegacion: string;
+  estadoJustificacion?: {
+    id: string;
+    denominacion: string;
+  };
+}
 
 export default function JustificarFalta() {
-  const { data: session, status } = useSession({
+  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       router.push('/login');
@@ -20,11 +59,10 @@ export default function JustificarFalta() {
   const asistenciaId = searchParams.get('asistenciaId');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [asistencia, setAsistencia] = useState<any | null>(null);  
+  const [success, setSuccess] = useState(false);  const [asistencia, setAsistencia] = useState<AsistenciaAlumno | null>(null);  
   const [alegacion, setAlegacion] = useState('');
   const [enlaceDocumentacion, setEnlaceDocumentacion] = useState('');  
-  const [estadosJustificacion, setEstadosJustificacion] = useState<any[]>([]);
+  const [estadosJustificacion, setEstadosJustificacion] = useState<EstadoJustificacion[]>([]);
 
   useEffect(() => {
     const fetchAsistencia = async () => {
@@ -66,10 +104,9 @@ export default function JustificarFalta() {
         
         const data = await response.json();
         setEstadosJustificacion(data);
-        
-        console.log('Estados de justificación disponibles:', data);
+          console.log('Estados de justificación disponibles:', data);
         // Mostrar los IDs y denominaciones para depuración
-        console.log('Estados detallados:', data.map((e: any) => `${e.denominacion} (${e.id})`));
+        console.log('Estados detallados:', data.map((e: EstadoJustificacion) => `${e.denominacion} (${e.id})`));
       } catch (error) {
         console.error('Error al obtener estados de justificación:', error);
       }
@@ -94,7 +131,7 @@ export default function JustificarFalta() {
         throw new Error('Por favor, proporciona un enlace válido (debe comenzar con http:// o https://)');
       }      // Crear los datos para la solicitud de justificación
       // Buscar el estado "Pendiente" para nuevas justificaciones
-      const pendienteEstado = estadosJustificacion.find((estado: any) => 
+      const pendienteEstado = estadosJustificacion.find((estado: EstadoJustificacion) => 
         estado.denominacion.toLowerCase() === 'pendiente'
       );
       
@@ -136,7 +173,7 @@ export default function JustificarFalta() {
           errorMessage = errorData.error || errorMessage;
           console.error('Error detallado:', errorData);
           console.error('Datos enviados:', solicitudData);
-        } catch (e) {
+        } catch {
           console.error('No se pudo obtener detalle del error');
         }
         throw new Error(`${errorMessage} (código: ${response.status})`);
@@ -165,7 +202,7 @@ export default function JustificarFalta() {
           const errorData = await docResponse.json();
           errorMessage = errorData.error || errorMessage;
           console.error('Error detallado documentación:', errorData);
-        } catch (e) {
+        } catch {
           console.error('No se pudo obtener detalle del error de documentación');
         }
         throw new Error(errorMessage);

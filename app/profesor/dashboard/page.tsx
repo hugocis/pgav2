@@ -14,6 +14,20 @@ import {
   FaUserFriends,
   FaCalendarAlt,
 } from 'react-icons/fa';
+import { AlumnoGrupo } from '@prisma/client';
+
+interface Grupo {
+  id: number;
+  profesorId: string;
+}
+
+interface Asistencia {
+  alumnoId: string;
+  estado?: string;
+  estadoAsistencia?: {
+    denominacion: string;
+  };
+}
 
 // Interfaces para tipado
 interface Docencia {
@@ -66,7 +80,7 @@ interface Docencia {
 }
 
 export default function ProfesorDashboard() {
-  const { data: session, status } = useSession({
+  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');
@@ -78,7 +92,7 @@ export default function ProfesorDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [currentCursoId, setCurrentCursoId] = useState<number | null>(null);
   const [cursosAcademicos, setCursosAcademicos] = useState<{ id: number, denominacion: string, activo: boolean }[]>([]);
-  
+
   useEffect(() => {
     const fetchDocencias = async () => {
       try {
@@ -87,40 +101,40 @@ export default function ProfesorDashboard() {
         const cursosResponse = await fetch('/api/cursos-academicos?activo=true', {
           credentials: 'include'
         });
-        
+
         if (!cursosResponse.ok) {
           throw new Error('Error al obtener el curso académico activo');
         }
-        
+
         const cursosData = await cursosResponse.json();
         setCursosAcademicos(cursosData);
-        
-        const cursoActivo = cursosData.find((curso: any) => curso.activo);
+
+        const cursoActivo = cursosData.find((curso: { id: number, denominacion: string, activo: boolean }) => curso.activo);
         const cursoActivoId = cursoActivo ? cursoActivo.id : (cursosData.length > 0 ? cursosData[0].id : null);
         setCurrentCursoId(cursoActivoId);
-        
+
         // Obtener las docencias del profesor usando su ID
         if (session?.user?.id) {
           console.log('ID de usuario:', session.user.id);
-          
+
           // Llamada a la API de docencia usando el ID del profesor
           const url = `/api/docencia/${session.user.id}`;
           console.log('Fetching docencias from:', url);
-          
+
           const response = await fetch(url, {
             credentials: 'include',
             cache: 'no-store'
           });
-          
+
           if (!response.ok) {
             const errorText = await response.text();
             console.error('Error response:', response.status, errorText);
             throw new Error(`Error al obtener las docencias: ${response.status} ${errorText}`);
           }
-          
+
           const data = await response.json();
           console.log('Datos recibidos de la API:', data);
-            // Procesamos los datos recibidos
+          // Procesamos los datos recibidos
           if (Array.isArray(data)) {
             // Obtenemos estadísticas para cada docencia
             const docenciasEnriquecidas = await Promise.all(data.map(async (docencia: Docencia) => {
@@ -129,36 +143,35 @@ export default function ProfesorDashboard() {
                 const gruposResponse = await fetch(`/api/grupos?asignaturaId=${docencia.asignatura.id}`, {
                   credentials: 'include'
                 });
-                
+
                 if (!gruposResponse.ok) {
                   throw new Error(`Error al obtener grupos para asignatura ${docencia.asignatura.id}`);
                 }
-                
+
                 const gruposData = await gruposResponse.json();
-                // Filtrar solo los grupos que pertenecen al profesor conectado
-                const grupos = (gruposData.grupos || []).filter((g: any) => g.profesorId === session.user.id);
-                
+                const grupos = (gruposData.grupos || []).filter((g: Grupo) => g.profesorId === session.user.id);
+
                 // Recopilar datos de alumnos, sesiones y asistencias por cada grupo
                 let totalAlumnos = 0;
                 let totalSesiones = 0;
                 let totalAsistenciasRegistradas = 0;
                 let posiblesAsistencias = 0;
-                
+
                 // Mantener registro de alumnos ya contados para evitar duplicados
                 const alumnosContados = new Set();
-                
+
                 // Procesar cada grupo
-                await Promise.all(grupos.map(async (grupo: any) => {
+                await Promise.all(grupos.map(async (grupo: Grupo) => {
                   // Obtener alumnos del grupo
                   const alumnosGrupoResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupo.id}`, {
                     credentials: 'include'
                   });
-                  
+
                   if (alumnosGrupoResponse.ok) {
                     const alumnosGrupo = await alumnosGrupoResponse.json();
                     // Contar solo alumnos únicos usando sus IDs
                     if (Array.isArray(alumnosGrupo)) {
-                      alumnosGrupo.forEach((alumnoGrupo: any) => {
+                      alumnosGrupo.forEach((alumnoGrupo: AlumnoGrupo) => {
                         if (alumnoGrupo.alumno_Id && !alumnosContados.has(alumnoGrupo.alumno_Id)) {
                           alumnosContados.add(alumnoGrupo.alumno_Id);
                           totalAlumnos++;
@@ -166,53 +179,53 @@ export default function ProfesorDashboard() {
                       });
                     }
                   }
-                  
+
                   // Obtener sesiones de clase del grupo
                   const sesionesResponse = await fetch(`/api/sesiones-clase?grupoId=${grupo.id}`, {
                     credentials: 'include'
                   });
-                  
+
                   if (sesionesResponse.ok) {
                     const sesiones = await sesionesResponse.json();
                     const numSesiones = Array.isArray(sesiones) ? sesiones.length : 0;
                     totalSesiones += numSesiones;
-                      // Obtener asistencias para cada sesión
-                    await Promise.all(sesiones.map(async (sesion: any) => {
+                    // Obtener asistencias para cada sesión
+                    await Promise.all(sesiones.map(async (sesion: { id: string }) => {
                       const asistenciasResponse = await fetch(`/api/asistencias-alumno?sesionClaseId=${sesion.id}`, {
                         credentials: 'include'
                       });
-                      
+
                       if (asistenciasResponse.ok) {
                         const asistencias = await asistenciasResponse.json();
                         if (Array.isArray(asistencias)) {
                           // Filtrar asistencias solo para alumnos de este grupo
-                          const asistenciasAlumno = asistencias.filter((a: any) => {
+                          const asistenciasAlumno = asistencias.filter((a: Asistencia) => {
                             const esAlumnoDeGrupo = alumnosContados.has(a.alumnoId);
-                            const asiste = a.estado === 'Asiste' || 
-                                          (a.estadoAsistencia && a.estadoAsistencia.denominacion === 'Asiste');
+                            const asiste = a.estado === 'Asiste' ||
+                              (a.estadoAsistencia && a.estadoAsistencia.denominacion === 'Asiste');
                             return esAlumnoDeGrupo && asiste;
                           });
-                          
+
                           totalAsistenciasRegistradas += asistenciasAlumno.length;
                         }
                       }
                     }));
-                    
+
                     // Calcular posibles asistencias (número de alumnos * número de sesiones)
                     const alumnosDelGrupo = await fetch(`/api/alumnos-grupo?grupoId=${grupo.id}`, {
                       credentials: 'include'
                     }).then(res => res.ok ? res.json() : []);
-                    
+
                     const numAlumnosGrupo = Array.isArray(alumnosDelGrupo) ? alumnosDelGrupo.length : 0;
                     posiblesAsistencias += numAlumnosGrupo * numSesiones;
                   }
                 }));
-                
+
                 // Calcular porcentaje de asistencia
-                const porcentajeAsistencia = posiblesAsistencias > 0 
-                  ? Math.round((totalAsistenciasRegistradas / posiblesAsistencias) * 100) 
+                const porcentajeAsistencia = posiblesAsistencias > 0
+                  ? Math.round((totalAsistenciasRegistradas / posiblesAsistencias) * 100)
                   : 0;
-                
+
                 return {
                   ...docencia,
                   alumnosInscritos: totalAlumnos,
@@ -224,7 +237,7 @@ export default function ProfesorDashboard() {
                 return docencia;
               }
             }));
-            
+
             setDocencias(docenciasEnriquecidas);
           } else {
             console.log('La respuesta no es un array:', data);
@@ -331,10 +344,10 @@ export default function ProfesorDashboard() {
                     </p>
                     <div className="flex justify-between items-center mt-2">
                       <p className="text-blue-100 text-sm">
-                        {docencia.asignatura.Curso} 
+                        {docencia.asignatura.Curso}
                         {docencia.asignatura.Curso && docencia.asignatura.Curso.includes('º') ? ' Curso' : ''}
-                        {docencia.asignatura.Cuatrimestre ? 
-                          ` • ${docencia.asignatura.Cuatrimestre}${docencia.asignatura.Cuatrimestre.includes('º') ? ' Cuatrimestre' : ''}` 
+                        {docencia.asignatura.Cuatrimestre ?
+                          ` • ${docencia.asignatura.Cuatrimestre}${docencia.asignatura.Cuatrimestre.includes('º') ? ' Cuatrimestre' : ''}`
                           : ''}
                       </p>
                       <span className="bg-white/20 text-white text-xs px-2 py-1 rounded">
@@ -359,33 +372,31 @@ export default function ProfesorDashboard() {
                         <div className="text-xs text-gray-500">Clases</div>
                       </div>
                       <div className="flex-1 p-3 text-center">                        <div className="flex flex-col items-center">
-                          <div className={`text-lg font-semibold ${
-                            docencia.totalAsistencias !== undefined 
-                              ? docencia.totalAsistencias >= 80 
-                                ? 'text-green-700'
-                                : docencia.totalAsistencias >= 50 
-                                  ? 'text-yellow-700'
-                                  : 'text-red-700' 
-                              : 'text-gray-800'
+                        <div className={`text-lg font-semibold ${docencia.totalAsistencias !== undefined
+                            ? docencia.totalAsistencias >= 80
+                              ? 'text-green-700'
+                              : docencia.totalAsistencias >= 50
+                                ? 'text-yellow-700'
+                                : 'text-red-700'
+                            : 'text-gray-800'
                           }`}>
-                            {docencia.totalAsistencias !== undefined ? `${docencia.totalAsistencias}%` : "0%"}
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                            <div 
-                              className={`h-1.5 rounded-full ${
-                                docencia.totalAsistencias !== undefined 
-                                  ? docencia.totalAsistencias >= 80 
-                                    ? 'bg-green-500'
-                                    : docencia.totalAsistencias >= 50 
-                                      ? 'bg-yellow-500'
-                                      : 'bg-red-500' 
-                                  : 'bg-gray-300'
-                              }`} 
-                              style={{ width: `${docencia.totalAsistencias || 0}%` }}>
-                            </div>
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">Asistencia</div>
+                          {docencia.totalAsistencias !== undefined ? `${docencia.totalAsistencias}%` : "0%"}
                         </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                          <div
+                            className={`h-1.5 rounded-full ${docencia.totalAsistencias !== undefined
+                                ? docencia.totalAsistencias >= 80
+                                  ? 'bg-green-500'
+                                  : docencia.totalAsistencias >= 50
+                                    ? 'bg-yellow-500'
+                                    : 'bg-red-500'
+                                : 'bg-gray-300'
+                              }`}
+                            style={{ width: `${docencia.totalAsistencias || 0}%` }}>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">Asistencia</div>
+                      </div>
                       </div>
                     </div>                     <div className="flex flex-wrap gap-2 mt-5">
                       <Link
@@ -400,13 +411,13 @@ export default function ProfesorDashboard() {
                       >
                         <FaUserGraduate className="mr-1.5" />
                         Alumnos                      </Link>                      <Link
-                        href={`/profesor/estadisticas?asignatura=${docencia.asignatura.id}`}
-                        className="flex-1 bg-[#2d8fd5] hover:bg-[#2577b8] text-white text-sm font-medium py-2.5 px-3 rounded-md flex items-center justify-center transition-colors"
-                      >
+                          href={`/profesor/estadisticas?asignatura=${docencia.asignatura.id}`}
+                          className="flex-1 bg-[#2d8fd5] hover:bg-[#2577b8] text-white text-sm font-medium py-2.5 px-3 rounded-md flex items-center justify-center transition-colors"
+                        >
                         <FaChartPie className="mr-1.5" />
                         Estadísticas
                       </Link>                    </div>
-                      {/* Botones de asistencia */}
+                    {/* Botones de asistencia */}
                     <div className="grid grid-cols-2 gap-3 mt-3">
                       <Link
                         href={`/profesor/pasar-clase?asignatura=${docencia.asignatura.id}`}

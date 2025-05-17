@@ -117,7 +117,7 @@ export default function ProfilePage() {
           text: error.message || 'Error al cambiar la contraseña'
         });
       }
-    } catch (error) {
+    } catch  {
       setPasswordMessage({
         type: 'error',
         text: 'Error de conexión. Inténtalo de nuevo.'
@@ -158,12 +158,6 @@ export default function ProfilePage() {
     
     return 'Usuario';
   };
-  
-  // Determinar el color del banner según el rol principal
-  const getBannerColor = () => {
-    if (!session?.user?.roles || session.user.roles.length === 0) return 'from-[#0D3C68] to-[#1a5590]';
-    return 'from-[#0D3C68] to-[#1a5590]'; // Color corporativo
-  };
 
   return (
     <DashboardContainer roleName="Perfil">
@@ -190,7 +184,7 @@ export default function ProfilePage() {
               
               <div className="mt-4 sm:mt-0 flex flex-wrap gap-2">
                 {session?.user?.roles?.map((role: string) => {
-                  let bgColor = 'bg-white/10';
+                  const bgColor = 'bg-white/10';
                   
                   return (
                     <span 

@@ -6,21 +6,17 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import DashboardContainer from '@/components/DashboardContainer';
 import { 
   FaUserPlus, 
-  FaUserEdit, 
-  FaUserTimes, 
+  FaUserEdit,  
   FaSearch, 
   FaFilter, 
   FaUsers, 
-  FaUserGraduate,
   FaChevronLeft,
   FaChevronRight,
-  FaEye,
   FaLock,
   FaLockOpen,
   FaTrash,
   FaSortAmountDown,
   FaSortAmountUp,
-  FaPlus,
   FaSave
 } from 'react-icons/fa';
 
@@ -43,7 +39,7 @@ interface Role {
 }
 
 export default function AdminUsers() {
-  const { data: session, status } = useSession({
+  useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');
@@ -172,28 +168,47 @@ export default function AdminUsers() {
     }
 
     // Aplicar ordenación
-    result.sort((a: any, b: any) => {
-      let fieldA: any;
-      let fieldB: any;
+    result.sort((a: User, b: User) => {
+      let fieldA: string | null | boolean | undefined;
+      let fieldB: string | null | boolean | undefined;
 
       // Manejar campos anidados o casos especiales
       if (sortField === 'fullName') {
         fieldA = [a.name, a.surname1, a.surname2].filter(Boolean).join(' ').toLowerCase();
         fieldB = [b.name, b.surname1, b.surname2].filter(Boolean).join(' ').toLowerCase();
       } else if (sortField === 'roles') {
-        fieldA = a.userRoles.map((ur: any) => ur.role.name).join(',').toLowerCase();
-        fieldB = b.userRoles.map((ur: any) => ur.role.name).join(',').toLowerCase();
+        fieldA = a.userRoles.map((ur: { role: { id: number; name: string } }) => ur.role.name).join(',').toLowerCase();
+        fieldB = b.userRoles.map((ur: { role: { id: number; name: string } }) => ur.role.name).join(',').toLowerCase();
       } else {
-        fieldA = a[sortField as keyof User];
-        fieldB = b[sortField as keyof User];
+        // Usar type assertion para manejar tipos más complejos
+        const valueA = a[sortField as keyof User];
+        const valueB = b[sortField as keyof User];
+        
+        // Convertir valores complejos a strings comparables
+        if (typeof valueA === 'object' && valueA !== null) {
+          fieldA = String(valueA);
+        } else {
+          fieldA = valueA as string | boolean | null;
+        }
+        
+        if (typeof valueB === 'object' && valueB !== null) {
+          fieldB = String(valueB);
+        } else {
+          fieldB = valueB as string | boolean | null;
+        }
 
         // Convertir a minúsculas si son strings
         if (typeof fieldA === 'string') fieldA = fieldA.toLowerCase();
         if (typeof fieldB === 'string') fieldB = fieldB.toLowerCase();
       }
 
+      // Manejar valores nulos o indefinidos para comparación segura
+      if (fieldA === null || fieldA === undefined) fieldA = '';
+      if (fieldB === null || fieldB === undefined) fieldB = '';
+      
       if (fieldA === fieldB) return 0;
       
+      // Ahora es seguro comparar los valores
       const comparison = fieldA < fieldB ? -1 : 1;
       return sortDirection === 'asc' ? comparison : -comparison;
     });
@@ -430,7 +445,7 @@ export default function AdminUsers() {
             setUsers(users.map(user => 
               user.id === selectedUser.id ? { ...user, ...updatedUser } : user
             ));
-          } catch (e) {
+          } catch {
             console.warn("No se pudo obtener el usuario actualizado");
           }
         }
@@ -818,10 +833,30 @@ export default function AdminUsers() {
               {/* Controles de paginación */}
               {totalUsers > 0 && (
                 <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 flex justify-between items-center">
-                  <div className="text-sm text-gray-700">
-                    Mostrando <span className="font-medium">{Math.min((currentPage - 1) * pageSize + 1, totalUsers)}</span> a{" "}
-                    <span className="font-medium">{Math.min(currentPage * pageSize, totalUsers)}</span> de{" "}
-                    <span className="font-medium">{totalUsers}</span> usuarios
+                  <div className="flex items-center text-sm text-gray-700 gap-4">
+                    <div>
+                      Mostrando <span className="font-medium">{Math.min((currentPage - 1) * pageSize + 1, totalUsers)}</span> a{" "}
+                      <span className="font-medium">{Math.min(currentPage * pageSize, totalUsers)}</span> de{" "}
+                      <span className="font-medium">{totalUsers}</span> usuarios
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span>Mostrar</span>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => {
+                          setPageSize(Number(e.target.value));
+                          setCurrentPage(1); // Reset to first page when changing page size
+                        }}
+                        className="border rounded px-2 py-1 text-sm"
+                      >
+                        {[10, 20, 50, 100].map(size => (
+                          <option key={size} value={size}>
+                            {size}
+                          </option>
+                        ))}
+                      </select>
+                      <span>por página</span>
+                    </div>
                   </div>
                   <div className="flex items-center">
                     <button 

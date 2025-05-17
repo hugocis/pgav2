@@ -7,8 +7,33 @@ import Link from 'next/link';
 import DashboardContainer from '@/components/DashboardContainer';
 import { FaArrowLeft, FaUpload, FaSave, FaExclamationTriangle } from 'react-icons/fa';
 
+interface Carrera {
+  id: string;
+  denominacion: string;
+}
+
+interface Asignatura {
+  Denominacion: string;
+  CodAsignatura: string;
+  carrera: Carrera;
+}
+
+interface Matricula {
+  id: string;
+  asignatura: Asignatura;
+}
+
+interface ConfiguracionCarrera {
+  id: string;
+  carreraId: string;
+  FechaInicioDispensa: string | null;
+  FechaFinDispensa: string | null;
+  SolDispensa: boolean;
+  SolJustificacion: boolean;
+}
+
 export default function SolicitarDispensa() {
-  const { data: session, status } = useSession({
+  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       router.push('/login');
@@ -18,12 +43,11 @@ export default function SolicitarDispensa() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const matriculaId = searchParams.get('matriculaId');
-
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [matricula, setMatricula] = useState<any | null>(null);
-  const [configuracionCarrera, setConfiguracionCarrera] = useState<any | null>(null);
+  const [matricula, setMatricula] = useState<Matricula | null>(null);
+  const [configuracionCarrera, setConfiguracionCarrera] = useState<ConfiguracionCarrera | null>(null);
   const [alegacion, setAlegacion] = useState('');
   const [files, setFiles] = useState<FileList | null>(null);
 
@@ -55,11 +79,10 @@ export default function SolicitarDispensa() {
         });
         
         if (!configResponse.ok) {
-          throw new Error('Error al obtener la configuración de carrera');
-        }
+          throw new Error('Error al obtener la configuración de carrera');        }
         
         const configData = await configResponse.json();
-        const configuracionCarrera = configData.find((config: any) => config.carreraId === "carrera1");
+        const configuracionCarrera = configData.find((config: ConfiguracionCarrera) => config.carreraId === "carrera1");
         
         if (configuracionCarrera) {
           setConfiguracionCarrera(configuracionCarrera);

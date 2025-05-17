@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardContainer from '@/components/DashboardContainer';
-import { FaUserFriends, FaPlus, FaTrash, FaSearch, FaArrowLeft, FaUsers, FaUserCog, FaSync } from 'react-icons/fa';
+import { FaUserFriends, FaPlus, FaTrash, FaSearch, FaArrowLeft, FaSync } from 'react-icons/fa';
 import Link from 'next/link';
 
 // Interfaces para el tipado
@@ -50,8 +50,15 @@ interface AlumnoGrupo {
   grupo: Grupo;
 }
 
+interface Matricula {
+  id: string;
+  alumno_id: string;
+  asignaturaId: string;
+  user: Alumno;
+}
+
 export default function ProfesorGrupos() {
-  const { data: session, status } = useSession({
+  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       router.push('/login');
@@ -154,17 +161,15 @@ export default function ProfesorGrupos() {
         }
         
         const alumnosAsignaturaData = await alumnosResponse.json();
-        console.log("Respuesta API alumnos-asignatura:", alumnosAsignaturaData);
-        
-        // Extraer alumnos de la asignatura (solo los matriculados en esta asignatura específica)
-        let alumnosMatriculados = [];
+        console.log("Respuesta API alumnos-asignatura:", alumnosAsignaturaData);        // Extraer alumnos de la asignatura (solo los matriculados en esta asignatura específica)
+        let alumnosMatriculados: Alumno[] = [];
         if (alumnosAsignaturaData && Array.isArray(alumnosAsignaturaData)) {
-          alumnosMatriculados = alumnosAsignaturaData.map((matricula: any) => {
+          alumnosMatriculados = alumnosAsignaturaData.map((matricula: Matricula) => {
             if (matricula && matricula.user) {
               return matricula.user;
             }
             return null;
-          }).filter((a: any) => a !== null);
+          }).filter((a: Alumno | null) => a !== null);
           
           console.log("Alumnos matriculados en la asignatura:", alumnosMatriculados.length);
         }
@@ -645,8 +650,8 @@ export default function ProfesorGrupos() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {alumnosFiltrados && alumnosFiltrados.map((alumno, index) => {
                         if (!alumno || !alumno.id) return null;
-                          return (
-                          <tr key={alumno.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        return (
+                        <tr key={alumno.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div 

@@ -12,14 +12,10 @@ import {
   FaFilter,
   FaFileDownload,
   FaEye,
-  FaCheck,
-  FaTimes,
   FaUserGraduate,
   FaCalendarAlt,
-  FaBook,
   FaPaperclip,
   FaChevronDown,
-  FaCommentAlt,
   FaHome,
   FaTachometerAlt
 } from 'react-icons/fa';
@@ -51,7 +47,7 @@ interface Filter {
 }
 
 export default function AcademicDispensations() {
-  const { data: session, status } = useSession({
+  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       redirect('/login');

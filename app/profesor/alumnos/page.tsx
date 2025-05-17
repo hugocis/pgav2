@@ -12,12 +12,9 @@ import {
   FaSync, 
   FaChevronDown,
   FaFileExcel, 
-  FaDownload,
-  FaFilter,
   FaChartPie
 } from 'react-icons/fa';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Pie } from 'react-chartjs-2';
 import * as XLSX from 'xlsx';
 
 // Interfaces para el tipado
@@ -57,6 +54,7 @@ interface Alumno {
   surname2?: string;
   email?: string;
 }
+
 
 interface AsistenciaAlumno {
   id: string;
@@ -110,11 +108,15 @@ interface AlumnoEstadisticas {
   porcentajeTotal: number;
 }
 
+interface ExcelData {
+  [key: string]: string | number; // Allow any string key with string or number values
+}
+
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 export default function ProfesorAlumnos() {
-  const { data: session, status } = useSession({
+  const { data: session } = useSession({
     required: true,
     onUnauthenticated() {
       router.push('/login');
@@ -129,9 +131,8 @@ export default function ProfesorAlumnos() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [alumnos, setAlumnos] = useState<AlumnoEstadisticas[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [estadosAsistencia, setEstadosAsistencia] = useState<Map<string, string>>(new Map());  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'ascending' | 'descending' }>({
+  const [error, setError] = useState<string | null>(null);  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'ascending' | 'descending' }>({
     key: 'nombreCompleto',
     direction: 'ascending'
   });
@@ -191,17 +192,9 @@ export default function ProfesorAlumnos() {
         // Cargar los estados de asistencia disponibles
         const estadosAsistenciaResponse = await fetch('/api/estados-asistencia', {
           credentials: 'include'
-        });
-        
-        if (estadosAsistenciaResponse.ok) {
-          const estadosData = await estadosAsistenciaResponse.json();
-          const mapaEstados = new Map();
-          
-          estadosData.forEach((estado: any) => {
-            mapaEstados.set(estado.id, estado.denominacion);
-          });
-          
-          setEstadosAsistencia(mapaEstados);
+        });        if (estadosAsistenciaResponse.ok) {
+          // Cargar estados de asistencia - solo para futuro uso
+          await estadosAsistenciaResponse.json();
         }
 
         // Ahora debemos cargar todos los alumnos para cada grupo y sus asistencias
@@ -387,7 +380,7 @@ export default function ProfesorAlumnos() {
   // Función para exportar a Excel
   const exportarExcel = () => {
     const dataExport = alumnos.map(alumno => {
-      const data: any = {
+      const data: ExcelData = {
         'Alumno': alumno.nombreCompleto,
       };
       
@@ -425,12 +418,7 @@ export default function ProfesorAlumnos() {
   // Obtener los alumnos de la página actual
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentAlumnos = alumnosFiltrados.slice(indexOfFirstItem, indexOfLastItem);  // Función para obtener el color de fondo según el porcentaje de asistencia
-  const getColorClase = (porcentaje: number) => {
-    if (porcentaje >= 85) return 'bg-green-100 text-green-800';
-    if (porcentaje >= 60) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-red-100 text-red-800';
-  };
+  const currentAlumnos = alumnosFiltrados.slice(indexOfFirstItem, indexOfLastItem);
   
   // Función para cambiar de página
   const paginate = (pageNumber: number) => {
@@ -438,12 +426,8 @@ export default function ProfesorAlumnos() {
       setCurrentPage(pageNumber);
     }
   };
-  // Función para obtener el color de fondo y borde para los gráficos
-  const getChartColors = (porcentaje: number) => {
-    if (porcentaje >= 85) return { bg: 'rgba(34, 197, 94, 0.8)', border: 'rgba(22, 163, 74, 1)' };
-    if (porcentaje >= 60) return { bg: 'rgba(234, 179, 8, 0.8)', border: 'rgba(202, 138, 4, 1)' };
-    return { bg: 'rgba(239, 68, 68, 0.8)', border: 'rgba(220, 38, 38, 1)' };
-  };// Componente para mostrar el gráfico de asistencia mejorado visualmente
+
+  // Componente para mostrar el gráfico de asistencia mejorado visualmente
   const AttendancePieChart = ({ 
     asistencias, 
     total, 
@@ -455,9 +439,6 @@ export default function ProfesorAlumnos() {
     porcentaje: number,
     size?: 'sm' | 'md' | 'lg'
   }) => {
-    const ausencias = total - asistencias;
-    const { bg, border } = getChartColors(porcentaje);
-    
     const chartSize = {
       sm: { width: 54, height: 54, fontSize: '0.75rem', strokeWidth: 3 },
       md: { width: 72, height: 72, fontSize: '0.875rem', strokeWidth: 4 },
@@ -697,7 +678,7 @@ export default function ProfesorAlumnos() {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      {alumnosFiltrados.length} resultados para "{searchTerm}"
+                      {alumnosFiltrados.length} resultados para &quot;{searchTerm}&quot;
                     </div>
                   )}
                 </div><div className="grid grid-cols-3 gap-4 md:gap-8">
@@ -805,7 +786,7 @@ export default function ProfesorAlumnos() {
                   <div className="flex flex-col items-center">
                     <p className="text-gray-600 mb-2">No se encontraron alumnos que coincidan con:</p>
                     <div className="bg-amber-50 py-2 px-4 rounded-full border border-amber-200 mb-6 inline-block">
-                      <p className="text-amber-700 font-medium">"{searchTerm}"</p>
+                      <p className="text-amber-700 font-medium">&quot;{searchTerm}&quot;</p>
                     </div>
                   </div>
                   <button 

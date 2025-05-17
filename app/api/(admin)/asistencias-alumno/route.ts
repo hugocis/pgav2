@@ -10,8 +10,7 @@ export async function GET(request: NextRequest) {
     const alumnoId = searchParams.get('alumnoId');
     const sesionClaseId = searchParams.get('sesionClaseId');
     const estadoAsistenciaId = searchParams.get('estadoAsistenciaId');
-    const includeJustificaciones = searchParams.get('includeJustificaciones') === 'true';
-
+    
     // Construir el filtro de búsqueda
     const where: Prisma.AsistenciaAlumnoWhereInput = {};
 

@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as path from 'path';
+import { importProfesoresDetalle, importExpedienteAlumno, importOfertaAcademica } from './importCsvData';
 
 const prisma = new PrismaClient();
 
@@ -199,6 +201,32 @@ async function main() {
     } else {
       console.log(`ℹ️ User ${user.email} already has the role ${userData.role}`);
     }
+  }
+  console.log('✅ Seeding process base data completed!');
+  
+  // Importar datos desde archivos CSV
+  try {
+    // Las rutas son relativas al directorio desde donde se ejecuta el script
+    const seedsDir = path.join(__dirname, 'seeds');
+    
+    console.log(`🔍 Buscando archivos CSV en: ${seedsDir}`);
+    
+    // Importar datos de profesores
+    const profesoresFile = path.join(seedsDir, 'ProfesoresDetalle (1).csv');
+    await importProfesoresDetalle(profesoresFile);
+    
+    // Importar datos de expedientes de alumnos
+    const expedientesFile = path.join(seedsDir, 'ExpedienteAlumno (1).csv');
+    await importExpedienteAlumno(expedientesFile);
+    
+    // Importar datos de oferta académica
+    const ofertaFile = path.join(seedsDir, 'OfertaAcademica (1).csv');
+    await importOfertaAcademica(ofertaFile);
+    
+    console.log('🎉 Importación de datos CSV completada con éxito!');
+  } catch (error) {
+    console.error('❌ Error al importar datos CSV:', error);
+    console.log('⚠️ Continuando sin importar datos CSV...');
   }
 
   console.log('🎉 Seeding process completed successfully!');

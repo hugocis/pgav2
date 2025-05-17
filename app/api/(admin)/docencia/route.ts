@@ -103,7 +103,20 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
+    // Verificar si ya existe una docencia para esta asignatura y profesor
+    const docenciaExistente = await prisma.docencia.findFirst({
+      where: {
+        asignaturaId,
+        profesorId
+      }
+    });
+    if (docenciaExistente) {
+      return NextResponse.json(
+        { error: "Ya existe una docencia para esta asignatura y profesor" },
+        { status: 400 }
+      );
+    }
+    
     // Crear la nueva entrada de docencia
     const nuevaDocencia = await prisma.docencia.create({
       data: {

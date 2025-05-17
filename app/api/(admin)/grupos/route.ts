@@ -121,6 +121,7 @@ export async function PUT() {
 
         let grupoDB: Grupo;
 
+        
         if (grupoExistente) {
           grupoDB = grupoExistente;
         } else {

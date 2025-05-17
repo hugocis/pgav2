@@ -1,359 +1,166 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React from 'react';
 import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { FaArrowLeft, FaCalendarAlt, FaClipboardList, FaFileSignature, FaHourglassHalf, FaInfoCircle } from 'react-icons/fa';
 import DashboardContainer from '@/components/DashboardContainer';
-import {
-  FaArrowLeft,
-  FaPen,
-  FaSearch,
-  FaFilter,
-  FaEye,
-  FaCheck,
-  FaTimes,
-  FaChalkboardTeacher,
-  FaCalendarAlt,
-  FaFileSignature,
-  FaBook,
-  FaSortAmountDown,
-  FaSortAmountUp,
-  FaBan,
-  FaChevronDown,
-  FaHome,
-  FaTachometerAlt
-} from 'react-icons/fa';
 
-
-// Interfaces para el tipado
-interface TeacherSignature {
-  id: string;
-  teacherId: string;
-  teacherName: string;
-  departmentId: string;
-  department: string;
-  subjectCode: string;
-  subject: string;
-  signatureDate: string;
-  sessionDate: string;
-  sessionType: string;
-  status: string;
-  verifiedDate: string | null;
-  verifiedBy: string | null;
-  comments: string | null;
-}
-
-interface Filter {
-  status: string;
-  dateFrom: string;
-  dateTo: string;
-  department: string;
-  subjectCode: string;
-  searchTerm: string;
-}
-
-export default function TeacherSignatures() {
-  const { data: session, status } = useSession({
+export default function FirmasDocente() {
+  useSession({
     required: true,
     onUnauthenticated() {
-      redirect('/login');
+      router.push('/login');
     }
   });
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [signatures, setSignatures] = useState<TeacherSignature[]>([]);
-  const [filteredSignatures, setFilteredSignatures] = useState<TeacherSignature[]>([]);
-  const [selectedSignature, setSelectedSignature] = useState<TeacherSignature | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  
-  const [departments, setDepartments] = useState(['Todos', 'Ingeniería', 'Ciencias', 'Humanidades', 'Derecho', 'Medicina']);
-  
-  const [filter, setFilter] = useState<Filter>({
-    status: 'all',
-    dateFrom: '',
-    dateTo: '',
-    department: 'Todos',
-    subjectCode: '',
-    searchTerm: ''
-  });
-  
-  const [verification, setVerification] = useState({
-    status: '',
-    comments: ''
-  });
-  
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Construir parámetros de consulta basados en los filtros
-        const queryParams = new URLSearchParams();
-        if (filter.status !== 'all') queryParams.append('status', filter.status);
-        if (filter.dateFrom) queryParams.append('dateFrom', filter.dateFrom);
-        if (filter.dateTo) queryParams.append('dateTo', filter.dateTo);
-        if (filter.department !== 'Todos') queryParams.append('department', filter.department);
-        if (filter.subjectCode) queryParams.append('subjectCode', filter.subjectCode);
-        if (filter.searchTerm) queryParams.append('searchTerm', filter.searchTerm);
-          // Hacer la llamada a la API con los filtros aplicados
-        const response = await fetch(`/api/firmas-docente?${queryParams.toString()}`, {
-          credentials: 'include'
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Error al obtener datos: ${response.status} ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        setSignatures(data);
-        setFilteredSignatures(data);
-        setError(null);
-      } catch (error) {
-        console.error('Error al cargar las firmas de docentes:', error);
-        setError('No se pudieron cargar las firmas de docentes. Por favor, intente nuevamente más tarde.');
-        
-        // Como fallback, usamos datos de ejemplo si la API falla
-        const mockSignatures: TeacherSignature[] = [
-          {
-            id: '1',
-            teacherId: 'PROF001',
-            teacherName: 'Dr. Antonio García López',
-            departmentId: 'DEP01',
-            department: 'Ingeniería',
-            subjectCode: 'ING101',
-            subject: 'Fundamentos de Ingeniería',
-            signatureDate: '2025-05-10',
-            sessionDate: '2025-05-10',
-            sessionType: 'Clase magistral',
-            status: 'pending',
-            verifiedDate: null,
-            verifiedBy: null,
-            comments: null
-          },
-          {
-            id: '2',
-            teacherId: 'PROF015',
-            teacherName: 'Dra. María Rodríguez Sánchez',
-            departmentId: 'DEP02',
-            department: 'Ciencias',
-            subjectCode: 'BIO202',
-            subject: 'Biología Molecular',
-            signatureDate: '2025-05-09',
-            sessionDate: '2025-05-09',
-            sessionType: 'Laboratorio',
-            status: 'verified',
-            verifiedDate: '2025-05-10',
-            verifiedBy: 'Javier Moreno (Manager)',
-            comments: 'Verificada correctamente'
-          },
-          {
-            id: '3',
-            teacherId: 'PROF023',
-            teacherName: 'Dr. Carlos Martínez Gómez',
-            departmentId: 'DEP03',
-            department: 'Humanidades',
-            subjectCode: 'HIS304',
-            subject: 'Historia Contemporánea',
-            signatureDate: '2025-05-08',
-            sessionDate: '2025-05-08',
-            sessionType: 'Seminario',
-            status: 'rejected',
-            verifiedDate: '2025-05-09',
-            verifiedBy: 'Luisa Fernández (Manager)',
-            comments: 'Horario inconsistente con la programación académica'
-          },
-          {
-            id: '4',
-            teacherId: 'PROF045',
-            teacherName: 'Dra. Laura Sánchez Fernández',
-            departmentId: 'DEP04',
-            department: 'Derecho',
-            subjectCode: 'DER101',
-            subject: 'Introducción al Derecho',
-            signatureDate: '2025-05-07',
-            sessionDate: '2025-05-07',
-            sessionType: 'Clase magistral',
-            status: 'pending',
-            verifiedDate: null,
-            verifiedBy: null,
-            comments: null
-          },
-          {
-            id: '5',
-            teacherId: 'PROF052',
-            teacherName: 'Dr. Pedro López Ruiz',
-            departmentId: 'DEP05',
-            department: 'Medicina',
-            subjectCode: 'MED203',
-            subject: 'Anatomía Humana II',
-            signatureDate: '2025-05-06',
-            sessionDate: '2025-05-06',
-            sessionType: 'Práctica clínica',
-            status: 'verified',
-            verifiedDate: '2025-05-07',
-            verifiedBy: 'Ana Martínez (Manager)',
-            comments: 'Verificada correctamente'
-          }
-        ];
-        
-        setSignatures(mockSignatures);
-        setFilteredSignatures(mockSignatures);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const router = useRouter();
 
-    fetchData();
-  }, [filter]);
-
-  useEffect(() => {
-    // Aplicar filtros cuando cambien
-    let result = [...signatures];
-    
-    // Filtrar por estado
-    if (filter.status !== 'all') {
-      result = result.filter(sig => sig.status === filter.status);
-    }
-    
-    // Filtrar por fecha (desde)
-    if (filter.dateFrom) {
-      result = result.filter(sig => new Date(sig.sessionDate) >= new Date(filter.dateFrom));
-    }
-    
-    // Filtrar por fecha (hasta)
-    if (filter.dateTo) {
-      result = result.filter(sig => new Date(sig.sessionDate) <= new Date(filter.dateTo));
-    }
-    
-    // Filtrar por departamento
-    if (filter.department !== 'Todos') {
-      result = result.filter(sig => sig.department === filter.department);
-    }
-    
-    // Filtrar por código de asignatura
-    if (filter.subjectCode) {
-      result = result.filter(sig => 
-        sig.subjectCode.toLowerCase().includes(filter.subjectCode.toLowerCase()) ||
-        sig.subject.toLowerCase().includes(filter.subjectCode.toLowerCase())
-      );
-    }
-    
-    // Filtrar por término de búsqueda
-    if (filter.searchTerm) {
-      const term = filter.searchTerm.toLowerCase();
-      result = result.filter(sig => 
-        sig.teacherName.toLowerCase().includes(term) ||
-        sig.teacherId.toLowerCase().includes(term) ||
-        sig.subject.toLowerCase().includes(term) ||
-        sig.sessionType.toLowerCase().includes(term)
-      );
-    }
-    
-    setFilteredSignatures(result);
-  }, [filter, signatures]);
-  
-  const viewSignatureDetails = (signature: TeacherSignature) => {
-    setSelectedSignature(signature);
-    setShowDetailModal(true);
-    setVerification({
-      status: signature.status,
-      comments: signature.comments || ''
-    });
-  };
-  
-  const handleFilterChange = (key: keyof Filter, value: string) => {
-    setFilter(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
-  
-  const resetFilters = () => {
-    setFilter({
-      status: 'all',
-      dateFrom: '',
-      dateTo: '',
-      department: 'Todos',
-      subjectCode: '',
-      searchTerm: ''
-    });
-  };
-
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'verified':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'pending':
-      default:
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'verified':
-        return 'Verificada';
-      case 'rejected':
-        return 'Rechazada';
-      case 'pending':
-      default:
-        return 'Pendiente';
-    }
-  };
-    const handleVerify = async () => {
-    if (!selectedSignature) return;
-    
-    try {      // Llamada a la API para actualizar el estado de la firma
-      const response = await fetch('/api/firmas-docente', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: selectedSignature.id,
-          status: verification.status,
-          comments: verification.comments,
-        }),
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Error al verificar la firma: ${response.status} ${response.statusText}`);
-      }
-      
-      // Actualizamos el estado local tras la respuesta exitosa
-      const updatedSignatures = signatures.map(sig => {
-        if (sig.id === selectedSignature.id) {
-          return {
-            ...sig,
-            status: verification.status,
-            comments: verification.comments,
-            verifiedDate: new Date().toISOString().split('T')[0],
-            verifiedBy: session?.user?.name || 'Manager'
-          };
-        }
-        return sig;
-      });
-      
-      setSignatures(updatedSignatures);
-      setShowDetailModal(false);
-      setSelectedSignature(null);
-    } catch (error) {
-      console.error('Error al verificar la firma:', error);
-      alert('Error al verificar la firma. Por favor, inténtelo de nuevo.');
-    }
-  };
-  
   return (
     <DashboardContainer roleName="Manager">
-      <div>
-        {/* Component content would go here */}
-        {/* This is a placeholder to complete the component structure */}
+      <div className="bg-gray-50 min-h-full pb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          {/* Panel de encabezado */}
+          <div className="mb-6 bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-5 text-white">
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="flex items-center">
+                    <Link href="/manager/dashboard" className="mr-3 text-white hover:text-blue-200 transition">
+                      <FaArrowLeft />
+                    </Link>
+                    <h1 className="text-2xl font-bold flex items-center">
+                      <FaFileSignature className="mr-3" />
+                      Firmas Docente
+                    </h1>
+                  </div>
+                  <p className="text-blue-100 mt-1">
+                    Gestión y validación de firmas de profesores
+                  </p>
+                </div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
+            </div>
+          </div>
+
+          {/* Contenido principal */}
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-white to-blue-50/30">
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                  <div className="bg-blue-100 p-2 rounded-full mr-3 shadow-sm">
+                    <FaClipboardList className="text-[#0D3C68]" />
+                  </div>
+                  <div>
+                    <span className="text-gray-900">Módulo Pendiente de Desarrollo</span>
+                    <div className="text-xs text-gray-500 font-normal mt-0.5">
+                      Esta página está en construcción
+                    </div>
+                  </div>
+                </h2>
+              </div>
+            </div>
+
+            <div className="p-8">
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <div className="bg-blue-50 rounded-full p-8 mb-6">
+                  <FaHourglassHalf className="text-blue-400 text-6xl" />
+                </div>
+                <h3 className="text-2xl font-semibold text-gray-800 mb-4">Módulo en Desarrollo</h3>
+                <p className="text-gray-600 mb-8 max-w-2xl">
+                  El módulo de gestión de firmas de docentes está actualmente en desarrollo. 
+                  En este módulo podrás validar y gestionar las firmas de asistencia de los profesores, 
+                  verificar cumplimiento de horarios y generar informes de actividad docente.
+                </p>
+
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8 max-w-2xl text-left">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <FaInfoCircle className="h-5 w-5 text-yellow-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-yellow-700">
+                        Este módulo incluirá las siguientes funcionalidades:
+                      </p>
+                      <ul className="mt-2 list-disc list-inside text-sm text-yellow-700">
+                        <li>Registro de firmas diarias de profesores</li>
+                        <li>Validación de asistencia a clases programadas</li>
+                        <li>Informes de cumplimiento por profesor y asignatura</li>
+                        <li>Notificaciones de incidencias</li>
+                        <li>Exportación de informes en PDF y Excel</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <Link
+                  href="/manager/dashboard"
+                  className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white rounded-md shadow-md hover:shadow-lg transition-all"
+                >
+                  <FaArrowLeft className="mr-2" />
+                  Volver al Dashboard
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Cronograma de desarrollo (opcional) */}
+          <div className="mt-6 bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                <FaCalendarAlt className="mr-2 text-[#0D3C68]" />
+                Cronograma de Desarrollo
+              </h3>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 h-4 w-4 rounded-full bg-green-500 mt-1"></div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-900">Análisis de requisitos</p>
+                    <p className="text-sm text-gray-500">Completado</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 h-4 w-4 rounded-full bg-green-500 mt-1"></div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-900">Diseño de interfaz</p>
+                    <p className="text-sm text-gray-500">Completado</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 h-4 w-4 rounded-full bg-yellow-500 mt-1"></div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-900">Desarrollo de backend</p>
+                    <p className="text-sm text-gray-500">En progreso</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 h-4 w-4 rounded-full bg-gray-300 mt-1"></div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-900">Implementación de frontend</p>
+                    <p className="text-sm text-gray-500">Pendiente</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 h-4 w-4 rounded-full bg-gray-300 mt-1"></div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-900">Pruebas y validación</p>
+                    <p className="text-sm text-gray-500">Pendiente</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 h-4 w-4 rounded-full bg-gray-300 mt-1"></div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-900">Lanzamiento</p>
+                    <p className="text-sm text-gray-500">Pendiente</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </DashboardContainer>
   );

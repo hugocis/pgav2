@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/authOptions';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     // Verificar autenticación y rol
     const session = await getServerSession(authOptions);

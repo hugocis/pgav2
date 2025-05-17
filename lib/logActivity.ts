@@ -9,7 +9,6 @@ import crypto from 'crypto';
  * Esta función debe ser llamada desde los controladores de API que realizan operaciones importantes.
  */
 export async function logActivity({
-  req,
   action,
   entityType,
   entityId,
@@ -21,11 +20,9 @@ export async function logActivity({
   entityType: string;
   entityId?: string;
   details?: string;
-  prevValue?: any;
+  prevValue?: unknown;
 }) {
   try {
-    // Intentamos obtener la sesión del usuario
-    // En Next.js 13+ App Router, usamos getServerSession
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id || null;
 
@@ -67,18 +64,33 @@ export async function logActivity({
         .digest('hex') : 
       '';
 
+    // Definir interfaz para los datos de actividad (sin incluir userId como parte de la interfaz)
+    interface ActivityData {
+      action: 'create' | 'update' | 'delete';
+      entityType: string;
+      entityId: string | null;
+      details: string;
+      timestamp: Date;
+      prevHash: string;
+      hash: string;
+      signature: string;
+    }
+
     // Preparar datos para la actividad
-    const activityData: any = {
+    const activityData: ActivityData = {
       action,
       entityType,
       entityId: entityId || null,
-      details,
+      details: details || '',
       timestamp,
       prevHash,
       hash,
       signature
     };
-
+    
+    // Variable para almacenar el ID del usuario
+    let userIdForLog: string | null = null;
+    
     // Si tenemos un ID de usuario y es válido, lo asociamos con la actividad
     if (userId) {
       try {
@@ -88,7 +100,7 @@ export async function logActivity({
         });
         
         if (userExists) {
-          activityData.userId = userId;
+          userIdForLog = userId;
         } else {
           // Si el usuario no existe (caso raro), buscamos admin como respaldo
           const adminUser = await prisma.user.findFirst({
@@ -97,7 +109,7 @@ export async function logActivity({
           });
           
           if (adminUser) {
-            activityData.userId = adminUser.id;
+            userIdForLog = adminUser.id;
             console.log(`Usuario no encontrado. Usando admin como respaldo: ${adminUser.id}`);
           } else {
             throw new Error('No se encontró un usuario válido para el registro');
@@ -118,13 +130,16 @@ export async function logActivity({
         throw new Error('No hay usuario autenticado ni admin para registrar actividad');
       }
       
-      activityData.userId = adminUser.id;
+      userIdForLog = adminUser.id;
       console.log(`Sin usuario autenticado. Usando admin como respaldo: ${adminUser.id}`);
     }
 
     // Guardar el registro de actividad
     const log = await prisma.activityLog.create({
-      data: activityData
+      data: {
+        ...activityData,
+        userId: userIdForLog
+      }
     });
 
     return log;

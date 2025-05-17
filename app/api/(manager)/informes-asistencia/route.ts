@@ -18,7 +18,6 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const academicYearId = searchParams.get('academicYear') || undefined;
     const departmentId = searchParams.get('department') || undefined;
-    const subjectCode = searchParams.get('subjectCode') || undefined;
     const course = searchParams.get('course') || undefined;
     const semester = searchParams.get('semester') || undefined;
     const studentId = searchParams.get('studentId') || undefined;
