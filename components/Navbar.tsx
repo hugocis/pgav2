@@ -131,16 +131,16 @@ export default function Navbar() {
     <header className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white shadow-lg sticky top-0 z-50">
       <div className="container mx-auto py-3 px-4 md:px-6">
         <div className="flex justify-between items-center">
-          {/* Logo y título */}
-          <div className="flex items-center space-x-4">
-            <div className="relative">
-              <Image 
-                src="/logo-UFV.png" 
-                alt="Logo UFV" 
-                width={48} 
-                height={48} 
-                className="hidden md:block"
-              />
+          {/* Logo y título */}          <div className="flex items-center space-x-4">            <div className="relative">
+              <div className="p-0.5 bg-white rounded-md hidden md:block">
+                <Image 
+                  src="/logo-UFV.png" 
+                  alt="Logo UFV" 
+                  width={48} 
+                  height={48} 
+                  className="rounded-sm"
+                />
+              </div>
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold tracking-tight">Portal de Gestión de Asistencias</h1>
@@ -167,8 +167,7 @@ export default function Navbar() {
                     const isActive = pathname?.startsWith(config.path);
                     // Si es el rol de Admin y estamos en cualquier página de admin, mostramos un dropdown
                   if (role === 'Admin' && isAdminSection) {
-                    return (
-                      <div 
+                    return (                      <div 
                         key={role} 
                         className="relative group" 
                         ref={adminDropdownRef}
@@ -177,17 +176,16 @@ export default function Navbar() {
                       >
                         <button
                           onClick={() => setIsAdminDropdownOpen(!isAdminDropdownOpen)}
-                          className={`px-3 py-2 rounded-md flex items-center space-x-2 transition-colors bg-white/20 text-white font-medium group-hover:bg-white/30`}
+                          className={`px-3 py-2 rounded-t-md rounded-b-none flex items-center space-x-2 transition-colors ${isAdminDropdownOpen ? 'bg-white text-blue-700' : 'bg-white/20 text-white'} font-medium group-hover:bg-white/30 ${isAdminDropdownOpen ? 'group-hover:bg-white' : ''}`}
                           aria-expanded={isAdminDropdownOpen}
                         >
                           <span className="hidden lg:block">{config.icon}</span>
                           <span>{config.name}</span>
-                          <FaChevronDown className={`w-3.5 h-3.5 text-blue-200 transition-transform duration-200 ml-1 ${isAdminDropdownOpen ? 'rotate-180' : ''} group-hover:rotate-180`} />
+                          <FaChevronDown className={`w-3.5 h-3.5 ${isAdminDropdownOpen ? 'text-blue-600' : 'text-blue-200'} transition-transform duration-200 ml-1 ${isAdminDropdownOpen ? 'rotate-180' : ''} group-hover:rotate-180`} />
                         </button>
-                        
-                        {/* Menú desplegable para administración */}
+                          {/* Menú desplegable para administración */}
                         <div 
-                          className={`absolute left-0 mt-1 bg-white rounded-lg shadow-xl overflow-hidden z-50 border border-gray-100 min-w-[240px] transition-all duration-200 origin-top-left ${
+                          className={`absolute left-0 mt-0 bg-white rounded-lg shadow-xl overflow-hidden z-50 border border-gray-100 min-w-[240px] transition-all duration-200 origin-top-left ${
                             isAdminDropdownOpen 
                               ? 'transform scale-100 opacity-100' 
                               : 'transform scale-95 opacity-0 invisible pointer-events-none'
@@ -242,11 +240,12 @@ export default function Navbar() {
                   );
                 })}
               </nav>
-            )}            
-            <div className="relative" ref={profileRef}>
-              <button
+            )}              <div className="relative" ref={profileRef} 
+                onMouseEnter={() => setIsProfileOpen(true)}
+                onMouseLeave={() => setIsProfileOpen(false)}
+            >                <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="flex items-center space-x-2 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                className={`flex items-center space-x-2 px-3 py-2 ${isProfileOpen ? 'rounded-t-md rounded-b-none bg-white text-blue-700' : 'rounded-full bg-white/10 text-white'} hover:bg-white/20 transition-colors ${isProfileOpen ? 'hover:bg-white' : ''}`}
                 aria-expanded={isProfileOpen}
                 aria-label="Menú de perfil"
               >
@@ -254,11 +253,9 @@ export default function Navbar() {
                   {fullName.charAt(0).toUpperCase()}
                 </div>
                 <span className="hidden lg:inline font-medium">{fullName}</span>
-                <FaChevronDown className={`w-3.5 h-3.5 text-blue-200 transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {isProfileOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl overflow-hidden text-gray-800 z-50 border border-gray-100">
+                <FaChevronDown className={`w-3.5 h-3.5 ${isProfileOpen ? 'text-blue-600' : 'text-blue-200'} transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`} />
+              </button>              {isProfileOpen && (
+                <div className="absolute right-0 mt-0 w-64 bg-white rounded-lg shadow-xl overflow-hidden text-gray-800 z-50 border border-gray-100">
                   <div className="px-5 py-4 bg-gradient-to-r from-blue-50 to-indigo-50">
                     <p className="text-sm font-medium text-gray-800">{fullName}</p>
                     <p className="text-xs text-gray-500 mt-0.5">{session?.user?.email}</p>
