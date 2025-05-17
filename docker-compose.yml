@@ -22,6 +22,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  
+  # Next.js Web Application
   web:
     build:
       context: .
@@ -37,8 +39,15 @@ services:
       - .env.production
     environment:
       NODE_ENV: production
-      # Configuración para conectarse a la base de datos utilizando el nombre del servicio
+      # Configuración para conectarse a la base de datos
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-pga2}?schema=public
+      # Variables para debugging de conexión
+      PGUSER: ${POSTGRES_USER:-postgres}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATABASE: ${POSTGRES_DB:-pga2}
+      PGHOST: postgres
+      # Activar el seeder (establecer a "true" para ejecutar el seed)
+      RUN_SEEDER: ${RUN_SEEDER:-true}
     networks:
       - pga-network
 

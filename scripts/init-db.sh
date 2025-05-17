@@ -1,21 +1,63 @@
 #!/bin/sh
 # Script para inicializar la base de datos en el entorno dockerizado
 
-# Esperamos a que la base de datos esté disponible
-echo "Esperando a que la base de datos esté disponible..."
-until npx prisma migrate status > /dev/null 2>&1; do
-  echo "Base de datos no disponible aún, esperando..."
-  sleep 2
+# Mostramos la URL de conexión (con contraseña oculta)
+echo "Intentando conectar a: $(echo $DATABASE_URL | sed 's/:\/\/[^:]*:[^@]*@/:\/\/****:****@/')"
+
+# Definimos variables para conexión
+DB_HOST=postgres
+DB_PORT=5432
+DB_USER=$PGUSER
+DB_PASSWORD=$PGPASSWORD
+DB_NAME=$PGDATABASE
+
+# Esperar a que Postgres esté disponible usando postgres-specific tools
+MAX_RETRIES=30
+RETRY_COUNT=0
+
+echo "Esperando a que la base de datos PostgreSQL esté disponible..."
+while ! pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER > /dev/null 2>&1; do
+  if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+    echo "No se pudo conectar a PostgreSQL después de $MAX_RETRIES intentos. Saliendo."
+    exit 1
+  fi
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  echo "Intento $RETRY_COUNT/$MAX_RETRIES: PostgreSQL no está disponible aún, esperando..."
+  sleep 3
 done
 
-# Ejecutamos las migraciones de Prisma
+echo "¡PostgreSQL está disponible! Esperando 3 segundos adicionales para asegurar que está listo..."
+sleep 3
+
+# Mostramos información sobre la conexión
+echo "Comprobando la conexión a la base de datos..."
+export PGPASSWORD=$DB_PASSWORD
+CONN_TEST=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "SELECT 'Conexión exitosa';" 2>&1 || echo "Error de conexión")
+echo "$CONN_TEST"
+
+# Intentamos ejecutar migraciones de Prisma
 echo "Ejecutando migraciones de Prisma..."
 npx prisma migrate deploy
 
-# Opcionalmente ejecutamos el seeder si es necesario
-if [ "$RUN_SEEDER" = "true" ]; then
-  echo "Ejecutando seeder..."
-  npx prisma db seed
+MIGRATE_EXIT_CODE=$?
+if [ $MIGRATE_EXIT_CODE -eq 0 ]; then
+  echo "✅ Migraciones de Prisma aplicadas correctamente."
+
+  # Comprobamos si debemos ejecutar el seeder
+  if [ "$RUN_SEEDER" = "true" ]; then
+    echo "🌱 Ejecutando seeder de Prisma..."
+    npx prisma db seed
+    if [ $? -eq 0 ]; then
+      echo "✅ Seed ejecutado correctamente."
+    else
+      echo "❌ Error al ejecutar el seeder. Continuar de todos modos."
+    fi
+  else
+    echo "ℹ️ Seeder desactivado. Establecer RUN_SEEDER=true para ejecutarlo."
+  fi
+else
+  echo "❌ Error al aplicar las migraciones de Prisma, código de salida: $MIGRATE_EXIT_CODE"
+  exit $MIGRATE_EXIT_CODE
 fi
 
-echo "Base de datos inicializada correctamente."
+echo "✅ Inicialización de la base de datos completada."

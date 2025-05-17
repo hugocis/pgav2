@@ -1,7 +1,7 @@
 FROM node:20-slim AS base
 
 # Instalar dependencias para Prisma y otras herramientas básicas
-RUN apt-get update && apt-get install -y openssl dumb-init && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y openssl dumb-init netcat-openbsd postgresql-client && rm -rf /var/lib/apt/lists/*
 
 # Instalar dependencias solo cuando sea necesario
 FROM base AS deps
