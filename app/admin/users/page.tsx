@@ -807,20 +807,12 @@ export default function AdminUsers() {
                                 title="Editar usuario"
                               >
                                 <FaUserEdit className="w-5 h-5" />
-                              </button>
-                              <button
+                              </button>                              <button
                                 onClick={() => toggleLockout(user.id, user.lockout)}
                                 className={user.lockout ? "text-green-600 hover:text-green-900" : "text-yellow-600 hover:text-yellow-900"}
                                 title={user.lockout ? "Desbloquear usuario" : "Bloquear usuario"}
                               >
                                 {user.lockout ? <FaLockOpen className="w-5 h-5" /> : <FaLock className="w-5 h-5" />}
-                              </button>
-                              <button 
-                                onClick={() => handleDeleteUser(user.id)}
-                                className="text-red-600 hover:text-red-900"
-                                title="Eliminar usuario"
-                              >
-                                <FaTrash className="w-5 h-5" />
                               </button>
                             </div>
                           </td>
