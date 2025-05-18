@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import DashboardContainer from '@/components/DashboardContainer';
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaFilter, FaBookOpen, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaSearch, FaFilter, FaBookOpen, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 // Interfaces para tipado
 interface Docencia {
@@ -233,30 +233,6 @@ export default function AdminDocencia() {
         left: scrollAmount,
         behavior: 'smooth'
       });
-    }
-  };
-
-  const handleDeleteDocencia = async (id: number) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar esta docencia? Esta acción no se puede deshacer.')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/docencia/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al eliminar la docencia');
-      }
-
-      // Actualizar la lista de docencias
-      setDocencias(docencias.filter(docencia => docencia.id !== id));
-      alert('Docencia eliminada correctamente');
-    } catch (error) {
-      alert('Error al eliminar la docencia');
-      console.error(error);
     }
   };
 

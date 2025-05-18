@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import DashboardContainer from '@/components/DashboardContainer';
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaFilter, FaChevronLeft, FaChevronRight, FaUserGraduate } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaSearch, FaFilter, FaChevronLeft, FaChevronRight, FaUserGraduate } from 'react-icons/fa';
 
 // Interfaces para tipado
 interface Matricula {
@@ -219,30 +219,6 @@ export default function AdminMatriculas() {
         left: scrollAmount,
         behavior: 'smooth'
       });
-    }
-  };
-
-  const handleDeleteMatricula = async (id: number) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar esta matrícula? Esta acción no se puede deshacer.')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/matriculas/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al eliminar la matrícula');
-      }
-
-      // Actualizar la lista de matrículas
-      setMatriculas(matriculas.filter(matricula => matricula.id !== id));
-      alert('Matrícula eliminada correctamente');
-    } catch (error) {
-      alert('Error al eliminar la matrícula');
-      console.error(error);
     }
   };
 

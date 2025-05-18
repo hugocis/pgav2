@@ -161,6 +161,9 @@ model User {
   Matricula              Matricula[]
   SolicitudDispensa      SolicitudDispensa[]
   Asignatura             Asignatura[]
+  // Nuevas relaciones
+  ManagerCarrera         ManagerCarrera[]
+  PecCarreraCurso        PecCarreraCurso[]
 }
 
 model Role {
@@ -208,8 +211,8 @@ model CursoAcademico {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  Asignatura Asignatura[]
-  AlumnoPlan AlumnoPlan[]
+  Asignatura      Asignatura[]
+  AlumnoPlan      AlumnoPlan[]
 }
 
 model Escuela {
@@ -231,6 +234,9 @@ model Carrera {
 
   ConfiguracionCarrera ConfiguracionCarrera[]
   Asignatura           Asignatura[]
+  // Nuevas relaciones
+  ManagerCarrera       ManagerCarrera[]
+  PecCarreraCurso      PecCarreraCurso[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -511,4 +517,43 @@ model SolicitudDispensa {
 
   DocumentacionDispensa DocumentacionDispensa[]
   EstadoDispensa        EstadoDispensa[]        @relation(name: "dispensasEstados")
+}
+
+// Modelo para relacionar managers con carreras
+model ManagerCarrera {
+  id        String    @id @default(uuid())
+  managerId String // ID del usuario manager
+  carreraId String // ID de la carrera
+  fechaAlta DateTime  @default(now())
+  fechaBaja DateTime?
+  activo    Boolean   @default(true)
+
+  // Relaciones
+  user    User    @relation(fields: [managerId], references: [id], onDelete: Cascade)
+  carrera Carrera @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([managerId, carreraId]) // Un manager no puede estar asignado dos veces a la misma carrera
+}
+
+// Modelo para relacionar PEC con carreras y cursos (1º,2º,3º,4º)
+model PecCarreraCurso {
+  id               String    @id @default(uuid())
+  pecId            String // ID del usuario PEC
+  carreraId        String // ID de la carrera
+  curso            Int       // Curso (1, 2, 3, 4)
+  fechaAlta        DateTime  @default(now())
+  fechaBaja        DateTime?
+  activo           Boolean   @default(true)
+
+  // Relaciones
+  user    User    @relation(fields: [pecId], references: [id], onDelete: Cascade)
+  carrera Carrera @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pecId, carreraId, curso]) // Un PEC no puede estar asignado dos veces a la misma combinación de carrera y curso
 }

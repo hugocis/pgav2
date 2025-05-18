@@ -5,8 +5,7 @@ import { redirect } from 'next/navigation';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import DashboardContainer from '@/components/DashboardContainer';
 import { 
-  FaUserPlus, 
-  FaUserEdit,  
+  FaUserPlus,   
   FaSearch, 
   FaFilter, 
   FaUsers, 
@@ -14,11 +13,14 @@ import {
   FaChevronRight,
   FaLock,
   FaUnlock,
-  FaTrash,
   FaSortAmountDown,
   FaSortAmountUp,
-  FaSave
+  FaSave,
+  FaBuilding, // Icono para carreras
+  FaGraduationCap // Icono para asignaciones académicas
 } from 'react-icons/fa';
+import ManagerCarreraSelector from '@/components/ManagerCarreraSelector';
+import PecCarreraCursoSelector from '@/components/PecCarreraCursoSelector';
 
 // Definir interfaces para tipado
 interface User {
@@ -93,6 +95,11 @@ export default function AdminUsers() {
   // Create refs for dialog containers
   const editDialogRef = useRef<HTMLDivElement>(null);
   const createDialogRef = useRef<HTMLDivElement>(null);
+
+  // Estados para diálogos de asignación de carreras
+  const [isManagerCarreraDialogOpen, setIsManagerCarreraDialogOpen] = useState(false);
+  const [isPecCarreraCursoDialogOpen, setIsPecCarreraCursoDialogOpen] = useState(false);
+  const [selectedUserForAssignment, setSelectedUserForAssignment] = useState<User | null>(null);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -275,31 +282,6 @@ export default function AdminUsers() {
     } catch (error) {
       console.error('Error:', error);
       alert('Error al cambiar el estado de bloqueo');
-    }
-  };
-  
-  // Función para eliminar usuario
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer.')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/users/${userId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al eliminar el usuario');
-      }
-
-      // Actualizar la lista de usuarios
-      setUsers(users.filter(user => user.id !== userId));
-      alert('Usuario eliminado correctamente');
-    } catch (error) {
-      alert('Error al eliminar el usuario');
-      console.error(error);
     }
   };
   
@@ -499,7 +481,32 @@ export default function AdminUsers() {
     setIsCreateDialogOpen(false);
     setCreateMessage(null);
   };
-    // Función para crear un nuevo usuario
+
+  // Función para abrir el diálogo de asignación de carreras para managers
+  const handleOpenManagerCarreraDialog = (user: User) => {
+    setSelectedUserForAssignment(user);
+    setIsManagerCarreraDialogOpen(true);
+  };
+
+  // Función para cerrar el diálogo de asignación de carreras para managers
+  const handleCloseManagerCarreraDialog = () => {
+    setIsManagerCarreraDialogOpen(false);
+    setSelectedUserForAssignment(null);
+  };
+
+  // Función para abrir el diálogo de asignación de carreras y cursos para PECs
+  const handleOpenPecCarreraCursoDialog = (user: User) => {
+    setSelectedUserForAssignment(user);
+    setIsPecCarreraCursoDialogOpen(true);
+  };
+
+  // Función para cerrar el diálogo de asignación de carreras y cursos para PECs
+  const handleClosePecCarreraCursoDialog = () => {
+    setIsPecCarreraCursoDialogOpen(false);
+    setSelectedUserForAssignment(null);
+  };
+
+  // Función para crear un nuevo usuario
   const handleCreateUser = async () => {
     setIsCreating(true);
     setCreateMessage(null);
@@ -751,7 +758,8 @@ export default function AdminUsers() {
                         </td>
                       </tr>
                     ) : (
-                      paginatedUsers.map(user => (                        <tr key={user.id} className={`hover:bg-gray-50 ${user.lockout ? 'bg-red-50' : ''}`}>
+                      paginatedUsers.map(user => (
+                        <tr key={user.id} className={`hover:bg-gray-50 ${user.lockout ? 'bg-red-50' : ''}`}>
                           <td 
                             className="px-6 py-4 whitespace-nowrap text-sm font-medium cursor-pointer"
                             onClick={() => handleRowClick(user)}
@@ -762,17 +770,20 @@ export default function AdminUsers() {
                                 Bloqueado
                               </span>
                             )}
-                          </td><td 
+                          </td>
+                          <td 
                             className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
                             onClick={() => handleRowClick(user)}
                           >
                             {[user.name, user.surname1, user.surname2].filter(Boolean).join(' ')}
-                          </td><td 
+                          </td>
+                          <td 
                             className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
                             onClick={() => handleRowClick(user)}
                           >
                             {user.email}
-                          </td><td 
+                          </td>
+                          <td 
                             className="px-6 py-4 text-sm text-gray-500 cursor-pointer"
                             onClick={() => handleRowClick(user)}
                           >
@@ -822,7 +833,8 @@ export default function AdminUsers() {
                               </div>
                             )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">                            <div className="flex justify-end space-x-2">
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex justify-end space-x-2">
                               <button
                                 onClick={() => toggleLockout(user.id, user.lockout)}
                                 className={user.lockout ? "text-green-600 hover:text-green-900" : "text-yellow-600 hover:text-yellow-900"}
@@ -833,6 +845,24 @@ export default function AdminUsers() {
                                   <FaUnlock className="w-5 h-5" />
                                 }
                               </button>
+                              {user.userRoles && user.userRoles.some(ur => ur.role.name === 'Manager') && (
+                                <button 
+                                  onClick={() => handleOpenManagerCarreraDialog(user)}
+                                  className="text-amber-600 hover:text-amber-900"
+                                  title="Asignar carreras al manager"
+                                >
+                                  <FaBuilding className="w-5 h-5" />
+                                </button>
+                              )}
+                              {user.userRoles && user.userRoles.some(ur => ur.role.name === 'PEC') && (
+                                <button 
+                                  onClick={() => handleOpenPecCarreraCursoDialog(user)}
+                                  className="text-purple-600 hover:text-purple-900"
+                                  title="Asignar carreras y cursos académicos al PEC"
+                                >
+                                  <FaGraduationCap className="w-5 h-5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1282,6 +1312,22 @@ export default function AdminUsers() {
             </div>
           </div>
         </div>
+      )}      {/* Diálogo para asignar carreras a managers */}
+      {isManagerCarreraDialogOpen && selectedUserForAssignment && (
+        <ManagerCarreraSelector 
+          userId={selectedUserForAssignment.id}
+          isOpen={isManagerCarreraDialogOpen}
+          onClose={handleCloseManagerCarreraDialog}
+        />
+      )}
+
+      {/* Diálogo para asignar carreras y cursos académicos a PECs */}
+      {isPecCarreraCursoDialogOpen && selectedUserForAssignment && (
+        <PecCarreraCursoSelector 
+          userId={selectedUserForAssignment.id}
+          isOpen={isPecCarreraCursoDialogOpen}
+          onClose={handleClosePecCarreraCursoDialog}
+        />
       )}
     </DashboardContainer>
   );

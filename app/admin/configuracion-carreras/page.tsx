@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import DashboardContainer from '@/components/DashboardContainer';
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaFilter, FaUniversity, FaChevronLeft, FaChevronRight, FaCalendarAlt, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaSearch, FaFilter, FaUniversity, FaChevronLeft, FaChevronRight, FaCalendarAlt, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 
 // Interfaces para tipado
 interface ConfiguracionCarrera {
@@ -167,29 +167,6 @@ export default function AdminConfiguracionCarreras() {
         left: scrollAmount,
         behavior: 'smooth'
       });
-    }
-  };
-  const handleDeleteConfiguracion = async (id: string) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar esta configuración de carrera? Esta acción no se puede deshacer.')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/configuracion-carrera/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al eliminar la configuración de carrera');
-      }
-
-      // Actualizar la lista de configuraciones
-      setConfiguraciones(configuraciones.filter(config => config.id !== id));
-      alert('Configuración de carrera eliminada correctamente');
-    } catch (error) {
-      alert('Error al eliminar la configuración de carrera');
-      console.error(error);
     }
   };
 
@@ -441,7 +418,7 @@ export default function AdminConfiguracionCarreras() {
           const errorData = await response.json();
           console.error('Error de API:', errorData);
           alert(`Error al actualizar el estado de dispensas: ${errorData.message || response.statusText}`);
-        } catch (e) {
+        } catch {
           alert(`Error al actualizar el estado de dispensas: ${response.status} ${response.statusText}`);
         }
       }
@@ -502,7 +479,7 @@ export default function AdminConfiguracionCarreras() {
           const errorData = await response.json();
           console.error('Error de API:', errorData);
           alert(`Error al actualizar el estado de justificaciones: ${errorData.message || response.statusText}`);
-        } catch (e) {
+        } catch {
           alert(`Error al actualizar el estado de justificaciones: ${response.status} ${response.statusText}`);
         }
       }
