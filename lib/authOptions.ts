@@ -46,11 +46,10 @@ export const authOptions: NextAuthOptions = {
             console.log(`User not found: ${username}`);
             return null;
           }
-          
-          // Check if the user is locked out
+            // Check if the user is locked out
           if (user.lockout) {
             console.log(`User is locked out: ${username}`);
-            throw new Error("Account locked: Your account has been disabled by an administrator");
+            return Promise.reject(new Error("Account locked: Your account has been disabled by an administrator"));
           }
           
           if (typeof user.password !== "string") {

@@ -49,7 +49,6 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const userRoles = (token?.roles as string[]) || [];
   const userLockout = token?.lockout as boolean | undefined;
-
   // Check if user is locked out - immediately block access and force logout
   if (token && userLockout === true) {
     // For API requests, return 403

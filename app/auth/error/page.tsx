@@ -26,6 +26,8 @@ export default function AuthError() {
         return 'Hubo un problema con el inicio de sesión por correo.';
       case 'SessionRequired':
         return 'Se requiere iniciar sesión para acceder a esta página.';
+      case 'AccountLocked':
+        return 'Esta cuenta ha sido bloqueada. Por favor, contacte con el administrador.';
       default:
         return 'Se ha producido un error durante la autenticación.';
     }

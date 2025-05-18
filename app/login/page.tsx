@@ -47,10 +47,9 @@ function LoginForm() {
         password,
         callbackUrl,
       });
-      
-      if (res?.error) {
+        if (res?.error) {
         // Check for specific error messages
-        if (res.error.includes('locked')) {
+        if (res.error.includes('Account locked')) {
           setError('Esta cuenta ha sido bloqueada. Por favor, contacte con el administrador.');
         } else {
           setError('Credenciales incorrectas. Por favor, inténtalo de nuevo.');
