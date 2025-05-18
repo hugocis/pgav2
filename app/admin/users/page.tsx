@@ -545,11 +545,15 @@ export default function AdminUsers() {
         },
         credentials: 'include',
         body: JSON.stringify(newUserData),
-      });
-
-      if (response.ok) {
+      });      if (response.ok) {
         // Añadir el nuevo usuario al estado local
         const createdUser = await response.json();
+        
+        // Asegurarnos de que userRoles está definido para evitar errores
+        if (!createdUser.userRoles) {
+          createdUser.userRoles = [];
+        }
+        
         setUsers([...users, createdUser]);
         
         setCreateMessage({ text: 'Usuario creado correctamente', type: 'success' });
@@ -966,9 +970,8 @@ export default function AdminUsers() {
                 </div>
                   <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Roles</label>
-                  <div className="border border-gray-300 rounded-md p-3 bg-gray-50 flex flex-wrap gap-2">
-                    {roles.map(role => {
-                      const isChecked = selectedUser.userRoles.some(ur => ur.role.id === role.id);
+                  <div className="border border-gray-300 rounded-md p-3 bg-gray-50 flex flex-wrap gap-2">                    {roles.map(role => {
+                      const isChecked = selectedUser.userRoles && selectedUser.userRoles.some(ur => ur.role.id === role.id);
                       return (
                         <label 
                           key={role.id} 

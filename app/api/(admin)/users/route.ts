@@ -73,10 +73,20 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         lockout: body.lockout || false,
       },
-    });
-
-    // Si se especifica un rol, asignarlo
-    if (body.roleId) {
+    });    // Si se especifican roles, asignarlos
+    if (Array.isArray(body.roles) && body.roles.length > 0) {
+      // Crear un registro UserRole para cada rol seleccionado
+      await Promise.all(body.roles.map((roleId: number) => {
+        return prisma.userRole.create({
+          data: {
+            userId: newUser.id,
+            roleId,
+          }
+        });
+      }));
+    } 
+    // Para mantener compatibilidad con versiones anteriores
+    else if (body.roleId) {
       await prisma.userRole.create({
         data: {
           userId: newUser.id,
@@ -85,16 +95,28 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Incluir los roles del usuario en la respuesta
+    const userWithRoles = await prisma.user.findUnique({
+      where: { id: newUser.id },
+      include: {
+        userRoles: {
+          include: {
+            role: true
+          }
+        }
+      }
+    });
+
     await logActivity({
       req: request,
       action: 'create',
       entityType: 'user',
       entityId: newUser.id,
-      details: `Creación manual del usuario ${newUser.email} (${body.roleId ? 'con rol asignado' : 'sin rol'})`
+      details: `Creación manual del usuario ${newUser.email} (con ${Array.isArray(body.roles) ? body.roles.length : (body.roleId ? '1' : '0')} roles asignados)`
     });
 
 
-    return NextResponse.json(newUser, { status: 201 });
+    return NextResponse.json(userWithRoles, { status: 201 });
   } catch (error) {
     console.error('Error al crear el usuario:', error);
     return NextResponse.json(
