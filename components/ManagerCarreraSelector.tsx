@@ -45,7 +45,7 @@ export default function ManagerCarreraSelector({ userId, isOpen, onCloseAction, 
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {      // Cargar carreras disponibles - usando el endpoint de admin que trae todas las carreras
-      const carrerasResponse = await fetch('/api/admin/carreras');
+      const carrerasResponse = await fetch('/api/carreras');
       const carrerasData = await carrerasResponse.json();
       setCarreras(carrerasData);
 

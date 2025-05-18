@@ -15,7 +15,7 @@ export default function ManagerCarrerasAsignadas() {
     const fetchCarreras = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/admin/carreras');
+        const response = await fetch('/api/carreras');
         if (!response.ok) {
           throw new Error('Error al cargar las carreras');
         }

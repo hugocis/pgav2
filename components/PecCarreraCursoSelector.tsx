@@ -52,8 +52,7 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {      // Cargar carreras disponibles
-      // El endpoint /api/admin/carreras ya filtra automáticamente según el rol del usuario
-      const carrerasResponse = await fetch('/api/admin/carreras');
+      const carrerasResponse = await fetch('/api/carreras');
       const carrerasData = await carrerasResponse.json();
       setCarreras(carrerasData);
 
