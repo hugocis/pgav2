@@ -252,7 +252,7 @@ export default function AdminUsers() {
   const toggleLockout = async (userId: string, currentStatus: boolean) => {
     try {
       const response = await fetch(`/api/users/${userId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
