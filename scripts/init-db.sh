@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Script para inicializar la base de datos en el entorno dockerizado
 
 # Mostramos la URL de conexión (con contraseña oculta)
