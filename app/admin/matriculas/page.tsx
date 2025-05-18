@@ -22,13 +22,12 @@ interface Matricula {
     surname1: string | null;
     surname2: string | null;
     email: string;
-  };
-  asignatura: {
+  };  asignatura: {
     id: number;
     CodAsignatura: string;
     Denominacion: string;
     carrera: {
-      id: number;
+      id: string;
       denominacion: string;
     }
   };
@@ -58,15 +57,14 @@ export default function AdminMatriculas() {
   });
 
   const [matriculas, setMatriculas] = useState<Matricula[]>([]);
-  const [filteredMatriculas, setFilteredMatriculas] = useState<Matricula[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [filteredMatriculas, setFilteredMatriculas] = useState<Matricula[]>([]);  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedAsignatura, setSelectedAsignatura] = useState<string>('');
-  const [selectedAlumno, setSelectedAlumno] = useState<string>('');
+  const [selectedCarrera, setSelectedCarrera] = useState<string>('');
   
   const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
   const [alumnos, setAlumnos] = useState<User[]>([]);
+  const [carreras, setCarreras] = useState<{id: string, denominacion: string}[]>([]);
   
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -78,11 +76,11 @@ export default function AdminMatriculas() {
   const [selectedMatricula, setSelectedMatricula] = useState<Matricula | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMessage, setUpdateMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  
-  // Estados para el diálogo de creación
+    // Estados para el diálogo de creación
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [newMostrarChecked, setNewMostrarChecked] = useState(false);
   
   // Referencias para los campos del formulario
   const asignaturaRef = useRef<HTMLSelectElement>(null);
@@ -115,9 +113,7 @@ export default function AdminMatriculas() {
       } finally {
         setIsLoading(false);
       }
-    };
-
-    const fetchAsignaturas = async () => {
+    };    const fetchAsignaturas = async () => {
       try {
         const response = await fetch('/api/asignaturas', {
           credentials: 'include',
@@ -132,6 +128,24 @@ export default function AdminMatriculas() {
         setAsignaturas(data);
       } catch (error) {
         console.error('Error al cargar las asignaturas:', error);
+      }
+    };
+
+    const fetchCarreras = async () => {
+      try {
+        const response = await fetch('/api/carreras', {
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        
+        if (!response.ok) {
+          throw new Error('Error al cargar carreras');
+        }
+        
+        const data = await response.json();
+        setCarreras(data);
+      } catch (error) {
+        console.error('Error al cargar las carreras:', error);
       }
     };
 
@@ -151,13 +165,11 @@ export default function AdminMatriculas() {
       } catch (error) {
         console.error('Error al cargar los alumnos:', error);
       }
-    };
-
-    fetchMatriculas();
+    };    fetchMatriculas();
     fetchAsignaturas();
+    fetchCarreras();
     fetchAlumnos();
   }, []);
-
   // Filtrado de matrículas
   useEffect(() => {
     let result = [...matriculas];
@@ -169,18 +181,16 @@ export default function AdminMatriculas() {
         `${matricula.user?.name || ''} ${matricula.user?.surname1 || ''} ${matricula.user?.surname2 || ''}`.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
-    if (selectedAsignatura) {
-      result = result.filter(matricula => matricula.asignaturaId === parseInt(selectedAsignatura));
-    }
-
-    if (selectedAlumno) {
-      result = result.filter(matricula => matricula.alumno_id === selectedAlumno);
+    
+    if (selectedCarrera) {
+      result = result.filter(matricula => 
+        matricula.asignatura?.carrera?.id.toString() === selectedCarrera
+      );
     }
 
     setFilteredMatriculas(result);
     setCurrentPage(1); // Resetear página cuando cambian los filtros
-  }, [searchTerm, selectedAsignatura, selectedAlumno, matriculas]);
+  }, [searchTerm, selectedCarrera, matriculas]);
   
   // Obtener las matrículas para la página actual
   const getCurrentPageItems = () => {
@@ -369,10 +379,10 @@ export default function AdminMatriculas() {
       setIsCreating(false);
     }
   };
-
   const handleCloseCreateDialog = () => {
     setIsCreateDialogOpen(false);
     setCreateMessage(null);
+    setNewMostrarChecked(false);
   };
 
   return (
@@ -424,40 +434,20 @@ export default function AdminMatriculas() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-              </div>
-              <div className="w-full md:w-64">
+              </div>              <div className="w-full md:w-64">
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <FaFilter className="text-gray-400" />
                   </div>
                   <select
                     className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    value={selectedAsignatura}
-                    onChange={(e) => setSelectedAsignatura(e.target.value)}
+                    value={selectedCarrera}
+                    onChange={(e) => setSelectedCarrera(e.target.value)}
                   >
-                    <option value="">Todas las asignaturas</option>
-                    {asignaturas.map(asignatura => (
-                      <option key={asignatura.id} value={asignatura.id.toString()}>
-                        {asignatura.CodAsignatura} - {asignatura.Denominacion}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="w-full md:w-64">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaFilter className="text-gray-400" />
-                  </div>
-                  <select
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    value={selectedAlumno}
-                    onChange={(e) => setSelectedAlumno(e.target.value)}
-                  >
-                    <option value="">Todos los alumnos</option>
-                    {alumnos.map(alumno => (
-                      <option key={alumno.id} value={alumno.id}>
-                        {`${alumno.name || ''} ${alumno.surname1 || ''} ${alumno.surname2 || ''}`.trim()}
+                    <option value="">Todas las carreras</option>
+                    {carreras.map(carrera => (
+                      <option key={carrera.id} value={carrera.id.toString()}>
+                        {carrera.denominacion}
                       </option>
                     ))}
                   </select>
@@ -487,57 +477,47 @@ export default function AdminMatriculas() {
               <div className="text-center text-red-600">{error}</div>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">              <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alumno</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asignatura</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrera</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Alta</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mostrar</th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visibilidad</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredMatriculas.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                        <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
                           No se encontraron matrículas con los criterios de búsqueda.
-                        </td>
-                      </tr>
+                        </td>                      </tr>
                     ) : (
                       getCurrentPageItems().map(matricula => (
                         <tr key={matricula.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleRowClick(matricula)}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {matricula.id}
-                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {matricula.user ? 
                               `${matricula.user.name || ''} ${matricula.user.surname1 || ''} ${matricula.user.surname2 || ''}`.trim() : 
                               'Sin asignar'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {matricula.asignatura ? `${matricula.asignatura.CodAsignatura} - ${matricula.asignatura.Denominacion}` : 'No disponible'}
+                            {matricula.asignatura ? `${matricula.asignatura.Denominacion} (${matricula.asignatura.CodAsignatura})` : 'No disponible'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {matricula.asignatura?.carrera ? matricula.asignatura.carrera.denominacion : 'No disponible'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {new Date(matricula.fechaalta).toLocaleDateString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {matricula.mostrar ? 'Sí' : 'No'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteMatricula(matricula.id);
-                              }} 
-                              className="text-red-600 hover:text-red-900"
-                              title="Eliminar matrícula"
-                            >
-                              <FaTrash className="inline" /> Eliminar
-                            </button>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              matricula.mostrar 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {matricula.mostrar ? 'Visible' : 'Oculta'}                            </span>
                           </td>
                         </tr>
                       ))
@@ -596,11 +576,10 @@ export default function AdminMatriculas() {
           )}
         </div>
       </div>
-      
-      {/* Diálogo de edición */}
+        {/* Diálogo de edición */}
       {isDialogOpen && selectedMatricula && (
-        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
+        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={handleCloseDialog}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white">
               <h3 className="text-lg font-medium">
                 Editar Matrícula: {selectedMatricula.id}
@@ -631,8 +610,7 @@ export default function AdminMatriculas() {
                     ))}
                   </select>
                 </div>
-                
-                <div>
+                  <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Asignatura</label>
                   <select
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -646,19 +624,35 @@ export default function AdminMatriculas() {
                     ))}
                   </select>
                 </div>
-                
+
                 <div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="mostrar"
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      defaultChecked={selectedMatricula.mostrar}
-                      ref={mostrarRef}
-                    />
-                    <label htmlFor="mostrar" className="ml-2 block text-sm text-gray-900">
-                      Mostrar
-                    </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Carrera</label>
+                  <p className="text-sm text-gray-500 bg-gray-50 px-3 py-2 border border-gray-200 rounded-md">
+                    {selectedMatricula.asignatura?.carrera?.denominacion || 'No disponible'}
+                  </p>
+                </div>
+                  <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Visibilidad</label>
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="mostrar"
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        defaultChecked={selectedMatricula.mostrar}
+                        ref={mostrarRef}
+                      />
+                      <label htmlFor="mostrar" className="ml-2 block text-sm text-gray-900">
+                        Visible
+                      </label>
+                    </div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      selectedMatricula.mostrar 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {selectedMatricula.mostrar ? 'Visible' : 'Oculta'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -700,11 +694,10 @@ export default function AdminMatriculas() {
           </div>
         </div>
       )}
-      
-      {/* Diálogo de creación de matrícula */}
+        {/* Diálogo de creación de matrícula */}
       {isCreateDialogOpen && (
-        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
+        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={handleCloseCreateDialog}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white">
               <h3 className="text-lg font-medium">
                 Crear Nueva Matrícula
@@ -751,19 +744,29 @@ export default function AdminMatriculas() {
                       </option>
                     ))}
                   </select>
-                </div>
-                
-                <div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="newMostrar"
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      ref={newMostrarRef}
-                    />
-                    <label htmlFor="newMostrar" className="ml-2 block text-sm text-gray-900">
-                      Mostrar
-                    </label>
+                </div>                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Visibilidad</label>
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="newMostrar"
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        ref={newMostrarRef}
+                        checked={newMostrarChecked}
+                        onChange={(e) => setNewMostrarChecked(e.target.checked)}
+                      />
+                      <label htmlFor="newMostrar" className="ml-2 block text-sm text-gray-900">
+                        Visible
+                      </label>
+                    </div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      newMostrarChecked 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {newMostrarChecked ? 'Visible' : 'Oculta'}
+                    </span>
                   </div>
                 </div>
                 
