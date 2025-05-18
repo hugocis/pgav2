@@ -85,6 +85,103 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 }
 
+export async function PUT(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return new NextResponse(JSON.stringify({ message: 'No autorizado' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const assignmentId = params.id;
+    const { carreraId, curso } = await request.json();
+
+    // Validar los datos de entrada
+    if (!carreraId || !curso) {
+      return new NextResponse(JSON.stringify({ message: 'Faltan datos requeridos' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verificar que la asignación existe
+    const existingAssignment = await prisma.pecCarreraCurso.findUnique({
+      where: { id: assignmentId },
+      include: { carrera: true }
+    });
+
+    if (!existingAssignment) {
+      return new NextResponse(JSON.stringify({ message: 'La asignación no existe' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verificar que el usuario actual es el PEC o un administrador
+    const isAdmin = session?.user?.roles.includes('Admin');
+    const isPec = session?.user?.id === existingAssignment.pecId;
+
+    if (!isAdmin && !isPec) {
+      return new NextResponse(JSON.stringify({ message: 'No tiene permisos para actualizar esta asignación' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verificar si la combinación ya está asignada y es diferente a la actual
+    const duplicateCheck = await prisma.pecCarreraCurso.findFirst({
+      where: {
+        id: { not: assignmentId },
+        pecId: existingAssignment.pecId,
+        carreraId: carreraId,
+        curso: curso,
+        activo: true,
+      },
+    });
+
+    if (duplicateCheck) {
+      return new NextResponse(JSON.stringify({
+        message: 'Esta combinación de carrera y curso ya está asignada al PEC'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Actualizar la asignación
+    const updatedAssignment = await prisma.pecCarreraCurso.update({
+      where: { id: assignmentId },
+      data: { 
+        carreraId,
+        curso
+      },
+      include: { carrera: true }
+    });
+
+    // Registrar la actividad
+    await logActivity({
+      req: request,
+      action: 'update',
+      entityType: 'pecCarreraCurso',
+      entityId: assignmentId,
+      details: `Actualizada asignación para PEC ${existingAssignment.pecId}: Carrera ${existingAssignment.carrera?.denominacion || carreraId} - Curso ${curso}`
+    });
+
+    return NextResponse.json(updatedAssignment);
+  } catch (error) {
+    console.error('Error al actualizar la asignación:', error);
+    return new NextResponse(JSON.stringify({ message: 'Error interno del servidor' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
 // DELETE: Eliminar una asignación de PEC-carrera-curso
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
