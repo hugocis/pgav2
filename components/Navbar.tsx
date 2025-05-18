@@ -271,21 +271,20 @@ export default function Navbar() {
                       ))}
                     </div>
                   </div>
-                  <div className="py-1 border-t border-gray-100">
-                    <Link 
+                  <div className="py-1 border-t border-gray-100">                    <Link 
                       href="/profile" 
-                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-200 flex items-center"
                     >
-                      <svg className="h-4 w-4 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="h-4 w-4 mr-2 text-gray-500 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                       <span className="flex-grow">Mi perfil</span>
                     </Link>
                     <button
-                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors duration-200 flex items-center cursor-pointer"
                       onClick={() => signOut({ callbackUrl: '/login' })}
                     >
-                      <svg className="h-4 w-4 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="h-4 w-4 mr-2 text-gray-500 group-hover:text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                       </svg>
                       <span className="flex-grow">Cerrar sesión</span>
@@ -337,10 +336,9 @@ export default function Navbar() {
                   );
                 })}
               </div>
-              
-              <Link 
+                <Link 
                 href="/profile" 
-                className="px-3 py-2.5 flex items-center space-x-2 text-sm text-blue-50 hover:bg-white/5"
+                className="px-3 py-2.5 flex items-center space-x-2 text-sm text-blue-50 hover:bg-blue-500/20 transition-colors duration-200"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <svg className="h-4 w-4 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -348,12 +346,11 @@ export default function Navbar() {
                 </svg>
                 <span>Mi perfil</span>
               </Link>
-              
-              <button
-                className="w-full text-left px-3 py-2.5 text-sm text-blue-50 hover:bg-white/5 flex items-center space-x-2"
+                <button
+                className="w-full text-left px-3 py-2.5 text-sm text-blue-50 hover:bg-red-500/20 transition-colors duration-200 flex items-center space-x-2 cursor-pointer"
                 onClick={() => signOut({ callbackUrl: '/login' })}
               >
-                <svg className="h-4 w-4 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-4 w-4 text-blue-300 group-hover:text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
                 <span>Cerrar sesión</span>

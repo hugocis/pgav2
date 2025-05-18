@@ -181,6 +181,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Verificar si ya existe una matrícula para este alumno y asignatura
+    const matriculaExistente = await prisma.matricula.findFirst({
+      where: {
+        alumno_id,
+        asignaturaId
+      }
+    });
+    if (matriculaExistente) {
+      return NextResponse.json(
+        { error: "Ya existe una matrícula para este alumno y asignatura" },
+        { status: 400 }
+      );
+    }
+
     // Crear la nueva matrícula
     const nuevaMatricula = await prisma.matricula.create({
       data: {

@@ -121,7 +121,6 @@ export async function PUT() {
 
         let grupoDB: Grupo;
 
-        
         if (grupoExistente) {
           grupoDB = grupoExistente;
         } else {
@@ -271,6 +270,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "El profesor no existe" },
         { status: 404 }
+      );
+    }
+
+    const grupoExistente = await prisma.grupo.findFirst({
+      where: {
+        denominacion,
+        asignaturaId,
+      },
+    });
+
+    if (grupoExistente) {
+      return NextResponse.json(
+        { error: "Ya existe un grupo con esta denominación y asignatura" },
+        { status: 400 }
       );
     }
 
