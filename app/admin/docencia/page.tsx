@@ -13,6 +13,7 @@ interface Docencia {
   fechaBaja: string | null;
   asignaturaId: number;
   profesorId: string;
+  profesorTitularId?: string | null;
   mostrar: boolean;
   createdAt: string;
   updatedAt: string;
@@ -32,6 +33,13 @@ interface Docencia {
     surname2: string | null;
     email: string;
   };
+  profesorTitular?: {
+    id: string;
+    name: string | null;
+    surname1: string | null;
+    surname2: string | null;
+    email: string;
+  } | null;
 }
 
 interface Asignatura {
@@ -86,15 +94,16 @@ export default function AdminDocencia() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  
-  // Referencias para los campos del formulario
+    // Referencias para los campos del formulario
   const asignaturaRef = useRef<HTMLSelectElement>(null);
   const profesorRef = useRef<HTMLSelectElement>(null);
+  const profesorTitularRef = useRef<HTMLSelectElement>(null);
   const mostrarRef = useRef<HTMLInputElement>(null);
   
   // Referencias para los campos del formulario de creación
   const newAsignaturaRef = useRef<HTMLSelectElement>(null);
   const newProfesorRef = useRef<HTMLSelectElement>(null);
+  const newProfesorTitularRef = useRef<HTMLSelectElement>(null);
   const newMostrarRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const fetchDocencias = async () => {
@@ -260,7 +269,6 @@ export default function AdminDocencia() {
     setIsDialogOpen(false);
     setSelectedDocencia(null);
   };
-
   const handleUpdateDocencia = async () => {
     if (!selectedDocencia) return;
     
@@ -278,6 +286,13 @@ export default function AdminDocencia() {
           connect: {
             id: profesorRef.current?.value || selectedDocencia.profesorId
           }
+        },
+        profesorTitular: profesorTitularRef.current?.value ? {
+          connect: {
+            id: profesorTitularRef.current.value
+          }
+        } : {
+          disconnect: true
         },
         mostrar: mostrarRef.current?.checked || selectedDocencia.mostrar
       };
@@ -339,10 +354,10 @@ export default function AdminDocencia() {
         setIsCreating(false);
         return;
       }
-      
-      const newDocenciaData = {
+        const newDocenciaData = {
         asignaturaId: parseInt(newAsignaturaRef.current?.value),
         profesorId: newProfesorRef.current?.value,
+        profesorTitularId: newProfesorTitularRef.current?.value || null,
         mostrar: newMostrarRef.current?.checked || false
       };
       
@@ -501,6 +516,7 @@ export default function AdminDocencia() {
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asignatura</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profesor</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profesor Titular</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrera</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mostrar</th>
                     </tr>
@@ -515,17 +531,34 @@ export default function AdminDocencia() {
                         <tr key={docencia.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleRowClick(docencia)}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {docencia.asignatura ? `${docencia.asignatura.Denominacion} (${docencia.asignatura.CodAsignatura})` : 'No disponible'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          </td>                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {docencia.user ? 
                               `${docencia.user.name || ''} ${docencia.user.surname1 || ''} ${docencia.user.surname2 || ''}`.trim() : 
                               'Sin asignar'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {docencia.asignatura?.carrera ? docencia.asignatura.carrera.denominacion : 'No asignada'}
+                            {docencia.profesorTitular ? 
+                              `${docencia.profesorTitular.name || ''} ${docencia.profesorTitular.surname1 || ''} ${docencia.profesorTitular.surname2 || ''}`.trim() : 
+                              'Sin asignar'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {docencia.mostrar ? 'Sí' : 'No'}
+                            {docencia.asignatura?.carrera ? docencia.asignatura.carrera.denominacion : 'No asignada'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <button 
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                docencia.mostrar 
+                                  ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation(); // Evitar que se active el onClick del tr
+                                // Esta función solo muestra el indicador visual, no realiza la acción
+                                // La actualización real ocurre en el diálogo
+                              }}
+                            >
+                              {docencia.mostrar ? 'Visible' : 'Oculto'}
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -601,8 +634,7 @@ export default function AdminDocencia() {
                 </svg>
               </button>
             </div>
-            
-            <div className="p-6">
+              <div className="p-6">
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Asignatura</label>
@@ -635,17 +667,55 @@ export default function AdminDocencia() {
                 </div>
                 
                 <div>
-                  <div className="flex items-center">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Profesor Titular</label>
+                  <select
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    defaultValue={selectedDocencia.profesorTitularId || ""}
+                    ref={profesorTitularRef}
+                  >
+                    <option value="">Sin profesor titular</option>
+                    {profesores.map(profesor => (
+                      <option key={profesor.id} value={profesor.id}>
+                        {`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Visible en el sistema</label>
+                  <div className="mt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (mostrarRef.current) {
+                          mostrarRef.current.checked = !mostrarRef.current.checked;
+                        }
+                      }}
+                      className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                        selectedDocencia.mostrar ? 'bg-blue-600' : 'bg-gray-200'
+                      }`}
+                      role="switch"
+                      aria-checked={selectedDocencia.mostrar}
+                    >
+                      <span className="sr-only">Mostrar asignatura</span>
+                      <span
+                        aria-hidden="true"
+                        className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${
+                          selectedDocencia.mostrar ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      ></span>
+                    </button>
                     <input
                       type="checkbox"
                       id="mostrar"
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="sr-only"
                       defaultChecked={selectedDocencia.mostrar}
                       ref={mostrarRef}
                     />
-                    <label htmlFor="mostrar" className="ml-2 block text-sm text-gray-900">
-                      Mostrar
-                    </label>
+                    <span className="ml-3 text-sm text-gray-500">
+                      {selectedDocencia.mostrar ? 'Visible para los alumnos' : 'Oculto para los alumnos'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -704,8 +774,7 @@ export default function AdminDocencia() {
                 </svg>
               </button>
             </div>
-            
-            <div className="p-6">
+              <div className="p-6">
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Asignatura *</label>
@@ -740,16 +809,59 @@ export default function AdminDocencia() {
                 </div>
                 
                 <div>
-                  <div className="flex items-center">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Profesor Titular</label>
+                  <select
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    ref={newProfesorTitularRef}
+                  >
+                    <option value="">Sin profesor titular</option>
+                    {profesores.map(profesor => (
+                      <option key={profesor.id} value={profesor.id}>
+                        {`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Visible en el sistema</label>
+                  <div className="mt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newMostrarRef.current) {
+                          newMostrarRef.current.checked = !newMostrarRef.current.checked;
+                        }
+                      }}
+                      className="relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-gray-200"
+                      role="switch"
+                      aria-checked="false"
+                    >
+                      <span className="sr-only">Mostrar asignatura</span>
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 translate-x-0"
+                        id="newMostrarToggle"
+                      ></span>
+                    </button>
                     <input
                       type="checkbox"
                       id="newMostrar"
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="sr-only"
                       ref={newMostrarRef}
+                      onChange={() => {
+                        const toggle = document.getElementById('newMostrarToggle');
+                        if (toggle && newMostrarRef.current) {
+                          toggle.classList.toggle('translate-x-5');
+                          toggle.classList.toggle('translate-x-0');
+                          toggle.closest('button')?.classList.toggle('bg-blue-600');
+                          toggle.closest('button')?.classList.toggle('bg-gray-200');
+                        }
+                      }}
                     />
-                    <label htmlFor="newMostrar" className="ml-2 block text-sm text-gray-900">
-                      Mostrar
-                    </label>
+                    <span className="ml-3 text-sm text-gray-500" id="newMostrarText">
+                      Oculto para los alumnos
+                    </span>
                   </div>
                 </div>
                 
