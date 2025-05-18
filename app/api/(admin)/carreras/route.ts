@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
     // Permitir obtener carreras para un manager específico (útil para admins)
-    let managerId = url.searchParams.get('managerId');
+    const managerId = url.searchParams.get('managerId');
     
     const isManager = session.user.roles.includes('Manager');
     const isAdmin = session.user.roles.includes('Admin');

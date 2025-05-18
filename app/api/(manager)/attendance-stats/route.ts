@@ -60,8 +60,8 @@ export async function GET() {
         }
       });
       
-      let totalAsistencias = asistencias.length;
-      let asistenciasPresentes = asistencias.filter(a => 
+      const totalAsistencias = asistencias.length;
+      const asistenciasPresentes = asistencias.filter(a =>
         a.estado === 'Presente' || a.estado === 'P'
       ).length;
       
