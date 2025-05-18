@@ -15,7 +15,7 @@ import {
   FaUniversity,
   FaUsers,
   FaFileSignature,
-  FaHome
+  FaHome,
 } from 'react-icons/fa';
 
 // Interfaces para el tipado
@@ -78,18 +78,37 @@ export default function ManagerDashboard() {
   const [error, setError] = useState<string | null>(null);  useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
-      setError(null);      try {
-        const response = await fetch('/api/dashboard-stats', {
+      setError(null);
+      try {
+        // Obtener estadísticas generales del dashboard
+        const dashboardResponse = await fetch('/api/dashboard-stats', {
           credentials: 'include',
           cache: 'no-store'
         });
         
-        if (!response.ok) {
-          throw new Error(`Error al obtener datos: ${response.status} ${response.statusText}`);
+        if (!dashboardResponse.ok) {
+          throw new Error(`Error al obtener datos: ${dashboardResponse.status} ${dashboardResponse.statusText}`);
         }
         
-        const data = await response.json();
-        setStats(data);
+        const dashboardData = await dashboardResponse.json();
+        
+        // Obtener estadísticas de asistencia filtradas por carreras asignadas
+        const attendanceResponse = await fetch('/api/attendance-stats', {
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        
+        if (!attendanceResponse.ok) {
+          throw new Error(`Error al obtener estadísticas de asistencia: ${attendanceResponse.status} ${attendanceResponse.statusText}`);
+        }
+        
+        const attendanceData = await attendanceResponse.json();
+        
+        // Combinar los datos
+        setStats({
+          ...dashboardData,
+          attendanceByDepartment: attendanceData.attendanceByDepartment || []
+        });
       } catch (error) {
         console.error('Error al cargar datos del dashboard:', error);
         setError('No se pudieron cargar los datos del dashboard. Por favor, intente nuevamente más tarde.');

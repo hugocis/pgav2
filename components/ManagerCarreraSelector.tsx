@@ -41,13 +41,11 @@ export default function ManagerCarreraSelector({ userId, isOpen, onCloseAction, 
       onCloseAction();
     }
   };
-  
-  // Definir loadData con useCallback para evitar recreaciones innecesarias
+    // Definir loadData con useCallback para evitar recreaciones innecesarias
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    try {
-      // Cargar carreras disponibles
-      const carrerasResponse = await fetch('/api/carreras');
+    try {      // Cargar carreras disponibles - usando el endpoint de admin que trae todas las carreras
+      const carrerasResponse = await fetch('/api/admin/carreras');
       const carrerasData = await carrerasResponse.json();
       setCarreras(carrerasData);
 

@@ -14,26 +14,73 @@ export async function GET() {
       );
     }
 
-    // 1. Obtener total de estudiantes (usuarios con rol Alumno)
-    const studentsCount = await prisma.userRole.count({
+    // Obtener las carreras asignadas al manager para filtrar todas las estadísticas
+    const managerCarreras = await prisma.managerCarrera.findMany({
       where: {
-        role: {
-          name: 'Alumno'
+        managerId: session.user.id,
+        activo: true
+      },
+      select: {
+        carreraId: true
+      }
+    });
+    
+    const carreraIds = managerCarreras.map(mc => mc.carreraId);
+    
+    // Si no tiene carreras asignadas, devolver estadísticas vacías o valores por defecto
+    if (carreraIds.length === 0) {
+      return NextResponse.json({
+        totalStudents: 0,
+        totalTeachers: 0,
+        totalSubjects: 0,
+        attendanceRate: 0,
+        pendingDispensations: 0,
+        pendingJustifications: 0,
+        pendingSignatures: 0,
+        recentDispensations: [],
+        recentJustifications: [],
+        attendanceByDepartment: []
+      });
+    }
+
+    // 1. Obtener total de estudiantes matriculados en asignaturas de las carreras asignadas
+    const studentsCount = await prisma.matricula.findMany({
+      where: {
+        asignatura: {
+          carreraId: {
+            in: carreraIds
+          }
+        }
+      },
+      distinct: ['alumno_id'],
+      select: {
+        alumno_id: true
+      }
+    }).then(students => students.length);
+
+    // 2. Obtener total de profesores que imparten asignaturas en las carreras asignadas
+    const teachersCount = await prisma.docencia.findMany({
+      where: {
+        asignatura: {
+          carreraId: {
+            in: carreraIds
+          }
+        }
+      },
+      distinct: ['profesorId'],
+      select: {
+        profesorId: true
+      }
+    }).then(teachers => teachers.length);
+
+    // 3. Obtener total de asignaturas solo de las carreras asignadas al manager
+    const subjectsCount = await prisma.asignatura.count({
+      where: {
+        carreraId: {
+          in: carreraIds
         }
       }
     });
-
-    // 2. Obtener total de profesores (usuarios con rol Profesor)
-    const teachersCount = await prisma.userRole.count({
-      where: {
-        role: {
-          name: 'Profesor'
-        }
-      }
-    });
-
-    // 3. Obtener total de asignaturas
-    const subjectsCount = await prisma.asignatura.count();
 
     // 4. Calcular tasa de asistencia media
     const attendanceStats = await prisma.asistenciaAlumno.groupBy({
@@ -150,10 +197,15 @@ export async function GET() {
         fechaAlegacion: 'desc'
       },
       take: 3
-    });
+    });   
 
-    // 10. Asistencia por departamento (usando carreras como equivalente a departamentos)
+    // Obtener estadísticas solo para las carreras asignadas
     const attendanceByDepartment = await prisma.carrera.findMany({
+      where: {
+        id: {
+          in: carreraIds
+        }
+      },
       select: {
         denominacion: true,
         Asignatura: {

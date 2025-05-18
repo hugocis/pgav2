@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { logActivity } from '@/lib/logActivity';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 
 // Función para extraer denominación de carrera y códigos de plan de estudios
 function extraerDenominacionYCodigoPlan(carreraTexto: string): { denominacion: string; codigos: string[] } {
@@ -43,8 +45,85 @@ function extraerDenominacionYCodigoPlan(carreraTexto: string): { denominacion: s
 }
 
 // GET - Obtener todas las carreras
-export async function GET() {
+// Si el usuario es Admin, devuelve todas las carreras
+// Si el usuario es Manager, devuelve solo las carreras asignadas a ese manager
+// Acepta parámetro managerId para filtrar carreras por un manager específico (solo para admins)
+export async function GET(req: NextRequest) {
   try {
+    // Verificar autenticación
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const url = new URL(req.url);
+    // Permitir obtener carreras para un manager específico (útil para admins)
+    let managerId = url.searchParams.get('managerId');
+    
+    const isManager = session.user.roles.includes('Manager');
+    const isAdmin = session.user.roles.includes('Admin');
+
+    // Si se proporciona managerId, verificar autorización
+    if (managerId) {
+      // Solo admins pueden consultar carreras de managers específicos
+      if (managerId !== session.user.id && !isAdmin) {
+        return NextResponse.json({ error: 'No autorizado para ver carreras de otro manager' }, { status: 403 });
+      }
+      
+      // Obtener las asignaciones del manager específico
+      const managerCarreras = await prisma.managerCarrera.findMany({
+        where: {
+          managerId: managerId,
+          activo: true
+        },
+        include: {
+          carrera: {
+            include: {
+              escuela: true,
+              ConfiguracionCarrera: true,
+              PlanDeEstudios: true
+            }
+          }
+        },
+        orderBy: {
+          carrera: {
+            denominacion: 'asc'
+          }
+        }
+      });
+
+      const carreras = managerCarreras.map(mc => mc.carrera);
+      return NextResponse.json(carreras, { status: 200 });
+    }
+
+    // Si es manager y no es admin, mostrar solo sus carreras asignadas
+    if (isManager && !isAdmin) {
+      const managerCarreras = await prisma.managerCarrera.findMany({
+        where: {
+          managerId: session.user.id,
+          activo: true
+        },
+        include: {
+          carrera: {
+            include: {
+              escuela: true,
+              ConfiguracionCarrera: true,
+              PlanDeEstudios: true
+            }
+          }
+        },
+        orderBy: {
+          carrera: {
+            denominacion: 'asc'
+          }
+        }
+      });
+
+      const carreras = managerCarreras.map(mc => mc.carrera);
+      return NextResponse.json(carreras, { status: 200 });
+    }
+
+    // Para Admin u otros roles autorizados, mostrar todas las carreras
     const carreras = await prisma.carrera.findMany({
       include: {
         escuela: true,

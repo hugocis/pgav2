@@ -11,14 +11,59 @@ export async function GET(req: NextRequest) {
     const carreraId = searchParams.get('carreraId');
     const profesorId = searchParams.get('profesorId');
     const codAsignatura = searchParams.get('codAsignatura');
+    const curso = searchParams.get('curso');
 
+    // Obtener la sesión del usuario para verificar roles
+    const { getServerSession } = await import('next-auth');
+    const { authOptions } = await import('@/lib/authOptions');
+    const session = await getServerSession(authOptions);
+
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    // Verificar el rol del usuario
+    const isManager = session.user.roles.includes('Manager');
+    const isAdmin = session.user.roles.includes('Admin');
+
+    // Inicializar condiciones de filtrado
     const whereClause: Prisma.AsignaturaWhereInput = {};
 
     if (cursoAcademicoId) whereClause.cursoAcademicoId = cursoAcademicoId;
     if (carreraId) whereClause.carreraId = carreraId;
     if (profesorId) whereClause.profesorId = profesorId;
     if (codAsignatura) whereClause.CodAsignatura = codAsignatura;
+    if (curso) whereClause.Curso = curso;
 
+    // Si es manager y no es admin, filtrar por las carreras asignadas
+    if (isManager && !isAdmin) {
+      // Obtener las carreras asignadas al manager
+      const managerCarreras = await prisma.managerCarrera.findMany({
+        where: {
+          managerId: session.user.id,
+          activo: true
+        },
+        select: {
+          carreraId: true
+        }
+      });
+      
+      const carreraIds = managerCarreras.map(mc => mc.carreraId);
+      
+      // Si se proporcionó un carreraId específico, verificar que pertenezca al manager
+      if (carreraId && !carreraIds.includes(carreraId)) {
+        return NextResponse.json({ error: 'No tienes acceso a esta carrera' }, { status: 403 });
+      }
+      
+      // Si no se proporcionó carreraId, filtrar por todas las carreras del manager
+      if (!carreraId) {
+        whereClause.carreraId = {
+          in: carreraIds
+        };
+      }
+    }
+
+    // Obtener las asignaturas con los filtros aplicados
     const asignaturas = await prisma.asignatura.findMany({
       where: whereClause,
       include: {
@@ -33,7 +78,11 @@ export async function GET(req: NextRequest) {
             email: true
           }
         }
-      }
+      },
+      orderBy: [
+        { Curso: 'asc' },
+        { Denominacion: 'asc' },
+      ],
     });
 
     return NextResponse.json(asignaturas, { status: 200 });

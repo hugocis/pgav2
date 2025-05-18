@@ -48,14 +48,12 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
     { value: 2, label: "2º Curso" },
     { value: 3, label: "3º Curso" },
     { value: 4, label: "4º Curso" }
-  ];
-
-  // Definir loadData con useCallback para evitar recreaciones innecesarias
+  ];  // Definir loadData con useCallback para evitar recreaciones innecesarias
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    try {
-      // Cargar carreras disponibles
-      const carrerasResponse = await fetch('/api/carreras');
+    try {      // Cargar carreras disponibles
+      // El endpoint /api/admin/carreras ya filtra automáticamente según el rol del usuario
+      const carrerasResponse = await fetch('/api/admin/carreras');
       const carrerasData = await carrerasResponse.json();
       setCarreras(carrerasData);
 
