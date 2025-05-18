@@ -12,6 +12,7 @@ declare module "next-auth" {
       surname1?: string | null
       surname2?: string | null
       roles: string[]
+      lockout?: boolean | null
     } & DefaultSession["user"]
   }
 
@@ -24,6 +25,7 @@ declare module "next-auth" {
     surname1?: string | null
     surname2?: string | null
     roles: string[]
+    lockout?: boolean | null
   }
 }
 
@@ -35,5 +37,6 @@ declare module "next-auth/jwt" {
     surname1?: string | null
     surname2?: string | null
     roles: string[]
+    lockout?: boolean | null
   }
 }

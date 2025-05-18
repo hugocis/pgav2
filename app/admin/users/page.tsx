@@ -13,7 +13,7 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaLock,
-  FaLockOpen,
+  FaUnlock,
   FaTrash,
   FaSortAmountDown,
   FaSortAmountUp,
@@ -90,6 +90,9 @@ export default function AdminUsers() {
   
   // Referencia para el contenedor de scroll
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // Create refs for dialog containers
+  const editDialogRef = useRef<HTMLDivElement>(null);
+  const createDialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -396,8 +399,7 @@ export default function AdminUsers() {
               
               if (userResponse.ok) {
                 updatedUser = await userResponse.json() as User;
-                
-                // Actualizar el usuario en el estado local
+                  // Actualizar el usuario en el estado local
                 setUsers(users.map(user => 
                   user.id === selectedUser.id ? { ...user, ...updatedUser } : user
                 ));
@@ -442,7 +444,7 @@ export default function AdminUsers() {
             });
             const updatedUser = await userResponse.json();
             
-            setUsers(users.map(user => 
+            setUsers(users.map((user: User) => 
               user.id === selectedUser.id ? { ...user, ...updatedUser } : user
             ));
           } catch {
@@ -598,6 +600,18 @@ export default function AdminUsers() {
       : <FaSortAmountDown className="ml-1 inline text-blue-500" />;
   };
 
+  // Add function to handle clicking outside dialogs
+  const handleClickOutside = (event: React.MouseEvent<HTMLDivElement>) => {
+    // If clicked on the backdrop (the outer div), close the dialog
+    if (event.target === event.currentTarget) {
+      if (isDialogOpen) {
+        handleCloseDialog();
+      } else if (isCreateDialogOpen) {
+        handleCloseCreateDialog();
+      }
+    }
+  };
+
   return (
     <DashboardContainer roleName="Admin">
       <div className="bg-gray-50 min-h-full pb-8">      
@@ -737,13 +751,18 @@ export default function AdminUsers() {
                         </td>
                       </tr>
                     ) : (
-                      paginatedUsers.map(user => (
-                        <tr key={user.id} className={`hover:bg-gray-50 ${user.lockout ? 'bg-red-50' : ''}`}>
+                      paginatedUsers.map(user => (                        <tr key={user.id} className={`hover:bg-gray-50 ${user.lockout ? 'bg-red-50' : ''}`}>
                           <td 
                             className="px-6 py-4 whitespace-nowrap text-sm font-medium cursor-pointer"
                             onClick={() => handleRowClick(user)}
                           >
-                            {user.username}                          </td><td 
+                            {user.username}
+                            {user.lockout && (
+                              <span className="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800 border border-red-200">
+                                Bloqueado
+                              </span>
+                            )}
+                          </td><td 
                             className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
                             onClick={() => handleRowClick(user)}
                           >
@@ -816,7 +835,17 @@ export default function AdminUsers() {
                                 className={user.lockout ? "text-green-600 hover:text-green-900" : "text-yellow-600 hover:text-yellow-900"}
                                 title={user.lockout ? "Desbloquear usuario" : "Bloquear usuario"}
                               >
-                                {user.lockout ? <FaLockOpen className="w-5 h-5" /> : <FaLock className="w-5 h-5" />}
+                                {user.lockout ? 
+                                  <FaLock className="w-5 h-5" /> : 
+                                  <FaUnlock className="w-5 h-5" />
+                                }
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Eliminar usuario"
+                              >
+                                <FaTrash className="w-5 h-5" />
                               </button>
                             </div>
                           </td>
@@ -900,8 +929,8 @@ export default function AdminUsers() {
 
       {/* Diálogo de edición */}
       {isDialogOpen && selectedUser && (
-        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
+        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={handleClickOutside}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden" ref={editDialogRef}>
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white">
               <h3 className="text-lg font-medium">
                 Editar Usuario: {selectedUser.username}
@@ -1030,8 +1059,7 @@ export default function AdminUsers() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">Selecciona todos los roles que deseas asignar a este usuario</p>
                 </div>
-                
-                <div>
+                  <div>
                   <div className="flex items-center">
                     <input
                       type="checkbox"
@@ -1044,6 +1072,9 @@ export default function AdminUsers() {
                       Usuario bloqueado
                     </label>
                   </div>
+                  <p className="mt-1 text-xs text-red-600">
+                    Los usuarios bloqueados no podrán iniciar sesión en el sistema hasta que sean desbloqueados.
+                  </p>
                 </div>
               </div>
             </div>
@@ -1087,8 +1118,8 @@ export default function AdminUsers() {
       
       {/* Diálogo de creación de usuario */}
       {isCreateDialogOpen && (
-        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
+        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={handleClickOutside}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden" ref={createDialogRef}>
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white">
               <h3 className="text-lg font-medium">
                 Crear Nuevo Usuario

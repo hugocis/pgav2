@@ -48,6 +48,20 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const userRoles = (token?.roles as string[]) || [];
+  const userLockout = token?.lockout as boolean | undefined;
+
+  // Check if user is locked out - immediately block access and force logout
+  if (token && userLockout === true) {
+    // For API requests, return 403
+    if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/')) {
+      return NextResponse.json({ error: 'Account locked' }, { status: 403 });
+    }
+    
+    // For page requests, redirect to login with error
+    const url = new URL('/login', req.url);
+    url.searchParams.set('error', 'AccountLocked');
+    return NextResponse.redirect(url);
+  }
 
   // 1) Redirección de páginas y dashboards
   if ((pathname === '/' || pathname === '/login') && token) {

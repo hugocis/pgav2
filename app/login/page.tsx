@@ -13,6 +13,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
+  const errorType = searchParams.get('error');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -20,6 +21,13 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   // Creating a toggle function to use the setShowPassword state
   const togglePasswordVisibility = () => setShowPassword(prev => !prev);
+  
+  // Set error message based on error parameter in URL
+  useEffect(() => {
+    if (errorType === 'AccountLocked') {
+      setError('Esta cuenta ha sido bloqueada. Por favor, contacte con el administrador.');
+    }
+  }, [errorType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,8 +46,15 @@ function LoginForm() {
         username,
         password,
         callbackUrl,
-      });      if (res?.error) {
-        setError('Credenciales incorrectas. Por favor, inténtalo de nuevo.');
+      });
+      
+      if (res?.error) {
+        // Check for specific error messages
+        if (res.error.includes('locked')) {
+          setError('Esta cuenta ha sido bloqueada. Por favor, contacte con el administrador.');
+        } else {
+          setError('Credenciales incorrectas. Por favor, inténtalo de nuevo.');
+        }
       } else if (res?.ok) {
         // Get user session to determine which dashboard to redirect to
         const response = await fetch('/api/auth/session');

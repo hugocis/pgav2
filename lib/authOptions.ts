@@ -27,7 +27,8 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const { username, password } = credentials;        try {
+        const { username, password } = credentials;
+        try {
           console.log(`Attempting to authenticate user: ${username}`);
           
           const user = await prisma.user.findUnique({
@@ -44,6 +45,12 @@ export const authOptions: NextAuthOptions = {
           if (!user) {
             console.log(`User not found: ${username}`);
             return null;
+          }
+          
+          // Check if the user is locked out
+          if (user.lockout) {
+            console.log(`User is locked out: ${username}`);
+            throw new Error("Account locked: Your account has been disabled by an administrator");
           }
           
           if (typeof user.password !== "string") {
@@ -70,6 +77,7 @@ export const authOptions: NextAuthOptions = {
                 email: user.email,
                 username: user.username,
                 roles: user.userRoles?.map((ur) => ur.role.name) || [],
+                lockout: user.lockout,
               };
             }
             return null;
@@ -85,6 +93,7 @@ export const authOptions: NextAuthOptions = {
             email: user.email,
             username: user.username,
             roles,
+            lockout: user.lockout,
           };
         } catch (error) {
           console.error("Auth error:", error);
@@ -100,6 +109,7 @@ export const authOptions: NextAuthOptions = {
         token.roles = user.roles;
         token.surname1 = user.surname1;
         token.surname2 = user.surname2;
+        token.lockout = user.lockout;
       }
       return token;
     },
@@ -110,6 +120,7 @@ export const authOptions: NextAuthOptions = {
         session.user.roles = token.roles as string[];
         session.user.surname1 = token.surname1 as string | null;
         session.user.surname2 = token.surname2 as string | null;
+        session.user.lockout = token.lockout as boolean | null;
       }
       return session;
     },
