@@ -49,6 +49,11 @@ interface User {
   email: string;
 }
 
+interface Carrera {
+  id: number;
+  denominacion: string;
+}
+
 export default function AdminDocencia() {
   useSession({
     required: true,
@@ -56,18 +61,16 @@ export default function AdminDocencia() {
       redirect('/login');
     }
   });
-
   const [docencias, setDocencias] = useState<Docencia[]>([]);
   const [filteredDocencias, setFilteredDocencias] = useState<Docencia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedAsignatura, setSelectedAsignatura] = useState<string>('');
-  const [selectedProfesor, setSelectedProfesor] = useState<string>('');
+  const [selectedCarrera, setSelectedCarrera] = useState<string>('');
   
   const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
   const [profesores, setProfesores] = useState<User[]>([]);
-  
+  const [carreras, setCarreras] = useState<Carrera[]>([]);
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -93,7 +96,6 @@ export default function AdminDocencia() {
   const newAsignaturaRef = useRef<HTMLSelectElement>(null);
   const newProfesorRef = useRef<HTMLSelectElement>(null);
   const newMostrarRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     const fetchDocencias = async () => {
       try {
@@ -153,34 +155,47 @@ export default function AdminDocencia() {
       }
     };
 
+    const fetchCarreras = async () => {
+      try {
+        const response = await fetch('/api/carreras', {
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        
+        if (!response.ok) {
+          throw new Error('Error al cargar carreras');
+        }
+        
+        const data = await response.json();
+        setCarreras(data);
+      } catch (error) {
+        console.error('Error al cargar las carreras:', error);
+      }
+    };
+
     fetchDocencias();
     fetchAsignaturas();
     fetchProfesores();
-  }, []);
-
-  // Filtrado de docencias
+    fetchCarreras();
+  }, []);// Filtrado de docencias
   useEffect(() => {
     let result = [...docencias];
     
     if (searchTerm) {
+      const searchTermLower = searchTerm.toLowerCase();
       result = result.filter(docencia => 
-        docencia.asignatura?.Denominacion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        docencia.asignatura?.CodAsignatura.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        `${docencia.user?.name || ''} ${docencia.user?.surname1 || ''} ${docencia.user?.surname2 || ''}`.toLowerCase().includes(searchTerm.toLowerCase())
+        (docencia.asignatura?.Denominacion || '').toLowerCase().includes(searchTermLower) ||
+        (docencia.asignatura?.CodAsignatura || '').toLowerCase().includes(searchTermLower) ||
+        `${docencia.user?.name || ''} ${docencia.user?.surname1 || ''} ${docencia.user?.surname2 || ''}`.toLowerCase().includes(searchTermLower)
       );
-    }
-
-    if (selectedAsignatura) {
-      result = result.filter(docencia => docencia.asignaturaId === parseInt(selectedAsignatura));
-    }
-
-    if (selectedProfesor) {
-      result = result.filter(docencia => docencia.profesorId === selectedProfesor);
+    }    if (selectedCarrera && selectedCarrera !== '') {
+      // No convertimos a número, comparamos como string directamente
+      result = result.filter(docencia => docencia.asignatura?.carrera?.id.toString() === selectedCarrera);
     }
 
     setFilteredDocencias(result);
     setCurrentPage(1); // Resetear página cuando cambian los filtros
-  }, [searchTerm, selectedAsignatura, selectedProfesor, docencias]);
+  }, [searchTerm, selectedCarrera, docencias]);
   
   // Obtener las docencias para la página actual
   const getCurrentPageItems = () => {
@@ -370,9 +385,22 @@ export default function AdminDocencia() {
     }
   };
 
+  // Función para cerrar el diálogo de creación
   const handleCloseCreateDialog = () => {
     setIsCreateDialogOpen(false);
     setCreateMessage(null);
+  };
+
+  // Función para manejar clics fuera de los diálogos
+  const handleClickOutside = (event: React.MouseEvent<HTMLDivElement>) => {
+    // Si se hizo clic en el fondo (div exterior), cerrar el diálogo
+    if (event.target === event.currentTarget) {
+      if (isDialogOpen) {
+        handleCloseDialog();
+      } else if (isCreateDialogOpen) {
+        handleCloseCreateDialog();
+      }
+    }
   };
 
   return (
@@ -424,40 +452,20 @@ export default function AdminDocencia() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-              </div>
-              <div className="w-full md:w-64">
+              </div>              <div className="w-full md:w-64">
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <FaFilter className="text-gray-400" />
                   </div>
                   <select
                     className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    value={selectedAsignatura}
-                    onChange={(e) => setSelectedAsignatura(e.target.value)}
+                    value={selectedCarrera}
+                    onChange={(e) => setSelectedCarrera(e.target.value)}
                   >
-                    <option value="">Todas las asignaturas</option>
-                    {asignaturas.map(asignatura => (
-                      <option key={asignatura.id} value={asignatura.id.toString()}>
-                        {asignatura.CodAsignatura} - {asignatura.Denominacion}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="w-full md:w-64">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaFilter className="text-gray-400" />
-                  </div>
-                  <select
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    value={selectedProfesor}
-                    onChange={(e) => setSelectedProfesor(e.target.value)}
-                  >
-                    <option value="">Todos los profesores</option>
-                    {profesores.map(profesor => (
-                      <option key={profesor.id} value={profesor.id}>
-                        {`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim()}
+                    <option value="">Todas las carreras</option>
+                    {carreras.map(carrera => (
+                      <option key={carrera.id} value={carrera.id.toString()}>
+                        {carrera.denominacion}
                       </option>
                     ))}
                   </select>
@@ -489,32 +497,24 @@ export default function AdminDocencia() {
           ) : (
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-200">                  <thead className="bg-gray-50">
                     <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asignatura</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profesor</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Alta</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrera</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mostrar</th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredDocencias.length === 0 ? (
+                  <tbody className="bg-white divide-y divide-gray-200">                    {filteredDocencias.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                        <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
                           No se encontraron docencias con los criterios de búsqueda.
                         </td>
                       </tr>
-                    ) : (
-                      getCurrentPageItems().map(docencia => (
+                    ) : (getCurrentPageItems().map(docencia => (
                         <tr key={docencia.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleRowClick(docencia)}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {docencia.id}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {docencia.asignatura ? `${docencia.asignatura.CodAsignatura} - ${docencia.asignatura.Denominacion}` : 'No disponible'}
+                            {docencia.asignatura ? `${docencia.asignatura.Denominacion} (${docencia.asignatura.CodAsignatura})` : 'No disponible'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {docencia.user ? 
@@ -522,22 +522,10 @@ export default function AdminDocencia() {
                               'Sin asignar'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(docencia.fechaalta).toLocaleDateString()}
+                            {docencia.asignatura?.carrera ? docencia.asignatura.carrera.denominacion : 'No asignada'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {docencia.mostrar ? 'Sí' : 'No'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteDocencia(docencia.id);
-                              }} 
-                              className="text-red-600 hover:text-red-900"
-                              title="Eliminar docencia"
-                            >
-                              <FaTrash className="inline" /> Eliminar
-                            </button>
                           </td>
                         </tr>
                       ))
@@ -596,10 +584,9 @@ export default function AdminDocencia() {
           )}
         </div>
       </div>
-      
-      {/* Diálogo de edición */}
+        {/* Diálogo de edición */}
       {isDialogOpen && selectedDocencia && (
-        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={handleClickOutside}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white">
               <h3 className="text-lg font-medium">
@@ -700,10 +687,9 @@ export default function AdminDocencia() {
           </div>
         </div>
       )}
-      
-      {/* Diálogo de creación de docencia */}
+        {/* Diálogo de creación de docencia */}
       {isCreateDialogOpen && (
-        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={handleClickOutside}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white">
               <h3 className="text-lg font-medium">
