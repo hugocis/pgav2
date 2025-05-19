@@ -21,21 +21,57 @@ import {
 } from 'react-icons/fa';
 
 // Interfaces para el tipado
-interface DispensationRequest {
+interface EstadoDispensa {
   id: string;
-  studentId: string;
-  studentName: string;
-  studentEmail: string;
-  subject: string;
-  subjectCode: string;
-  requestDate: string;
-  reason: string;
-  status: string;
-  documentationUrl: string;
-  resolution: string;
-  resolutionDate: string | null;
-  resolvedBy: string | null;
-  comments: string | null;
+  denominacion: string;
+}
+
+interface Carrera {
+  id: string;
+  denominacion: string;
+}
+
+interface Asignatura {
+  id: string;
+  CodAsignatura: string;
+  Denominacion: string;
+  carrera: Carrera;
+}
+
+interface Matricula {
+  id: string;
+  asignatura: Asignatura;
+}
+
+interface User {
+  id: string;
+  name: string | null;
+  surname1: string | null;
+  surname2: string | null;
+  email: string;
+}
+
+interface DocumentacionDispensa {
+  id: string;
+  url: string;
+  fechaSubida: string;
+}
+
+interface SolicitudDispensa {
+  id: string;
+  alumnoId: string;
+  matriculaId: string;
+  fechaAlegacion: string;
+  fechaRespuesta: string | null;
+  alegacion: string;
+  respuesta: string | null;
+  estadoDispensaId: string;
+  estadoDispensa: EstadoDispensa;
+  user: User;
+  matricula: Matricula;
+  DocumentacionDispensa: DocumentacionDispensa[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface Filter {
@@ -56,11 +92,12 @@ export default function AcademicDispensations() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [requests, setRequests] = useState<DispensationRequest[]>([]);
-  const [filteredRequests, setFilteredRequests] = useState<DispensationRequest[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<DispensationRequest | null>(null);
+  const [requests, setRequests] = useState<SolicitudDispensa[]>([]);
+  const [filteredRequests, setFilteredRequests] = useState<SolicitudDispensa[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<SolicitudDispensa | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [estadosDispensa, setEstadosDispensa] = useState<EstadoDispensa[]>([]);
   
   const [filter, setFilter] = useState<Filter>({
     status: 'all',
@@ -80,15 +117,32 @@ export default function AcademicDispensations() {
       try {
         setIsLoading(true);
         
+        // Obtener los estados de dispensa para usarlos en filtros y resolución
+        const estadosResponse = await fetch('/api/estados-dispensa', {
+          credentials: 'include'
+        });
+        
+        if (estadosResponse.ok) {
+          const estadosData = await estadosResponse.json();
+          setEstadosDispensa(estadosData);
+        }
+        
         // Construir parámetros de consulta basados en los filtros
         const queryParams = new URLSearchParams();
-        if (filter.status !== 'all') queryParams.append('status', filter.status);
+        if (filter.status !== 'all') {
+          const estadoId = estadosDispensa.find(e => e.denominacion.toLowerCase() === filter.status)?.id;
+          if (estadoId) {
+            queryParams.append('estadoId', estadoId);
+          }
+        }
+        
         if (filter.dateFrom) queryParams.append('dateFrom', filter.dateFrom);
         if (filter.dateTo) queryParams.append('dateTo', filter.dateTo);
         if (filter.subjectCode) queryParams.append('subjectCode', filter.subjectCode);
         if (filter.searchTerm) queryParams.append('searchTerm', filter.searchTerm);
-          // Hacer la llamada a la API con los filtros aplicados
-        const response = await fetch(`/api/dispensas-academicas?${queryParams.toString()}`, {
+          
+        // Hacer la llamada a la API con los filtros aplicados
+        const response = await fetch(`/api/solicitudes-dispensa?${queryParams.toString()}`, {
           credentials: 'include'
         });
         
@@ -104,130 +158,66 @@ export default function AcademicDispensations() {
         console.error('Error al cargar las dispensas académicas:', error);
         setError('No se pudieron cargar las dispensas académicas. Por favor, intente nuevamente más tarde.');
         
-        // Como fallback, usamos datos de ejemplo si la API falla
-        const mockRequests: DispensationRequest[] = [
-          {
-            id: '1',
-            studentId: 'ALU0001',
-            studentName: 'Ana García Pérez',
-            studentEmail: 'ana.garcia@estudiantes.ufv.es',
-            subject: 'Matemáticas Discretas',
-            subjectCode: 'MAT101',
-            requestDate: '2025-05-10',
-            reason: 'Motivos médicos: operación quirúrgica programada que requiere reposo absoluto durante 3 semanas',
-            status: 'pending',
-            documentationUrl: '/docs/justificante-medico-1.pdf',
-            resolution: '',
-            resolutionDate: null,
-            resolvedBy: null,
-            comments: null
-          },
-          {
-            id: '2',
-            studentId: 'ALU0045',
-            studentName: 'Carlos López Martínez',
-            studentEmail: 'carlos.lopez@estudiantes.ufv.es',
-            subject: 'Física Cuántica',
-            subjectCode: 'FIS302',
-            requestDate: '2025-05-09',
-            reason: 'Coincidencia con competición deportiva nacional donde represento a la universidad',
-            status: 'pending',
-            documentationUrl: '/docs/convocatoria-competicion.pdf',
-            resolution: '',
-            resolutionDate: null,
-            resolvedBy: null,
-            comments: null
-          },
-          {
-            id: '3',
-            studentId: 'ALU0023',
-            studentName: 'María Sánchez Rodríguez',
-            studentEmail: 'maria.sanchez@estudiantes.ufv.es',
-            subject: 'Historia del Arte',
-            subjectCode: 'HIS205',
-            requestDate: '2025-05-08',
-            reason: 'Intercambio académico internacional durante el segundo semestre',
-            status: 'approved',
-            documentationUrl: '/docs/carta-aceptacion-intercambio.pdf',
-            resolution: 'Aprobada por cumplir los requisitos de intercambio académico',
-            resolutionDate: '2025-05-09',
-            resolvedBy: 'Javier Moreno (Manager)',
-            comments: 'El estudiante deberá realizar trabajos compensatorios acordados con el profesor'
-          },
-          {
-            id: '4',
-            studentId: 'ALU0078',
-            studentName: 'Javier Martín González',
-            studentEmail: 'javier.martin@estudiantes.ufv.es',
-            subject: 'Programación II',
-            subjectCode: 'PRG202',
-            requestDate: '2025-05-07',
-            reason: 'Situación familiar grave que requiere atención inmediata',
-            status: 'rejected',
-            documentationUrl: '/docs/declaracion-jurada.pdf',
-            resolution: 'Documentación insuficiente para justificar la dispensa académica',
-            resolutionDate: '2025-05-08',
-            resolvedBy: 'Luisa Fernández (Manager)',
-            comments: 'Se recomienda aportar documentación adicional si desea presentar nuevamente la solicitud'
-          }
-        ];
-        
-        setRequests(mockRequests);
-        setFilteredRequests(mockRequests);
+        // Si no hay datos reales, no mostramos datos de ejemplo en producción
+        setRequests([]);
+        setFilteredRequests([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
-  }, [filter]);
-
+    if (session?.user?.id) {
+      fetchData();
+    }
+  }, [filter, session?.user?.id]);
+  
   useEffect(() => {
-    // Aplicar filtros cuando cambien
+    // Aplicar filtros locales cuando cambien
+    if (requests.length === 0) return;
+    
     let result = [...requests];
-    
-    // Filtrar por estado
-    if (filter.status !== 'all') {
-      result = result.filter(req => req.status === filter.status);
-    }
-    
-    // Filtrar por fecha (desde)
-    if (filter.dateFrom) {
-      result = result.filter(req => new Date(req.requestDate) >= new Date(filter.dateFrom));
-    }
-    
-    // Filtrar por fecha (hasta)
-    if (filter.dateTo) {
-      result = result.filter(req => new Date(req.requestDate) <= new Date(filter.dateTo));
-    }
-    
-    // Filtrar por código de asignatura
-    if (filter.subjectCode) {
-      result = result.filter(req => 
-        req.subjectCode.toLowerCase().includes(filter.subjectCode.toLowerCase())
-      );
-    }
     
     // Filtrar por término de búsqueda
     if (filter.searchTerm) {
       const term = filter.searchTerm.toLowerCase();
       result = result.filter(req => 
-        req.studentName.toLowerCase().includes(term) ||
-        req.studentId.toLowerCase().includes(term) ||
-        req.subject.toLowerCase().includes(term) ||
-        req.reason.toLowerCase().includes(term)
+        `${req.user.name || ''} ${req.user.surname1 || ''} ${req.user.surname2 || ''}`.toLowerCase().includes(term) ||
+        req.user.email.toLowerCase().includes(term) ||
+        req.matricula.asignatura.Denominacion.toLowerCase().includes(term) ||
+        req.matricula.asignatura.CodAsignatura.toLowerCase().includes(term) ||
+        req.alegacion.toLowerCase().includes(term)
       );
+    }
+    
+    // Filtrar por código de asignatura si no se aplicó en la API
+    if (filter.subjectCode) {
+      result = result.filter(req => 
+        req.matricula.asignatura.CodAsignatura.toLowerCase().includes(filter.subjectCode.toLowerCase())
+      );
+    }
+    
+    // Filtrar por fecha (desde)
+    if (filter.dateFrom) {
+      const fromDate = new Date(filter.dateFrom);
+      result = result.filter(req => new Date(req.fechaAlegacion) >= fromDate);
+    }
+    
+    // Filtrar por fecha (hasta)
+    if (filter.dateTo) {
+      const toDate = new Date(filter.dateTo);
+      toDate.setHours(23, 59, 59, 999); // Final del día
+      result = result.filter(req => new Date(req.fechaAlegacion) <= toDate);
     }
     
     setFilteredRequests(result);
   }, [filter, requests]);
   
-  const viewRequestDetails = (request: DispensationRequest) => {
+  const viewRequestDetails = (request: SolicitudDispensa) => {
     setSelectedRequest(request);
     setShowDetailModal(true);
     setResolution({
-      status: request.status,
-      comments: request.comments || ''
+      status: request.estadoDispensa.id,
+      comments: request.respuesta || ''
     });
   };
   
@@ -248,42 +238,36 @@ export default function AcademicDispensations() {
     });
   };
 
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'approved':
+  const getStatusBadgeClass = (estado: string) => {
+    switch (estado.toLowerCase()) {
+      case 'aprobada':
+      case 'aceptada':
+      case 'justificada':
         return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected':
+      case 'rechazada':
+      case 'denegada':
+      case 'no justificada':
         return 'bg-red-100 text-red-800 border-red-200';
-      case 'pending':
+      case 'pendiente':
       default:
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return 'Aprobada';
-      case 'rejected':
-        return 'Rechazada';
-      case 'pending':
-      default:
-        return 'Pendiente';
-    }
-  };
-    const handleResolve = async () => {
+  const handleResolve = async () => {
     if (!selectedRequest) return;
     
-    try {      // Llamada a la API para actualizar el estado de la solicitud
-      const response = await fetch('/api/dispensas-academicas', {
+    try {
+      // Llamada a la API para actualizar el estado de la solicitud
+      const response = await fetch('/api/solicitudes-dispensa', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           id: selectedRequest.id,
-          status: resolution.status,
-          comments: resolution.comments,
+          estadoDispensaId: resolution.status,
+          respuesta: resolution.comments,
         }),
         credentials: 'include'
       });
@@ -292,24 +276,26 @@ export default function AcademicDispensations() {
         throw new Error(`Error al actualizar la solicitud: ${response.status} ${response.statusText}`);
       }
       
+      // Obtener la solicitud actualizada
+      const updatedRequest = await response.json();
+      
       // Actualizamos el estado local
       const updatedRequests = requests.map(req => {
         if (req.id === selectedRequest.id) {
-          return {
-            ...req,
-            status: resolution.status,
-            comments: resolution.comments,
-            resolution: resolution.status === 'approved' 
-              ? 'Solicitud aprobada' 
-              : 'Solicitud rechazada',
-            resolutionDate: new Date().toISOString().split('T')[0],
-            resolvedBy: session?.user?.name || 'Manager'
-          };
+          return updatedRequest;
         }
         return req;
       });
       
       setRequests(updatedRequests);
+      // Actualizar también las solicitudes filtradas
+      setFilteredRequests(filteredRequests.map(req => {
+        if (req.id === selectedRequest.id) {
+          return updatedRequest;
+        }
+        return req;
+      }));
+      
       setShowDetailModal(false);
       setSelectedRequest(null);
     } catch (error) {
@@ -442,9 +428,11 @@ export default function AcademicDispensations() {
                           className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md appearance-none"
                         >
                           <option value="all">Todos</option>
-                          <option value="pending">Pendientes</option>
-                          <option value="approved">Aprobadas</option>
-                          <option value="rejected">Rechazadas</option>
+                          {estadosDispensa.map(estado => (
+                            <option key={estado.id} value={estado.denominacion.toLowerCase()}>
+                              {estado.denominacion}
+                            </option>
+                          ))}
                         </select>
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                           <FaChevronDown className="h-4 w-4" />
@@ -548,21 +536,23 @@ export default function AcademicDispensations() {
                               <FaUserGraduate className="h-5 w-5 text-blue-600" />
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{request.studentName}</div>
-                              <div className="text-sm text-gray-500">{request.studentId} | {request.studentEmail}</div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {request.user.name || ''} {request.user.surname1 || ''} {request.user.surname2 || ''}
+                              </div>
+                              <div className="text-sm text-gray-500">{request.user.email}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{request.subject}</div>
-                          <div className="text-sm text-gray-500">{request.subjectCode}</div>
+                          <div className="text-sm font-medium text-gray-900">{request.matricula.asignatura.Denominacion}</div>
+                          <div className="text-sm text-gray-500">{request.matricula.asignatura.CodAsignatura}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{new Date(request.requestDate).toLocaleDateString('es-ES')}</div>
+                          <div className="text-sm text-gray-900">{new Date(request.fechaAlegacion).toLocaleDateString('es-ES')}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeClass(request.status)}`}>
-                            {getStatusText(request.status)}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeClass(request.estadoDispensa.denominacion)}`}>
+                            {request.estadoDispensa.denominacion}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -615,101 +605,102 @@ export default function AcademicDispensations() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                           <div>
                             <p className="text-sm font-medium text-gray-500">Estudiante</p>
-                            <p className="mt-1 text-sm text-gray-900">{selectedRequest.studentName}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">ID de Estudiante</p>
-                            <p className="mt-1 text-sm text-gray-900">{selectedRequest.studentId}</p>
+                            <p className="mt-1 text-sm text-gray-900">
+                              {selectedRequest.user.name || ''} {selectedRequest.user.surname1 || ''} {selectedRequest.user.surname2 || ''}
+                            </p>
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-500">Email</p>
-                            <p className="mt-1 text-sm text-gray-900">{selectedRequest.studentEmail}</p>
+                            <p className="mt-1 text-sm text-gray-900">{selectedRequest.user.email}</p>
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-500">Asignatura</p>
-                            <p className="mt-1 text-sm text-gray-900">{selectedRequest.subject} ({selectedRequest.subjectCode})</p>
+                            <p className="mt-1 text-sm text-gray-900">{selectedRequest.matricula.asignatura.Denominacion}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-500">Código</p>
+                            <p className="mt-1 text-sm text-gray-900">{selectedRequest.matricula.asignatura.CodAsignatura}</p>
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-500">Fecha de Solicitud</p>
-                            <p className="mt-1 text-sm text-gray-900">{new Date(selectedRequest.requestDate).toLocaleDateString('es-ES')}</p>
+                            <p className="mt-1 text-sm text-gray-900">{new Date(selectedRequest.fechaAlegacion).toLocaleDateString('es-ES')}</p>
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-500">Estado</p>
                             <p className="mt-1">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeClass(selectedRequest.status)}`}>
-                                {getStatusText(selectedRequest.status)}
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeClass(selectedRequest.estadoDispensa.denominacion)}`}>
+                                {selectedRequest.estadoDispensa.denominacion}
                               </span>
                             </p>
                           </div>
                           <div className="md:col-span-2">
                             <p className="text-sm font-medium text-gray-500">Motivo de la Solicitud</p>
-                            <p className="mt-1 text-sm text-gray-900 whitespace-pre-line">{selectedRequest.reason}</p>
+                            <p className="mt-1 text-sm text-gray-900 whitespace-pre-line">{selectedRequest.alegacion}</p>
                           </div>
                           <div className="md:col-span-2">
                             <p className="text-sm font-medium text-gray-500">Documentación Adjunta</p>
-                            <div className="mt-1 flex items-center">
-                              <FaPaperclip className="mr-2 text-blue-600" />
-                              <a href={selectedRequest.documentationUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
-                                Ver documento adjunto
-                              </a>
-                            </div>
+                            {selectedRequest.DocumentacionDispensa && selectedRequest.DocumentacionDispensa.length > 0 ? (
+                              <div className="mt-1">
+                                {selectedRequest.DocumentacionDispensa.map((doc, index) => (
+                                  <div key={doc.id} className="flex items-center mt-1 first:mt-0">
+                                    <FaPaperclip className="mr-2 text-blue-600" />
+                                    <a 
+                                      href={doc.url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                                    >
+                                      Ver documento {index + 1} ({new Date(doc.fechaSubida).toLocaleDateString('es-ES')})
+                                    </a>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="mt-1 text-sm text-gray-500 italic">No hay documentación adjunta</p>
+                            )}
                           </div>
 
-                          {(selectedRequest.status === 'approved' || selectedRequest.status === 'rejected') && (
+                          {selectedRequest.fechaRespuesta && (
                             <>
                               <div className="md:col-span-2">
-                                <p className="text-sm font-medium text-gray-500">Resolución</p>
-                                <p className="mt-1 text-sm text-gray-900">{selectedRequest.resolution}</p>
+                                <p className="text-sm font-medium text-gray-500">Respuesta</p>
+                                <p className="mt-1 text-sm text-gray-900">{selectedRequest.respuesta || 'Sin comentarios adicionales'}</p>
                               </div>
                               <div>
                                 <p className="text-sm font-medium text-gray-500">Fecha de Resolución</p>
                                 <p className="mt-1 text-sm text-gray-900">
-                                  {selectedRequest.resolutionDate ? new Date(selectedRequest.resolutionDate).toLocaleDateString('es-ES') : 'N/A'}
+                                  {selectedRequest.fechaRespuesta ? new Date(selectedRequest.fechaRespuesta).toLocaleDateString('es-ES') : 'N/A'}
                                 </p>
                               </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-500">Resuelta por</p>
-                                <p className="mt-1 text-sm text-gray-900">{selectedRequest.resolvedBy || 'N/A'}</p>
-                              </div>
-                              {selectedRequest.comments && (
-                                <div className="md:col-span-2">
-                                  <p className="text-sm font-medium text-gray-500">Comentarios</p>
-                                  <p className="mt-1 text-sm text-gray-900 whitespace-pre-line">{selectedRequest.comments}</p>
-                                </div>
-                              )}
                             </>
                           )}
 
-                          {selectedRequest.status === 'pending' && (
+                          {/* Solo si está pendiente, mostrar el formulario de resolución */}
+                          {selectedRequest.estadoDispensa.denominacion.toLowerCase() === 'pendiente' && (
                             <>
                               <div className="md:col-span-2 mt-4 pt-4 border-t border-gray-200">
                                 <h4 className="text-base font-medium text-gray-900">Resolver Solicitud</h4>
                                 
                                 <div className="mt-3 mb-4">
                                   <label className="text-sm font-medium text-gray-700 block mb-2">Estado</label>
-                                  <div className="flex gap-4">
-                                    <label className="inline-flex items-center">
-                                      <input
-                                        type="radio"
-                                        className="form-radio h-4 w-4 text-blue-600"
-                                        name="status"
-                                        value="approved"
-                                        checked={resolution.status === 'approved'}
-                                        onChange={() => setResolution({...resolution, status: 'approved'})}
-                                      />
-                                      <span className="ml-2 text-sm text-gray-700">Aprobar</span>
-                                    </label>
-                                    <label className="inline-flex items-center">
-                                      <input
-                                        type="radio"
-                                        className="form-radio h-4 w-4 text-blue-600"
-                                        name="status"
-                                        value="rejected"
-                                        checked={resolution.status === 'rejected'}
-                                        onChange={() => setResolution({...resolution, status: 'rejected'})}
-                                      />
-                                      <span className="ml-2 text-sm text-gray-700">Rechazar</span>
-                                    </label>
+                                  <div className="relative">
+                                    <select
+                                      value={resolution.status}
+                                      onChange={(e) => setResolution({...resolution, status: e.target.value})}
+                                      className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                    >
+                                      <option value="" disabled>Seleccione un estado</option>
+                                      {estadosDispensa
+                                        .filter(e => e.denominacion.toLowerCase() !== 'pendiente')
+                                        .map(estado => (
+                                          <option key={estado.id} value={estado.id}>
+                                            {estado.denominacion}
+                                          </option>
+                                        ))}
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                                      <FaChevronDown className="h-4 w-4" />
+                                    </div>
                                   </div>
                                 </div>
                                 
@@ -734,7 +725,7 @@ export default function AcademicDispensations() {
                     </div>
                   </div>
                   <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    {selectedRequest.status === 'pending' && (
+                    {selectedRequest.estadoDispensa.denominacion.toLowerCase() === 'pendiente' && (
                       <>
                         <button
                           type="button"
@@ -751,7 +742,7 @@ export default function AcademicDispensations() {
                       onClick={() => setShowDetailModal(false)}
                       className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                     >
-                      {selectedRequest.status === 'pending' ? 'Cancelar' : 'Cerrar'}
+                      {selectedRequest.estadoDispensa.denominacion.toLowerCase() === 'pendiente' ? 'Cancelar' : 'Cerrar'}
                     </button>
                   </div>
                 </div>

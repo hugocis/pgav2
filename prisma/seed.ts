@@ -67,6 +67,7 @@ async function main() {
     }
   }
   console.log('✅ All attendance states have been created or verified.');
+  
   // Create or verify estados de justificación
   const estadosJustificacion = [
     { denominacion: 'Justificado' },
@@ -93,6 +94,37 @@ async function main() {
   }
 
   console.log('✅ All justification states have been created or verified.');
+  
+  // Create or verify estados de dispensa
+  const estadosDispensa = [
+    { denominacion: 'Pendiente' },
+    { denominacion: 'Aprobada' },
+    { denominacion: 'Rechazada' },
+  ];
+
+  console.log('🔄 Creating or verifying dispensation states...');
+  
+  for (const estadoData of estadosDispensa) {
+    const existingEstado = await prisma.estadoDispensa.findFirst({
+      where: { 
+        denominacion: {
+          equals: estadoData.denominacion,
+          mode: 'insensitive' // Ignorar mayúsculas/minúsculas
+        } 
+      },
+    });
+
+    if (existingEstado) {
+      console.log(`ℹ️ Estado de dispensa "${estadoData.denominacion}" already exists with ID: ${existingEstado.id}`);
+    } else {
+      const newEstado = await prisma.estadoDispensa.create({
+        data: estadoData,
+      });
+      console.log(`✅ Estado de dispensa "${estadoData.denominacion}" created with ID: ${newEstado.id}`);
+    }
+  }
+
+  console.log('✅ All dispensation states have been created or verified.');
 
   // Test user data
   const testUsers = [
