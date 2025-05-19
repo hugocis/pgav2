@@ -5,6 +5,77 @@ import prisma from '@/lib/prisma';
 import { logActivity } from '@/lib/logActivity';
 import * as xlsx from 'xlsx';
 
+// Interfaces for type safety
+interface EstadoAsistencia {
+  id: string;
+  denominacion: string;
+  codigo: string;
+}
+
+interface SesionClase {
+  id: string;
+  fecha: Date;
+}
+
+interface AsistenciaAlumno {
+  fecha: Date;
+  estadoAsistencia: EstadoAsistencia;
+  sesionClase: SesionClase;
+  justificado?: boolean;
+}
+
+interface UserRole {
+  role: {
+    name: string;
+  };
+}
+
+interface AlumnoUser {
+  id: string;
+  name: string | null;
+  surname1: string | null;
+  surname2: string | null;
+  email: string | null;
+  userRoles: UserRole[];
+  AsistenciaAlumno: AsistenciaAlumno[];
+}
+
+interface AlumnoConAsistencia {
+  id: string;
+  name: string | null;
+  surname1: string | null;
+  surname2: string | null;
+  email: string;
+  goe: boolean;
+  asistencia: number;
+  faltas: number;
+  ultimaAsistencia: string | null;
+  estado: 'normal' | 'warning' | 'danger';
+}
+
+interface CarreraCurso {
+  id: string;
+  carreraId: string;
+  curso: number;
+  carrera: {
+    denominacion: string;
+  };
+}
+
+// Interface for Prisma where conditions
+interface WhereCondition {
+  id?: {
+    in: string[];
+  };
+  AND?: WhereCondition[];
+  OR?: {
+    name?: { contains: string };
+    surname1?: { contains: string };
+    surname2?: { contains: string };
+    email?: { contains: string };
+  }[];
+}
+
 export async function GET(req: NextRequest) {
   try {
     // Verificar la sesión del usuario
@@ -37,7 +108,7 @@ export async function GET(req: NextRequest) {
       include: {
         carrera: true,
       },
-    });
+    }) as CarreraCurso | null;
 
     if (!carreraCurso) {
       return NextResponse.json(
@@ -66,12 +137,11 @@ export async function GET(req: NextRequest) {
         },
       },
     });
-    
-    // Calcular límites para paginación
+      // Calcular límites para paginación
     const skip = (page - 1) * pageSize;
     // No aplicar paginación si se está exportando a Excel
     const take = exportToExcel ? undefined : pageSize;    // Construir la condición para búsqueda si existe término
-    let whereCondition: any = {
+    let whereCondition: WhereCondition = {
       id: {
         in: alumnosIds,
       }
@@ -118,17 +188,16 @@ export async function GET(req: NextRequest) {
             sesionClase: true,
           },
         },
-      },
-    });
+      },    }) as unknown as AlumnoUser[];
     
     // Procesar los datos para el formato requerido
-    const alumnosConAsistencia = alumnos.map((alumno: any) => {      
+    const alumnosConAsistencia = alumnos.map((alumno: AlumnoUser) => {      
       // Verificar que AsistenciaAlumno existe y convertirlo a un array
       const asistencias = alumno.AsistenciaAlumno || [];
       
       // Calcular el porcentaje de asistencia
       const totalSesiones = asistencias.length;
-      const asistenciasPresentes = asistencias.filter((a: any) => 
+      const asistenciasPresentes = asistencias.filter((a: AsistenciaAlumno) => 
         a.estadoAsistencia?.codigo === 'PRESENTE' || a.estadoAsistencia?.codigo === 'JUSTIFICADO'
       ).length;
         const asistenciaPorcentaje = totalSesiones > 0 
@@ -145,10 +214,10 @@ export async function GET(req: NextRequest) {
       const ultimaAsistencia = asistencias[0]?.fecha 
         ? new Date(asistencias[0].fecha).toISOString().split('T')[0]
         : null;      // Contar el número de faltas (no asistencias sin justificar)
-      const faltas = asistencias.filter((a: any) => 
+      const faltas = asistencias.filter((a: AsistenciaAlumno) => 
         a.estadoAsistencia?.codigo === 'AUSENTE' && !a.justificado
       ).length;      // Verificar si el alumno tiene el rol GOE
-      const tieneRolGOE = alumno.userRoles?.some((userRole: any) => 
+      const tieneRolGOE = alumno.userRoles?.some((userRole: UserRole) => 
         userRole.role?.name === 'GOE'
       ) || false;
       
@@ -207,7 +276,7 @@ export async function GET(req: NextRequest) {
 }
 
 // Función para generar un archivo Excel con los datos de alumnos
-function generarExcelAlumnos(alumnos: any[], carreraCurso: any): Buffer {
+function generarExcelAlumnos(alumnos: AlumnoConAsistencia[], carreraCurso: CarreraCurso): Buffer {
   // Crear un libro de trabajo
   const workbook = xlsx.utils.book_new();
   
