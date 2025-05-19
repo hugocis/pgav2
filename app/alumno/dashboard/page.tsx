@@ -82,6 +82,25 @@ interface SolicitudJustificacion {
   fechaAlegacion: string;
 }
 
+interface SolicitudDispensa {
+  id: string;
+  estadoDispensa: {
+    id: string;
+    denominacion: string;
+  };
+  fechaAlegacion: string;
+  alegacion: string;
+  matriculaId: string;
+  matricula: {
+    asignatura: {
+      Denominacion: string;
+      carrera: {
+        denominacion: string;
+      };
+    };
+  };
+}
+
 interface AsistenciaAlumno {
   id: string;
   fecha: string;
@@ -163,6 +182,7 @@ export default function AlumnoDashboard() {
   const [cursosAcademicos, setCursosAcademicos] = useState<{ id: string, denominacion: string, activo: boolean }[]>([]);
   const [faltasJustificables, setFaltasJustificables] = useState<AsistenciaAlumno[]>([]);
   const [configuracionesCarrera, setConfiguracionesCarrera] = useState<ConfiguracionCarrera[]>([]);
+  const [solicitudesDispensa, setSolicitudesDispensa] = useState<SolicitudDispensa[]>([]);
   
   // Agregamos un estado para el filtro de faltas
   const [filtroFaltas, setFiltroFaltas] = useState<'todas' | 'pendientes' | 'sinjustificar'>('todas');
@@ -405,6 +425,21 @@ export default function AlumnoDashboard() {
           if (configResponse.ok) {
             const configData = await configResponse.json();
             setConfiguracionesCarrera(configData);
+
+            // Después de obtener las configuraciones de carrera, buscamos las dispensas
+            try {
+              const dispensasResponse = await fetch(`/api/solicitudes-dispensa?alumnoId=${session.user.id}`, {
+                credentials: 'include'
+              });
+
+              if (dispensasResponse.ok) {
+                const dispensasData = await dispensasResponse.json();
+                console.log("Solicitudes de dispensa:", dispensasData);
+                setSolicitudesDispensa(Array.isArray(dispensasData) ? dispensasData : []);
+              }
+            } catch (error) {
+              console.error("Error al obtener dispensas:", error);
+            }
           }
         }
       } catch (error) {
@@ -1017,56 +1052,175 @@ export default function AlumnoDashboard() {
               <div className="flex items-center mb-6 mt-4">
                 <div className="flex-grow border-t border-gray-200"></div>
                 <div className="flex-grow border-t border-gray-200"></div>
-              </div>
-
-              {/* Sección de solicitudes de dispensas */}
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                <div className="bg-blue-50 px-6 py-4 border-b border-blue-100">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                    <FaFileAlt className="mr-2 text-blue-600" />
-                    Solicitudes de dispensa académica
-                  </h3>
+              </div>              {/* Sección de solicitudes de dispensas */}
+              <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-4 relative">
+                  <div className="flex flex-wrap items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white flex items-center">
+                      <FaFileAlt className="mr-2 text-blue-200" />
+                      Solicitudes de dispensa académica
+                    </h3>
+                    <div className="flex items-center mt-1 sm:mt-0">
+                      <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full font-medium shadow-inner">
+                        {solicitudesDispensa.length} {solicitudesDispensa.length === 1 ? 'solicitud' : 'solicitudes'}
+                      </span>
+                      {solicitudesDispensa.filter(d => 
+                        d.estadoDispensa?.denominacion === 'Pendiente'
+                      ).length > 0 && (
+                        <span className="ml-2 bg-blue-600 text-white text-xs px-3 py-1 rounded-full font-medium shadow-inner flex items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {solicitudesDispensa.filter(d => 
+                            d.estadoDispensa?.denominacion === 'Pendiente'
+                          ).length} en revisión
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Decorative line at the bottom */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
                 </div>
                 <div className="p-6">
                   {configuracionesCarrera.length > 0 ? (
                     <div>
-                      <p className="mb-4 text-gray-600">
-                        Las dispensas académicas te permiten justificar períodos prolongados de ausencia por motivos específicos (médicos, deportivos, etc.).
-                      </p>
-
-                      <div className="space-y-4">
-                        {matriculas.some(m => isDispensaDisponible(m, configuracionesCarrera)) ? (
-                          <>
-                            <h4 className="font-medium text-gray-700">Asignaturas con dispensas disponibles:</h4>
-
-                            <div className="grid gap-4 md:grid-cols-2">
-                              {matriculas.filter(m => isDispensaDisponible(m, configuracionesCarrera)).map(m => (
-                                <div key={m.id} className="p-4 bg-gray-50 rounded-md border border-gray-200">
-                                  <p className="font-medium text-gray-800">{m.asignatura.Denominacion}</p>
-                                  <p className="text-sm text-gray-600 mt-1 mb-3">
-                                    {m.asignatura.carrera.denominacion} • {m.asignatura.Curso} Curso
-                                  </p>
-                                  <Link
-                                    href={`/alumno/solicitar-dispensa?matriculaId=${m.id}`}
-                                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-2 rounded transition-colors"
-                                  >
-                                    Solicitar dispensa
-                                  </Link>
+                      {solicitudesDispensa.length > 0 ? (
+                        <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
+                          {solicitudesDispensa.map(dispensa => {
+                            
+                            // Variables para estilos de estado de dispensa
+                            let dispensaStyle = "";
+                            let dispensaIcon = null;
+                            
+                            if (dispensa.estadoDispensa?.denominacion === 'Pendiente') {
+                              dispensaStyle = "bg-blue-600 text-white";
+                              dispensaIcon = (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              );
+                            } else if (dispensa.estadoDispensa?.denominacion === 'Aceptada' || dispensa.estadoDispensa?.denominacion === 'Aprobada') {
+                              dispensaStyle = "bg-green-600 text-white";
+                              dispensaIcon = (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              );
+                            } else if (dispensa.estadoDispensa?.denominacion === 'Rechazada' || dispensa.estadoDispensa?.denominacion === 'Denegada') {
+                              dispensaStyle = "bg-red-600 text-white";
+                              dispensaIcon = (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              );
+                            }
+                            
+                            return (
+                              <div key={dispensa.id} className="rounded-xl shadow-sm border overflow-hidden transition-all hover:shadow-md bg-gray-50">
+                                {/* Card header */}
+                                <div className="bg-white px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+                                  <div className="flex items-center">
+                                    <div className="text-blue-700 bg-blue-50 p-2 rounded-lg mr-3">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                    </div>
+                                    <div>
+                                      <p className="font-medium text-gray-800">
+                                        Solicitud de dispensa
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        {new Date(dispensa.fechaAlegacion).toLocaleDateString('es-ES', {
+                                          day: 'numeric',
+                                          month: 'long',
+                                          year: 'numeric'
+                                        })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center">
+                                    <span className={`${dispensaStyle} text-xs px-3 py-1 rounded-full font-medium shadow-sm flex items-center`}>
+                                      {dispensaIcon}
+                                      {dispensa.estadoDispensa?.denominacion || 'Estado desconocido'}
+                                    </span>
+                                  </div>
                                 </div>
-                              ))}
-                            </div>
-                          </>
+                                
+                                {/* Card body */}
+                                <div className="bg-white p-4">
+                                  <div className="mb-3">
+                                    <h4 className="font-semibold text-gray-800">
+                                      {dispensa.matricula?.asignatura.Denominacion || "Asignatura"}
+                                    </h4>
+                                    <div className="mt-1 flex flex-wrap text-sm text-gray-600">
+                                      {dispensa.matricula?.asignatura.carrera?.denominacion || "Carrera"}
+                                    </div>
+                                    <div className="mt-2 pb-2 border-b border-gray-100">
+                                      <p className="text-sm text-gray-700 italic">{dispensa.alegacion}</p>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Status timeline */}
+                                  <div className="mt-3">
+                                    <div className="flex items-center text-xs mb-2">
+                                      <span className="bg-blue-600 text-white px-2 py-0.5 rounded">Enviada</span>
+                                      <div className={`h-0.5 flex-grow mx-1 ${
+                                        dispensa.estadoDispensa?.denominacion !== 'Pendiente' ? 'bg-green-500' : 'bg-gray-300'
+                                      }`}></div>
+                                      <span className={`${
+                                        dispensa.estadoDispensa?.denominacion !== 'Pendiente' ? 'bg-green-600 text-white' : 'bg-gray-300 text-white'
+                                      } px-2 py-0.5 rounded`}>
+                                        Revisada
+                                      </span>
+                                      <div className={`h-0.5 flex-grow mx-1 ${
+                                        dispensa.estadoDispensa?.denominacion === 'Aceptada' || dispensa.estadoDispensa?.denominacion === 'Aprobada' ? 'bg-green-500' : 'bg-gray-300'
+                                      }`}></div>
+                                      <span className={`${
+                                        dispensa.estadoDispensa?.denominacion === 'Aceptada' || dispensa.estadoDispensa?.denominacion === 'Aprobada' ? 'bg-green-600 text-white' : 'bg-gray-300 text-white'
+                                      } px-2 py-0.5 rounded`}>
+                                        Aceptada
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center py-6">
+                          <div className="bg-blue-50 p-4 rounded-full mb-3">
+                            <FaFileAlt className="text-3xl text-blue-600" />
+                          </div>
+                          <p className="text-gray-700 font-medium">No tienes solicitudes de dispensa</p>
+                          <p className="text-gray-500 text-sm mt-1 text-center max-w-md">
+                            Si necesitas solicitar una dispensa académica, puedes hacerlo desde la sección de asignaturas.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="mt-6">
+                        <h4 className="font-medium text-gray-700 mb-3">Asignaturas con dispensas disponibles:</h4>
+                        {matriculas.some(m => isDispensaDisponible(m, configuracionesCarrera)) ? (
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {matriculas.filter(m => isDispensaDisponible(m, configuracionesCarrera)).map(m => (
+                              <div key={m.id} className="p-4 bg-gray-50 rounded-md border border-gray-200">
+                                <p className="font-medium text-gray-800">{m.asignatura.Denominacion}</p>
+                                <p className="text-sm text-gray-600 mt-1 mb-3">
+                                  {m.asignatura.carrera.denominacion} • {m.asignatura.Curso} Curso
+                                </p>
+                                <Link
+                                  href={`/alumno/solicitar-dispensa?matriculaId=${m.id}`}
+                                  className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-2 rounded transition-colors"
+                                >
+                                  Solicitar dispensa
+                                </Link>
+                              </div>
+                            ))}
+                          </div>
                         ) : (
-                          <div className="text-center p-8">
-                            <div className="bg-gray-100 inline-block p-4 rounded-full">
-                              <FaFileAlt className="text-3xl text-gray-400" />
-                            </div>
-                            <p className="mt-3 text-gray-600 font-medium">
-                              No hay dispensas disponibles actualmente
-                            </p>
-                            <p className="text-gray-500 text-sm mt-1">
-                              En este momento no hay dispensas disponibles para ninguna de tus asignaturas
-                            </p>
+                          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
+                            No hay dispensas disponibles actualmente para ninguna de tus asignaturas.
                           </div>
                         )}
                       </div>
