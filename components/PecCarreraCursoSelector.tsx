@@ -51,21 +51,40 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
     { value: 2, label: "2º Curso" },
     { value: 3, label: "3º Curso" },
     { value: 4, label: "4º Curso" }
-  ];  // Definir loadData con useCallback para evitar recreaciones innecesarias
+  ];  
+  
+  // Definir loadData con useCallback para evitar recreaciones innecesarias
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    try {      // Cargar carreras disponibles
+    try {
+      // Cargar carreras disponibles
       const carrerasResponse = await fetch('/api/carreras');
+      if (!carrerasResponse.ok) {
+        throw new Error(`Error al cargar carreras: ${carrerasResponse.status}`);
+      }
       const carrerasData = await carrerasResponse.json();
-      setCarreras(carrerasData);
-
+      setCarreras(Array.isArray(carrerasData) ? carrerasData : []);
+      
       // Cargar asignaciones del PEC
-      const assignedResponse = await fetch(`/api/pec-carreras-cursos?pecId=${userId}`);
+      console.log('Solicitando asignaciones para pecId:', userId);
+      const assignedResponse = await fetch(`/api/carreras-cursos?pecId=${userId}`);
+      
+      if (!assignedResponse.ok) {
+        const errorData = await assignedResponse.json();
+        console.error('Error en la respuesta de la API:', errorData);
+        throw new Error(`Error al cargar asignaciones: ${assignedResponse.status} - ${errorData.error || 'Error desconocido'}`);
+      }
+      
       const assignedData = await assignedResponse.json();
-      setAssignedCarrerasCursos(assignedData);
+      console.log('Datos recibidos:', assignedData);
+      
+      // Asegurar que assignedData sea un array
+      setAssignedCarrerasCursos(Array.isArray(assignedData) ? assignedData : []);
     } catch (error) {
       console.error('Error al cargar datos:', error);
-      setMessage({ text: 'Error al cargar los datos', type: 'error' });
+      setMessage({ text: `Error al cargar los datos: ${error instanceof Error ? error.message : 'Error desconocido'}`, type: 'error' });
+      // Inicializar arrays vacíos para evitar errores de mapeo
+      setAssignedCarrerasCursos([]);
     } finally {
       setIsLoading(false);
     }
@@ -82,6 +101,11 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
       setSelectedCurso(0);
     }
   }, [isOpen, loadData]);
+  
+  // Asegurar que assignedCarrerasCursos siempre sea un array válido
+  const safeAssignedCarrerasCursos = Array.isArray(assignedCarrerasCursos) ? assignedCarrerasCursos : [];
+  
+  // Definir la función handleEditAssignment si no existe
   const handleStartEdit = (assignment: PecCarreraCurso) => {
     setEditMode(true);
     setEditingAssignment(assignment);
@@ -105,13 +129,11 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
     if (!selectedCurso) {
       setMessage({ text: 'Por favor, selecciona un curso', type: 'error' });
       return;
-    }
-
-    // Verificar si la combinación ya está asignada (solo para nuevas asignaciones)
-    if (!editMode && assignedCarrerasCursos.some(
-      acc => acc.carreraId === selectedCarreraId && 
-             acc.curso === selectedCurso && 
-             acc.activo
+    }    // Verificar si ya existe esta asignación
+    if (safeAssignedCarrerasCursos.some((acc: PecCarreraCurso) => 
+        acc.carreraId === selectedCarreraId && 
+        acc.curso === selectedCurso && 
+        acc.activo
     )) {
       setMessage({ text: 'Esta combinación de carrera y curso ya está asignada al PEC', type: 'error' });
       return;
@@ -119,9 +141,8 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
 
     setIsLoading(true);
     try {
-      if (editMode && editingAssignment) {
-        // Actualizar una asignación existente
-        const response = await fetch(`/api/pec-carreras-cursos/${editingAssignment.id}`, {
+      if (editMode && editingAssignment) {        // Actualizar una asignación existente
+        const response = await fetch(`/api/carreras-cursos/${editingAssignment?.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -143,9 +164,8 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
         // Salir del modo de edición
         setEditMode(false);
         setEditingAssignment(null);
-      } else {
-        // Crear una nueva asignación
-        const response = await fetch('/api/pec-carreras-cursos', {
+      } else {        // Crear una nueva asignación
+        const response = await fetch(`/api/carreras-cursos?pecId=${userId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -172,7 +192,7 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
       // Limpiar selecciones
       setSelectedCarreraId("");
       setSelectedCurso(0);
-    } catch (error: Error | unknown) {
+    } catch (error: unknown) {
       console.error('Error al procesar asignación:', error);
       setMessage({ 
         text: error instanceof Error ? error.message : 'Error al procesar asignación', 
@@ -190,8 +210,7 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
     }
     
     setIsLoading(true);
-    try {
-      const response = await fetch(`/api/pec-carreras-cursos/${assignmentId}`, {
+    try {      const response = await fetch(`/api/carreras-cursos/${assignmentId}`, {
         method: 'DELETE'
       });
 
@@ -203,7 +222,8 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
       // Refrescar la lista de asignaciones
       await loadData();
       
-      setMessage({ text: 'Asignación eliminada correctamente', type: 'success' });    } catch (error: Error | unknown) {
+      setMessage({ text: 'Asignación eliminada correctamente', type: 'success' });
+    } catch (error: unknown) {
       console.error('Error al eliminar asignación:', error);
       setMessage({ 
         text: error instanceof Error ? error.message : 'Error al eliminar asignación', 
@@ -213,28 +233,14 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
       setIsLoading(false);
     }
   };
-  // Eliminamos las funciones duplicadas para evitar confusiones
 
-  const handleOutsideClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      handleCloseDialog();
-    }
-  };
   return (
     <div 
       className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4"
-      onClick={handleOutsideClick}
+      onClick={(e) => e.target === e.currentTarget && handleCloseDialog()}
     >
-      {/* Botón grande de cerrar en la esquina superior derecha */}
-      <button
-        onClick={handleCloseDialog}
-        className="absolute top-5 right-5 bg-white hover:bg-gray-100 text-gray-800 rounded-full w-10 h-10 flex items-center justify-center shadow-lg z-50 transition-all duration-200"
-        title="Cerrar diálogo"
-      >
-        <FaTimes size={24} />
-      </button>
-      
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden"><div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white">
           <h3 className="text-lg font-medium">
             {editMode ? 'Editar Asignación de Carrera y Curso' : 'Asignar Carreras y Cursos al PEC'}
           </h3>
@@ -250,41 +256,41 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
         
         <div className="p-6">
           <div className="space-y-4">
-            {/* Selector de carreras */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Carrera</label>
-              <select
-                value={selectedCarreraId}
-                onChange={(e) => setSelectedCarreraId(e.target.value)}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              >
-                <option value="">Selecciona una carrera...</option>
-                {carreras.map((carrera) => (
-                  <option key={carrera.id} value={carrera.id}>
-                    {carrera.denominacion}
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-4 gap-2">
+              <div className="col-span-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Carrera</label>
+                <select
+                  value={selectedCarreraId}
+                  onChange={(e) => setSelectedCarreraId(e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                >
+                  <option value="">Selecciona una carrera...</option>
+                  {carreras.map((carrera) => (
+                    <option key={carrera.id} value={carrera.id}>
+                      {carrera.denominacion}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Curso</label>
+                <select
+                  value={selectedCurso}
+                  onChange={(e) => setSelectedCurso(Number(e.target.value))}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                >
+                  <option value={0}>Selecciona...</option>
+                  {cursos.map((curso) => (
+                    <option key={curso.value} value={curso.value}>
+                      {curso.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {/* Selector de cursos */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Curso</label>
-              <select
-                value={selectedCurso}
-                onChange={(e) => setSelectedCurso(Number(e.target.value))}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              >
-                <option value={0}>Selecciona un curso...</option>
-                {cursos.map((curso) => (
-                  <option key={curso.value} value={curso.value}>
-                    {curso.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Botón de agregar o actualizar */}
+            {/* Botones de acción */}
             <div className="flex justify-end">
               <div className="flex space-x-2">
                 {editMode && (
@@ -306,7 +312,7 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
                     </>
                   ) : (
                     <>
-                      <FaPlus className="mr-2" /> Agregar Asignación
+                      <FaPlus className="mr-2" /> Agregar
                     </>
                   )}
                 </button>
@@ -316,59 +322,39 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
             {/* Lista de asignaciones */}
             <div className="mt-4">
               <h4 className="text-sm font-medium text-gray-700 mb-2">Asignaciones actuales</h4>
-              {assignedCarrerasCursos.length === 0 ? (
+              {safeAssignedCarrerasCursos.length === 0 ? (
                 <p className="text-sm text-gray-500 italic">No hay asignaciones para este PEC</p>
               ) : (
-                <div className="overflow-hidden rounded-lg border border-gray-200">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrera</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Curso</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {assignedCarrerasCursos.map((assignment) => (
-                        <tr key={assignment.id} className={editingAssignment?.id === assignment.id ? "bg-blue-50" : ""}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {assignment.carrera?.denominacion || 'Carrera no disponible'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {assignment.curso}º Curso
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {assignment.activo ? 
-                              <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Activa</span> :
-                              <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Inactiva</span>
-                            }
-                          </td>                          <td className="px-6 py-4 whitespace-nowrap text-sm flex space-x-3">
-                            {/* Solo mostramos el botón de edición si la asignación está activa */}
-                            {assignment.activo && (
-                              <button
-                                onClick={() => handleStartEdit(assignment)}
-                                disabled={isLoading || (editMode && editingAssignment?.id !== assignment.id)}
-                                className={`text-blue-600 hover:text-blue-900 focus:outline-none ${editMode && editingAssignment?.id !== assignment.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                title="Editar asignación"
-                              >
-                                <FaEdit className="w-5 h-5" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleRemoveAsignacion(assignment.id)}
-                              disabled={isLoading || (editMode && editingAssignment?.id === assignment.id)}
-                              className={`text-red-600 hover:text-red-900 focus:outline-none ${editMode && editingAssignment?.id === assignment.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                              title={assignment.activo ? "Desactivar asignación" : "Eliminar asignación"}
-                            >
-                              <FaTimes className="w-5 h-5" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ul className="divide-y divide-gray-200 border-t border-b border-gray-200">
+                  {safeAssignedCarrerasCursos.map((assignment: PecCarreraCurso) => (
+                    <li key={assignment.id} className="py-3 flex justify-between items-center">
+                      <div>
+                        <span className="text-sm">
+                          {assignment.carrera?.denominacion || 'Carrera no disponible'} - {assignment.curso}º Curso
+                          {!assignment.activo && <span className="ml-2 text-xs text-red-600">(Inactiva)</span>}
+                        </span>
+                      </div>
+                      <div className="flex space-x-3">
+                        {assignment.activo && (
+                          <button
+                            onClick={() => handleStartEdit(assignment)}
+                            className="text-blue-500 hover:text-blue-700"
+                            title="Editar asignación"
+                          >
+                            <FaEdit />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleRemoveAsignacion(assignment.id)}
+                          className="text-red-500 hover:text-red-700"
+                          title={assignment.activo ? "Desactivar asignación" : "Eliminar asignación"}
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           </div>
