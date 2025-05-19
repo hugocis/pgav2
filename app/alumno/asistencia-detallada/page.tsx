@@ -1206,17 +1206,12 @@ export default function AsistenciaDetallada() {
                 </div>
                 <div className="p-6">
                   <div className="overflow-x-auto">
-                    <table className="min-w-full bg-white rounded-lg">
-                      <thead>
+                    <table className="min-w-full bg-white rounded-lg">                      <thead>
                         <tr className="bg-gray-100 text-left text-xs font-medium text-gray-600 uppercase tracking-wider border-b border-gray-200">
-                          <th className="px-6 py-3 rounded-tl-lg">Fecha</th>
-                          <th className="px-6 py-3">Grupo</th>
-                          <th className="px-6 py-3">Estado</th>
-                          <th className="px-6 py-3 rounded-tr-lg">Justificación</th>
+                          <th className="px-6 py-3 rounded-tl-lg">Fecha</th><th className="px-6 py-3">Grupo</th><th className="px-6 py-3">Estado</th><th className="px-6 py-3 rounded-tr-lg">Justificación</th>
                         </tr>
                       </thead>
-                      <tbody className="text-sm divide-y divide-gray-100">
-                        {sesionesAlumno.length > 0 ? (
+                      <tbody className="text-sm divide-y divide-gray-100">                        {sesionesAlumno.length > 0 ? (
                           sesionesAlumno.map((asistencia) => (
                             <tr key={asistencia.id} className="hover:bg-blue-50 transition-colors">
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -1237,7 +1232,7 @@ export default function AsistenciaDetallada() {
                                 <span className="bg-gray-100 text-gray-700 px-2.5 py-1.5 rounded-lg text-xs">
                                   {asistencia.sesionClase.grupo.denominacion}
                                 </span>
-                              </td>                              <td className="px-6 py-4">
+                              </td><td className="px-6 py-4">
                                 {(() => {
                                   // Comprobar si la falta está justificada
                                   const tieneJustificacionAprobada = asistencia.SolicitudJustificacion && 
@@ -1277,9 +1272,8 @@ export default function AsistenciaDetallada() {
                                       {estadoVisual}
                                     </span>
                                   );
-                                })()}
-                              </td>
-                              <td className="px-6 py-4">
+                                })()                                }
+                              </td><td className="px-6 py-4">
                                 {asistencia.SolicitudJustificacion && asistencia.SolicitudJustificacion.length > 0 ? (
                                   <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs ${asistencia.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Pendiente')
                                     ? 'bg-blue-100 text-blue-800'
@@ -1313,21 +1307,16 @@ export default function AsistenciaDetallada() {
                                     className="inline-flex items-center px-3 py-1.5 bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 rounded-full text-xs transition-colors"
                                   >
                                     <FaFileAlt className="mr-1.5 text-xs" />
-                                    Justificar falta
-                                  </Link>
+                                    Justificar falta                                  </Link>
                                 ) : null}
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={4} className="px-6 py-8 text-center">
+                              </td></tr>
+                          ))                        ) : (
+                          <tr><td colSpan={4} className="px-6 py-8 text-center">
                               <div className="flex flex-col items-center">
                                 <FaInfoCircle className="text-3xl text-gray-300 mb-3" />
                                 <p className="text-gray-500">No hay sesiones registradas para esta asignatura.</p>
                               </div>
-                            </td>
-                          </tr>
+                            </td></tr>
                         )}
                       </tbody>
                     </table>
