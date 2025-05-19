@@ -75,9 +75,7 @@ export async function GET(request: NextRequest) {
       entityType: 'alumnoGrupo',
       entityId: grupoId || alumnoId || 'multiple',
       details: `Consulta de alumnos en grupo${search ? ' con búsqueda' : ''}${!skipPagination ? ' paginada' : ''}`
-    });
-
-    // Devolver respuesta con formato de paginación si no se omite
+    });    // Si se solicita sin paginación, devolver directamente el array para mantener compatibilidad con código existente
     if (skipPagination) {
       return NextResponse.json(alumnosGrupo);
     } else {

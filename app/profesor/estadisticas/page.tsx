@@ -176,9 +176,8 @@ export default function ProfesorEstadisticas() {
     const fetchSesionesYAsistencias = async () => {
       setIsLoading(true);
       
-      try {
-        // Cargar los alumnos del grupo seleccionado
-        const alumnosGrupoResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupoSeleccionado}`, {
+      try {        // Cargar los alumnos del grupo seleccionado
+        const alumnosGrupoResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupoSeleccionado}&skipPagination=true`, {
           credentials: 'include'
         });
         

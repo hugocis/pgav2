@@ -228,16 +228,25 @@ export default function AlumnoDashboard() {
             throw new Error(`Error al obtener las matrículas: ${response.status}`);
           }
 
-          const data = await response.json();
-
-          // Obtener todos los grupos del alumno en una sola llamada
+          const data = await response.json();          // Obtener todos los grupos del alumno en una sola llamada
           const alumnoGruposResponse = await fetch(`/api/alumnos-grupo?alumnoId=${session.user.id}`, {
             credentials: 'include'
           });
 
           if (!alumnoGruposResponse.ok) {
             throw new Error('Error al obtener grupos del alumno');
-          }          const alumnoGrupos = await alumnoGruposResponse.json();
+          }          
+          const alumnoGruposData = await alumnoGruposResponse.json();
+          
+          // Asegurar que estamos trabajando con el formato correcto, independientemente de si
+          // los datos vienen en la propiedad 'data' o directamente en la respuesta
+          const alumnoGrupos = alumnoGruposData.data || alumnoGruposData;
+          
+          if (!Array.isArray(alumnoGrupos)) {
+            console.error("Error: alumnoGrupos no es un array", alumnoGruposData);
+            throw new Error('El formato de respuesta para alumnos-grupo no es válido');
+          }
+          
           // Crear un conjunto de IDs de grupos a los que pertenece el alumno para búsqueda rápida
           const gruposDelAlumno = new Set(alumnoGrupos.map((ag: AlumnoGrupo) => ag.grupoId));
 

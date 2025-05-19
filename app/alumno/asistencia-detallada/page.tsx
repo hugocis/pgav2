@@ -354,20 +354,30 @@ export default function AsistenciaDetallada() {
     const obtenerGruposDelAlumno = async () => {
       if (!session?.user?.id) return;
 
-      try {
-        const response = await fetch(`/api/alumnos-grupo?alumnoId=${session.user.id}`, {
+      try {        const response = await fetch(`/api/alumnos-grupo?alumnoId=${session.user.id}`, {
           credentials: 'include',
           cache: 'no-store'
         });
 
         if (response.ok) {
-          const data = await response.json();
-          // Flexibilidad para manejar diferentes formatos de respuesta
+          const responseData = await response.json();
+          // Asegurar que estamos trabajando con el formato correcto, independientemente de si
+          // los datos vienen en la propiedad 'data' o directamente en la respuesta
+          const data = responseData.data || responseData;
+          
+          if (!Array.isArray(data)) {
+            console.error("Error: los datos de alumnos-grupo no son un array", responseData);
+            throw new Error('El formato de respuesta para alumnos-grupo no es válido');
+          }
+            // Flexibilidad para manejar diferentes formatos de respuesta
           interface AlumnoGrupo {
             grupoId?: string;
             grupo_Id?: string;
           }
-          const grupos = data.map((ag: AlumnoGrupo) => ag.grupoId || ag.grupo_Id);
+          // Filter out undefined values with the .filter Boolean trick
+          const grupos = data
+            .map((ag: AlumnoGrupo) => ag.grupoId || ag.grupo_Id)
+            .filter(Boolean) as string[];
 
           console.log('Grupos obtenidos del alumno:', grupos);
           setGruposDelAlumno(grupos);

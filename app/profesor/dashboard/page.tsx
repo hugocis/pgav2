@@ -161,9 +161,8 @@ export default function ProfesorDashboard() {
                 const alumnosContados = new Set();
 
                 // Procesar cada grupo
-                await Promise.all(grupos.map(async (grupo: Grupo) => {
-                  // Obtener alumnos del grupo
-                  const alumnosGrupoResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupo.id}`, {
+                await Promise.all(grupos.map(async (grupo: Grupo) => {                  // Obtener alumnos del grupo
+                  const alumnosGrupoResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupo.id}&skipPagination=true`, {
                     credentials: 'include'
                   });
 
@@ -209,10 +208,8 @@ export default function ProfesorDashboard() {
                           totalAsistenciasRegistradas += asistenciasAlumno.length;
                         }
                       }
-                    }));
-
-                    // Calcular posibles asistencias (número de alumnos * número de sesiones)
-                    const alumnosDelGrupo = await fetch(`/api/alumnos-grupo?grupoId=${grupo.id}`, {
+                    }));                    // Calcular posibles asistencias (número de alumnos * número de sesiones)
+                    const alumnosDelGrupo = await fetch(`/api/alumnos-grupo?grupoId=${grupo.id}&skipPagination=true`, {
                       credentials: 'include'
                     }).then(res => res.ok ? res.json() : []);
 

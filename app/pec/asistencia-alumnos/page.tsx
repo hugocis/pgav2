@@ -213,7 +213,7 @@ export default function AsistenciaAlumnos() {
       // Si no hay término de búsqueda o es muy corto, mostrar todos los alumnos cargados
       setFilteredAlumnos(alumnos);
     }
-  }, [searchTerm, selectedCarreraCurso]);
+  }, [searchTerm, selectedCarreraCurso, alumnos, searchTerm]);
   // Función para ver detalles del alumno
   const verDetalleAlumno = async (alumno: Alumno) => {
     setIsLoadingAlumnoDetalle(true);
@@ -358,8 +358,36 @@ export default function AsistenciaAlumnos() {
 
   // Función para abrir el modal de detalles del alumno
   const openModal = (alumno: Alumno) => {
-    setSelectedAlumno(alumno);
-    setShowDetalleModal(true);
+    setIsLoadingAlumnoDetalle(true);
+
+    // Obtener los detalles del alumno de la API
+    fetch(`/api/alumnos-asignatura?alumnoId=${alumno.id}`, {
+      credentials: 'include'
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('No se pudieron cargar los detalles del alumno');
+        }
+        return response.json();
+      })
+      .then(alumnoDetalle => {
+        // Asegurarse de que el objeto tiene la estructura esperada
+        const detalleCompleto: AlumnoDetalle = {
+          ...alumno,
+          ...alumnoDetalle,
+          carrera: carrerasCursos.find(cc => cc.id === selectedCarreraCurso)?.carrera?.denominacion || "No especificada",
+          curso: carrerasCursos.find(cc => cc.id === selectedCarreraCurso)?.curso || 0
+        };
+        setSelectedAlumno(detalleCompleto);
+        setShowDetalleModal(true);
+      })
+      .catch(error => {
+        console.error('Error al cargar detalles del alumno:', error);
+        alert(`Error al cargar los detalles: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      })
+      .finally(() => {
+        setIsLoadingAlumnoDetalle(false);
+      });
   };
 
   // Función para cerrar el modal
@@ -607,10 +635,9 @@ export default function AsistenciaAlumnos() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                           {alumno.ultimaAsistencia}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        </td>                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                           <button
-                            onClick={() => verDetalleAlumno(alumno)}
+                            onClick={() => openModal(alumno)}
                             className="text-blue-600 hover:text-blue-900 focus:outline-none"
                           >
                             Ver Detalle
@@ -753,7 +780,7 @@ export default function AsistenciaAlumnos() {
           </div>          {/* La paginación ya está incluida dentro de la tabla */}
         </div>        {/* Modal de detalle del alumno */}
         {showDetalleModal && selectedAlumno && (
-          <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={cerrarDetalleModal}>
+          <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={closeModal}>
             <div
               className="bg-white rounded-lg shadow-xl w-full max-w-4xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
@@ -762,9 +789,8 @@ export default function AsistenciaAlumnos() {
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white">
                 <h3 className="text-lg font-medium">
                   Detalle del Alumno: {selectedAlumno.name} {selectedAlumno.surname1} {selectedAlumno.surname2 || ''}
-                </h3>
-                <button
-                  onClick={cerrarDetalleModal}
+                </h3>              <button
+                  onClick={closeModal}
                   className="text-white hover:text-gray-200 focus:outline-none"
                 >
                   <FaTimes className="h-6 w-6" />
@@ -963,9 +989,8 @@ export default function AsistenciaAlumnos() {
                     </div>
                   </div>
 
-                  <div className="px-6 py-4 bg-gray-100 border-t border-gray-200 flex justify-between">
-                    <button
-                      onClick={cerrarDetalleModal}
+                  <div className="px-6 py-4 bg-gray-100 border-t border-gray-200 flex justify-between">                    <button
+                      onClick={closeModal}
                       className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                     >
                       Cerrar

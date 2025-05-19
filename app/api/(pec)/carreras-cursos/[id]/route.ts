@@ -156,7 +156,7 @@ export async function DELETE(
     
     // Desactivar la asignación en lugar de eliminarla completamente
     // Esto preserva el historial y previene problemas de integridad de datos
-    const deactivatedAssignment = await prisma.pecCarreraCurso.update({
+    await prisma.pecCarreraCurso.update({
       where: { id: params.id },
       data: { activo: false }
     });

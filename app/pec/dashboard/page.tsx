@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import DashboardContainer from '@/components/DashboardContainer';
 import Link from 'next/link';
-import { FaUserGraduate, FaChartBar, FaClipboardList, FaBriefcaseMedical, FaCalendarAlt, FaSearch, FaUniversity } from 'react-icons/fa';
+import { FaUserGraduate, FaChartBar, FaClipboardList, FaBriefcaseMedical, FaCalendarAlt, FaUniversity } from 'react-icons/fa';
 
 interface PecCarreraCurso {
   id: string;

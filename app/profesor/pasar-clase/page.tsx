@@ -268,17 +268,26 @@ export default function PasarClase() {
     const fetchData = async () => {
       setIsLoading(true);
       
-      try {
-        // Cargar alumnos del grupo
-        const alumnosResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupoSeleccionado}`, {
+      try {        // Cargar alumnos del grupo
+        const alumnosResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupoSeleccionado}&skipPagination=true`, {
           credentials: 'include'
         });
         
         if (!alumnosResponse.ok) {
           throw new Error('No se pudieron cargar los alumnos del grupo');
         }
+          const responseData = await alumnosResponse.json();
         
-        const alumnosData = await alumnosResponse.json();
+        // Handle both direct array response and data property response
+        let alumnosData;
+        if (Array.isArray(responseData)) {
+          alumnosData = responseData;
+        } else if (responseData && responseData.data && Array.isArray(responseData.data)) {
+          alumnosData = responseData.data;
+        } else {
+          alumnosData = [];
+          console.error('Formato de respuesta inesperado para alumnos-grupo:', responseData);
+        }
         
         // Ordenar los alumnos por apellido y nombre
         alumnosData.sort((a: AlumnoGrupo, b: AlumnoGrupo) => {

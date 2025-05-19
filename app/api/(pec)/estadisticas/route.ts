@@ -32,8 +32,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Lista de IDs de carreras asignadas al PEC
-    const carreraIds = carrerasCursos.map(cc => cc.carreraId);
-    const cursosIds = carrerasCursos.map(cc => cc.curso);    // Obtener el total de alumnos en estas carreras y cursos
+    const carreraIds = carrerasCursos.map(cc => cc.carreraId); carrerasCursos.map(cc => cc.curso);    // Obtener el total de alumnos en estas carreras y cursos
     // Primero obtenemos los usuarios con rol ALUMNO
     const usuariosAlumno = await prisma.user.findMany({
       where: {
