@@ -169,7 +169,7 @@ export default function AcademicDispensations() {
     if (session?.user?.id) {
       fetchData();
     }
-  }, [filter, session?.user?.id]);
+  }, [filter, session?.user?.id, estadosDispensa]);
   
   useEffect(() => {
     // Aplicar filtros locales cuando cambien

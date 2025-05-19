@@ -164,7 +164,30 @@ export async function GET(req: NextRequest) {
     const estadoId = url.searchParams.get('estadoId');
 
     // Construir la consulta base
-    let query: any = {
+    const query: {
+      where?: Record<string, unknown>;
+      include: {
+        user: {
+          select: {
+            name: boolean;
+            surname1: boolean;
+            surname2: boolean;
+            email: boolean;
+          }
+        };
+        matricula: {
+          include: {
+            asignatura: {
+              include: {
+                carrera: boolean;
+              }
+            }
+          }
+        };
+        estadoDispensa: boolean;
+        DocumentacionDispensa: boolean;
+      }
+    } = {
       include: {
         user: {
           select: {

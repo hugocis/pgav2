@@ -73,6 +73,15 @@ interface Matricula {
   porcentajeAsistencia?: number;
 }
 
+interface SolicitudJustificacion {
+  id: string;
+  estadoJustificacion: {
+    id: string;
+    denominacion: string;
+  };
+  fechaAlegacion: string;
+}
+
 interface AsistenciaAlumno {
   id: string;
   fecha: string;
@@ -94,14 +103,8 @@ interface AsistenciaAlumno {
   estadoAsistencia: {
     id: string;
     denominacion: string;
-  };  SolicitudJustificacion: Array<{
-    id: string;
-    estadoJustificacion: {
-      id: string;
-      denominacion: string;
-    };
-    fechaAlegacion: string;
-  }>;
+  };
+  SolicitudJustificacion: Array<SolicitudJustificacion>;
 }
 
 interface ConfiguracionCarrera {
@@ -299,7 +302,7 @@ export default function AlumnoDashboard() {
                           const estado = asistencia.estado || (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);
                             // Verificar si la falta tiene justificación aceptada
                           const tieneJustificacionAceptada = asistencia.SolicitudJustificacion?.some(
-                            (s: any) => s.estadoJustificacion?.denominacion === 'Justificado'
+                            (s: SolicitudJustificacion) => s.estadoJustificacion?.denominacion === 'Justificado'
                           );
                           
                           switch(estado) {

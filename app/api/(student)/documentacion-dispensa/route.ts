@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     // Validar que es una URL
     try {
       new URL(data.url);
-    } catch (e) {
+    } catch {
       return NextResponse.json(
         { error: 'La URL debe ser válida' },
         { status: 400 }
