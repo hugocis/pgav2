@@ -124,9 +124,7 @@ export async function GET(req: NextRequest) {
       orderBy: {
         fechaAlegacion: 'desc'
       }
-    });
-
-    // Formatear los datos para el frontend
+    });    // Formatear los datos para el frontend
     const formattedJustificaciones = justificaciones.map(justificacion => ({
       id: justificacion.id,
       studentId: justificacion.user.id,
@@ -134,6 +132,8 @@ export async function GET(req: NextRequest) {
       studentEmail: justificacion.user.email,
       subject: justificacion.asistenciaAlumno.sesionClase.grupo.asignatura.Denominacion,
       subjectCode: justificacion.asistenciaAlumno.sesionClase.grupo.asignatura.CodAsignatura,
+      // Proporcionar tanto 'date' como 'absenceDate' para mantener compatibilidad
+      date: justificacion.asistenciaAlumno.sesionClase.fecha.toISOString(),
       absenceDate: justificacion.asistenciaAlumno.sesionClase.fecha.toISOString(),
       requestDate: justificacion.fechaAlegacion.toISOString(),
       reason: justificacion.alegacion,
@@ -141,7 +141,7 @@ export async function GET(req: NextRequest) {
       documentationUrl: justificacion.DocumentacionJustificacion[0]?.url || null,
       resolution: justificacion.respuesta || '',
       resolutionDate: justificacion.fechaRespuesta ? justificacion.fechaRespuesta.toISOString() : null,
-      resolvedBy: null, // Este dato no está disponible en el modelo actual
+      resolvedBy: justificacion.fechaRespuesta ? (session.user?.name || 'Manager') : null, // Usar el nombre del usuario de la sesión si hay respuesta
       comments: justificacion.respuesta || null,
       isUrgent: !!justificacion.fechaRespuesta // Temporalmente usamos la presencia de fechaRespuesta como indicador (podría añadirse un campo específico)
     }));
@@ -212,11 +212,33 @@ export async function PUT(req: NextRequest) {
         respuesta: comments,
         fechaRespuesta: new Date()
       }
+    });    // Obtener la justificación completa actualizada (con detalles)
+    const justificacionCompleta = await prisma.solicitudJustificacion.findUnique({
+      where: { id },
+      include: {
+        estadoJustificacion: true,
+        user: {
+          select: {
+            name: true,
+            surname1: true,
+            email: true
+          }
+        }
+      }
     });
 
+    // Responder con datos detallados para facilitar diagnóstico
     return NextResponse.json({
       success: true,
-      justificacion: updatedJustificacion
+      justificacion: updatedJustificacion,
+      detalles: {
+        id: justificacionCompleta?.id,
+        estado: justificacionCompleta?.estadoJustificacion?.denominacion,
+        estadoId: justificacionCompleta?.estadoJustificacionId,
+        mapeoUI: mapDBStatusToUI(justificacionCompleta?.estadoJustificacion?.denominacion || ''),
+        respuesta: justificacionCompleta?.respuesta,
+        fechaRespuesta: justificacionCompleta?.fechaRespuesta
+      }
     });
   } catch (error) {
     console.error('Error al actualizar justificación:', error);
@@ -240,7 +262,6 @@ function mapDBStatusToUI(dbStatus: string): string {
     'Pendiente': 'pending',
     'Justificado': 'approved',
     'Rechazado': 'rejected',
-    // Mantener compatibilidad con valores anteriores si existen
     'Aprobada': 'approved',
     'Rechazada': 'rejected'
   };

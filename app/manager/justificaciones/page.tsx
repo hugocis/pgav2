@@ -62,7 +62,7 @@ export default function Justifications() {
   const [selectedJustification, setSelectedJustification] = useState<JustificationRequest | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-    const [filter, setFilter] = useState<Filter>({
+  const [filter, setFilter] = useState<Filter>({
     status: 'all',
     dateFrom: '',
     dateTo: '',
@@ -77,6 +77,17 @@ export default function Justifications() {
   
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  
+  // Estado para notificaciones toast
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    message: string;
+    type: 'success' | 'error' | 'info';
+  }>({
+    show: false,
+    message: '',
+    type: 'info'
+  });
   
   useEffect(() => {
     const fetchData = async () => {
@@ -407,14 +418,25 @@ export default function Justifications() {
             : req
         )
       );
-      
-      // Registrar la actualización exitosa en la consola para seguimiento
+        // Registrar la actualización exitosa en la consola para seguimiento
       console.log('Estado actualizado exitosamente:', {
         id: selectedJustification.id,
         nuevoEstado: resolution.status,
         justificacionesActualizadas: updatedJustifications.length,
         filtradas: filteredJustifications.length
       });
+      
+      // Mostrar notificación de éxito
+      setNotification({
+        show: true,
+        message: `Justificación ${resolution.status === 'approved' ? 'aprobada' : 'rechazada'} correctamente`,
+        type: 'success'
+      });
+      
+      // Ocultar la notificación después de 5 segundos
+      setTimeout(() => {
+        setNotification(prev => ({ ...prev, show: false }));
+      }, 5000);
         // Esperar un momento antes de cerrar el modal para dar feedback visual
       setTimeout(() => {
         // Cerrar el modal
@@ -1123,8 +1145,73 @@ export default function Justifications() {
               </div>
             </div>
           )}
+        </div>      </div>
+      
+      {/* Notificación toast */}
+      {notification.show && (
+        <div className={`fixed bottom-5 right-5 max-w-md shadow-lg rounded-md overflow-hidden border ${
+          notification.type === 'success' ? 'bg-green-50 border-green-200' : 
+          notification.type === 'error' ? 'bg-red-50 border-red-200' : 
+          'bg-blue-50 border-blue-200'
+        } transition-all duration-300 transform translate-y-0 opacity-100`}>
+          <div className="p-4">
+            <div className="flex items-center">
+              {notification.type === 'success' ? (
+                <div className="flex-shrink-0 bg-green-100 rounded-full p-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              ) : notification.type === 'error' ? (
+                <div className="flex-shrink-0 bg-red-100 rounded-full p-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+              ) : (
+                <div className="flex-shrink-0 bg-blue-100 rounded-full p-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              )}
+              <div className="ml-3">
+                <p className={`text-sm font-medium ${
+                  notification.type === 'success' ? 'text-green-800' : 
+                  notification.type === 'error' ? 'text-red-800' : 
+                  'text-blue-800'
+                }`}>
+                  {notification.message}
+                </p>
+              </div>
+              <div className="ml-auto pl-3">
+                <div className="-mx-1.5 -my-1.5">
+                  <button 
+                    onClick={() => setNotification(prev => ({ ...prev, show: false }))}
+                    className={`inline-flex rounded-md p-1.5 ${
+                      notification.type === 'success' ? 'text-green-500 hover:bg-green-100' : 
+                      notification.type === 'error' ? 'text-red-500 hover:bg-red-100' : 
+                      'text-blue-500 hover:bg-blue-100'
+                    } focus:outline-none`}
+                  >
+                    <span className="sr-only">Dismiss</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className={`h-1 ${
+            notification.type === 'success' ? 'bg-green-500' : 
+            notification.type === 'error' ? 'bg-red-500' : 
+            'bg-blue-500'
+          }`}>
+            <div className="h-1 bg-white opacity-50 animate-progress"></div>
+          </div>
         </div>
-      </div>
+      )}
     </DashboardContainer>
   );
 }

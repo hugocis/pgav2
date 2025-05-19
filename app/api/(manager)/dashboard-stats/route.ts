@@ -112,13 +112,11 @@ export async function GET() {
           denominacion: 'Pendiente'
         }
       }
-    });
-
-    // 6. Solicitudes de justificación pendientes
+    });    // 6. Solicitudes de justificación pendientes
     const pendingJustifications = await prisma.solicitudJustificacion.count({
       where: {
         estadoJustificacion: {
-          denominacion: 'Pendiente'
+          denominacion: 'Pendiente' // Solo cuenta las que estén marcadas como "Pendiente"
         }
       }
     });
@@ -312,6 +310,7 @@ function mapStatusName(dbStatus: string): string {
     'Pendiente': 'pending',
     'Aprobada': 'approved',
     'Aprobado': 'approved',
+    'Justificado': 'approved', // Añadido estado Justificado como aprobado
     'Rechazada': 'rejected',
     'Rechazado': 'rejected'
   };

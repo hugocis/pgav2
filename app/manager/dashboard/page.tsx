@@ -138,7 +138,6 @@ export default function ManagerDashboard() {
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     }
   };
-
   const getStatusText = (status: string) => {
     switch (status) {
       case 'approved':
