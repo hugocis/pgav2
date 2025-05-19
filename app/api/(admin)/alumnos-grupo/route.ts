@@ -9,6 +9,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const grupoId = searchParams.get('grupoId');
     const alumnoId = searchParams.get('alumnoId');
+    const search = searchParams.get('search');
+    const page = Number(searchParams.get('page')) || 1;
+    const pageSize = Number(searchParams.get('pageSize')) || 10;
+    const skipPagination = searchParams.get('skipPagination') === 'true';
+    
     // Configurar los filtros según los parámetros recibidos
     const where: Prisma.AlumnoGrupoWhereInput = {};
     if (grupoId) {
@@ -18,6 +23,26 @@ export async function GET(request: NextRequest) {
       where.alumno_Id = alumnoId;
     }
     
+    // Añadir filtro de búsqueda si existe
+    if (search) {
+      where.OR = [
+        {
+          user: {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { surname1: { contains: search, mode: 'insensitive' } },
+              { surname2: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+            ]
+          }
+        }
+      ];
+    }
+    
+    // Contar el total de registros para la paginación
+    const total = await prisma.alumnoGrupo.count({ where });
+    
+    // Obtener los registros paginados o todos si se especifica skipPagination
     const alumnosGrupo = await prisma.alumnoGrupo.findMany({
       where,
       include: {
@@ -36,10 +61,36 @@ export async function GET(request: NextRequest) {
             asignatura: true
           }
         }
-      }
+      },
+      ...(skipPagination 
+        ? {} 
+        : { 
+          skip: (page - 1) * pageSize,
+          take: pageSize
+        })
+    });    // Registrar la actividad
+    await logActivity({
+      req: request,
+      action: 'create', // Using 'create' as a workaround since 'read' is not available
+      entityType: 'alumnoGrupo',
+      entityId: grupoId || alumnoId || 'multiple',
+      details: `Consulta de alumnos en grupo${search ? ' con búsqueda' : ''}${!skipPagination ? ' paginada' : ''}`
     });
 
-    return NextResponse.json(alumnosGrupo);
+    // Devolver respuesta con formato de paginación si no se omite
+    if (skipPagination) {
+      return NextResponse.json(alumnosGrupo);
+    } else {
+      return NextResponse.json({
+        data: alumnosGrupo,
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages: Math.ceil(total / pageSize)
+        }
+      });
+    }
   } catch (error) {
     console.error('Error al obtener alumnos-grupo:', error);
     return NextResponse.json(

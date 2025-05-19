@@ -64,24 +64,18 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
       }
       const carrerasData = await carrerasResponse.json();
       setCarreras(Array.isArray(carrerasData) ? carrerasData : []);
-      
-      // Cargar asignaciones del PEC
-      console.log('Solicitando asignaciones para pecId:', userId);
+        // Cargar asignaciones del PEC
       const assignedResponse = await fetch(`/api/carreras-cursos?pecId=${userId}`);
       
       if (!assignedResponse.ok) {
         const errorData = await assignedResponse.json();
-        console.error('Error en la respuesta de la API:', errorData);
         throw new Error(`Error al cargar asignaciones: ${assignedResponse.status} - ${errorData.error || 'Error desconocido'}`);
       }
-      
-      const assignedData = await assignedResponse.json();
-      console.log('Datos recibidos:', assignedData);
+        const assignedData = await assignedResponse.json();
       
       // Asegurar que assignedData sea un array
       setAssignedCarrerasCursos(Array.isArray(assignedData) ? assignedData : []);
     } catch (error) {
-      console.error('Error al cargar datos:', error);
       setMessage({ text: `Error al cargar los datos: ${error instanceof Error ? error.message : 'Error desconocido'}`, type: 'error' });
       // Inicializar arrays vacíos para evitar errores de mapeo
       setAssignedCarrerasCursos([]);
@@ -191,9 +185,7 @@ export default function PecCarreraCursoSelector({ userId, isOpen, onCloseAction,
       
       // Limpiar selecciones
       setSelectedCarreraId("");
-      setSelectedCurso(0);
-    } catch (error: unknown) {
-      console.error('Error al procesar asignación:', error);
+      setSelectedCurso(0);    } catch (error: unknown) {
       setMessage({ 
         text: error instanceof Error ? error.message : 'Error al procesar asignación', 
         type: 'error' 

@@ -63,8 +63,14 @@ export default function AsistenciaAlumnos() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showDetalleModal, setShowDetalleModal] = useState(false);
   const [selectedAlumno, setSelectedAlumno] = useState<AlumnoDetalle | null>(null);
-  const [isLoadingAlumnoDetalle, setIsLoadingAlumnoDetalle] = useState(false);  // Estado para almacenar el nombre de la carrera asignada al PEC
+  const [isLoadingAlumnoDetalle, setIsLoadingAlumnoDetalle] = useState(false);
   const [carreraPec, setCarreraPec] = useState<string>('');
+  
+  // Estados para paginación
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalAlumnos, setTotalAlumnos] = useState<number>(0);
 
   useEffect(() => {
     const fetchCarrerasCursos = async () => {
@@ -109,17 +115,30 @@ export default function AsistenciaAlumnos() {
     setIsLoading(true);
 
     // Llamada real a la API para obtener los alumnos por carrera y curso
-    const fetchAlumnos = async () => {
-      try {
-        const response = await fetch(`/api/alumnos-asistencia?carreraCursoId=${selectedCarreraCurso}`, {
-          credentials: 'include'
-        });
+    const fetchAlumnos = async () => {      try {
+        // Cuando hay búsqueda activa, no usar paginación para buscar en todos los resultados
+        const urlParams = searchTerm 
+          ? `carreraCursoId=${selectedCarreraCurso}`
+          : `carreraCursoId=${selectedCarreraCurso}&page=${currentPage}&pageSize=${pageSize}`;
+          
+        const response = await fetch(
+          `/api/alumnos-asistencia?${urlParams}`, 
+          {
+            credentials: 'include'
+          }
+        );
 
         if (!response.ok) {
           throw new Error('No se pudieron cargar los datos de alumnos');
         }
 
-        const data = await response.json();
+        const responseData = await response.json();
+        // Extraer los datos de alumnos de la respuesta paginada
+        const data = responseData.data || [];
+        
+        // Guardar información de paginación
+        setTotalPages(responseData.pagination?.totalPages || 1);
+        setTotalAlumnos(responseData.pagination?.total || data.length);
 
         // Ordenar por apellido y nombre
         data.sort((a: Alumno, b: Alumno) => {
@@ -137,23 +156,64 @@ export default function AsistenciaAlumnos() {
     };
 
     fetchAlumnos();
-  }, [selectedCarreraCurso, carrerasCursos]);
-
+  }, [selectedCarreraCurso, carrerasCursos, currentPage, pageSize]);
   // Efecto para filtrar alumnos cuando cambia el término de búsqueda
   useEffect(() => {
-    if (!searchTerm) {
+    // Si hay un término de búsqueda, realizar la búsqueda
+    if (searchTerm && searchTerm.length >= 2) {
+      // Cuando se busca, se recargan los alumnos completos desde el servidor
+      const buscarAlumnos = async () => {
+        if (!selectedCarreraCurso) return;
+        
+        setIsLoading(true);
+        try {
+          const response = await fetch(
+            `/api/alumnos-asistencia?carreraCursoId=${selectedCarreraCurso}&search=${encodeURIComponent(searchTerm)}`,
+            {
+              credentials: 'include'
+            }
+          );
+          
+          if (!response.ok) {
+            throw new Error('Error al buscar alumnos');
+          }
+          
+          const responseData = await response.json();
+          const data = responseData.data || [];
+          
+          // Ordenar por apellido y nombre
+          data.sort((a: Alumno, b: Alumno) => {
+            return a.surname1.localeCompare(b.surname1) || a.name.localeCompare(b.name);
+          });
+          
+          setFilteredAlumnos(data);
+        } catch (error) {
+          console.error('Error en búsqueda:', error);
+          // Si hay error en búsqueda, filtrar localmente
+          const filtered = alumnos.filter(alumno => {
+            const fullName = `${alumno.name} ${alumno.surname1} ${alumno.surname2 || ''}`.toLowerCase();
+            const email = alumno.email.toLowerCase();
+            return fullName.includes(searchTerm.toLowerCase()) || email.includes(searchTerm.toLowerCase());
+          });
+          setFilteredAlumnos(filtered);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      // Debounce para evitar muchas llamadas
+      const handler = setTimeout(() => {
+        buscarAlumnos();
+      }, 300);
+      
+      return () => {
+        clearTimeout(handler);
+      };
+    } else {
+      // Si no hay término de búsqueda o es muy corto, mostrar todos los alumnos cargados
       setFilteredAlumnos(alumnos);
-      return;
     }
-
-    const filtered = alumnos.filter(alumno => {
-      const fullName = `${alumno.name} ${alumno.surname1} ${alumno.surname2 || ''}`.toLowerCase();
-      const email = alumno.email.toLowerCase();
-      return fullName.includes(searchTerm.toLowerCase()) || email.includes(searchTerm.toLowerCase());
-    });
-
-    setFilteredAlumnos(filtered);
-  }, [searchTerm, alumnos]);
+  }, [searchTerm, selectedCarreraCurso]);
   // Función para ver detalles del alumno
   const verDetalleAlumno = async (alumno: Alumno) => {
     setIsLoadingAlumnoDetalle(true);
@@ -250,9 +310,50 @@ export default function AsistenciaAlumnos() {
     return `${alumno.surname1} ${alumno.surname2 ? alumno.surname2 + ',' : ','} ${alumno.name}`;
   };
 
-  // Función para exportar a Excel (simulada)
-  const exportToExcel = () => {
-    alert('Esta funcionalidad exportaría los datos a Excel. En una implementación real, se generaría y descargaría un archivo Excel.');
+  // Función para exportar a Excel (ahora usa la API real)
+  const exportToExcel = async () => {
+    if (!selectedCarreraCurso) {
+      alert('Por favor, selecciona un curso antes de exportar.');
+      return;
+    }
+
+    try {
+      // Llamar a la API con el parámetro export=excel
+      const response = await fetch(`/api/alumnos-asistencia?carreraCursoId=${selectedCarreraCurso}&export=excel`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al generar el archivo Excel');
+      }
+
+      // Obtener el blob del excel
+      const blob = await response.blob();
+      
+      // Crear una URL para el blob
+      const url = window.URL.createObjectURL(blob);
+      
+      // Crear un elemento <a> para descargarlo
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // Obtener el nombre del archivo desde Content-Disposition o usar uno predeterminado
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const fileName = contentDisposition 
+        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+        : 'alumnos-asistencia.xlsx';
+      
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Limpiar
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error al exportar a Excel:', error);
+      alert(`Error al exportar a Excel: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
   };
 
   // Función para abrir el modal de detalles del alumno
@@ -346,14 +447,28 @@ export default function AsistenciaAlumnos() {
                       className="block w-full pl-10 p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
-                </div>
-
-                <div className="flex items-end space-x-2">
-                  <button className="p-3 bg-blue-50 border border-blue-300 rounded-md flex items-center text-blue-600 hover:bg-blue-100 transition-all">
+                </div>                <div className="flex items-end space-x-2">
+                  <button 
+                    className="p-3 bg-blue-50 border border-blue-300 rounded-md flex items-center text-blue-600 hover:bg-blue-100 transition-all"
+                    onClick={() => {
+                      // Aplicar filtros
+                      if (selectedCarreraCurso) {
+                        setCurrentPage(1); // Volver a la primera página al filtrar
+                      }
+                    }}
+                  >
                     <FaFilter className="mr-2" /> Filtrar
                   </button>
 
-                  <button className="p-3 bg-gray-50 border border-gray-300 rounded-md flex items-center text-gray-600 hover:bg-gray-100 transition-all">
+                  <button 
+                    className="p-3 bg-gray-50 border border-gray-300 rounded-md flex items-center text-gray-600 hover:bg-gray-100 transition-all"
+                    onClick={() => {
+                      // Limpiar búsqueda y refrescar datos
+                      setSearchTerm('');
+                      setCurrentPage(1);
+                      // La recarga se hará automáticamente por el efecto al cambiar currentPage
+                    }}
+                  >
                     <FaSyncAlt className="mr-2" /> Actualizar
                   </button>
                 </div>
@@ -505,13 +620,137 @@ export default function AsistenciaAlumnos() {
                     ))}
                   </tbody>
                 </table>
+                
+                {/* Controles de paginación */}
+                <div className="px-6 py-4 bg-white border-t border-gray-200 flex items-center justify-between">
+                  <div className="flex-1 flex justify-between sm:hidden">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                        currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                        currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Siguiente
+                    </button>
+                  </div>                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div className="flex items-center space-x-4">
+                      <p className="text-sm text-gray-700">
+                        Mostrando <span className="font-medium">{filteredAlumnos.length > 0 ? ((currentPage - 1) * pageSize) + 1 : 0}</span> a <span className="font-medium">
+                          {Math.min(currentPage * pageSize, totalAlumnos)}
+                        </span> de <span className="font-medium">{totalAlumnos}</span> resultados
+                      </p>
+                      
+                      <div className="flex items-center">
+                        <span className="text-sm text-gray-700 mr-2">Mostrar:</span>
+                        <select 
+                          value={pageSize} 
+                          onChange={(e) => {
+                            setPageSize(Number(e.target.value));
+                            setCurrentPage(1); // Volver a la primera página al cambiar el tamaño
+                          }}
+                          className="border border-gray-300 rounded-md text-sm py-1 px-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="5">5</option>
+                          <option value="10">10</option>
+                          <option value="25">25</option>
+                          <option value="50">50</option>
+                          <option value="100">100</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        <button
+                          onClick={() => setCurrentPage(1)}
+                          disabled={currentPage === 1}
+                          className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 text-sm font-medium ${
+                            currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-500 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className="sr-only">Primera</span>
+                          ««
+                        </button>
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className={`relative inline-flex items-center px-2 py-2 border border-gray-300 text-sm font-medium ${
+                            currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-500 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className="sr-only">Anterior</span>
+                          «
+                        </button>
+                        
+                        {/* Números de página */}
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          // Cálculo para mostrar páginas alrededor de la página actual
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                pageNum === currentPage
+                                  ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                        
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                          className={`relative inline-flex items-center px-2 py-2 border border-gray-300 text-sm font-medium ${
+                            currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-500 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className="sr-only">Siguiente</span>
+                          »
+                        </button>
+                        <button
+                          onClick={() => setCurrentPage(totalPages)}
+                          disabled={currentPage === totalPages}
+                          className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 text-sm font-medium ${
+                            currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-500 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className="sr-only">Última</span>
+                          »»
+                        </button>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (              <div className="p-8 text-center">
                 <FaCalendarAlt className="mx-auto text-gray-300 text-4xl mb-4" />
                 <p className="text-gray-600">Selecciona un curso para ver los alumnos asignados</p>
               </div>
             )}
-          </div>
+          </div>          {/* La paginación ya está incluida dentro de la tabla */}
         </div>        {/* Modal de detalle del alumno */}
         {showDetalleModal && selectedAlumno && (
           <div className="fixed inset-0 bg-gray-700/40 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={cerrarDetalleModal}>

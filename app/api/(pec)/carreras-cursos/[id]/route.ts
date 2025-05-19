@@ -28,9 +28,8 @@ export async function GET(
     if (!asignacion) {
       return NextResponse.json({ error: 'Asignación no encontrada' }, { status: 404 });
     }
-    
-    // Si el usuario es un PEC (y no es admin), asegúrese de que solo pueda ver sus propias asignaciones
-    if (session.user.roles.includes('PEC') && !session.user.roles.includes('ADMIN')) {
+      // Si el usuario es un PEC (y no es admin), asegúrese de que solo pueda ver sus propias asignaciones
+    if (userRoles.includes('PEC') && !userRoles.includes('ADMIN')) {
       if (asignacion.pecId !== session.user.id) {
         return NextResponse.json({ error: 'No autorizado para acceder a esta asignación' }, { status: 403 });
       }
@@ -62,14 +61,12 @@ export async function PUT(
     if (!session?.user) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     }
-    
-    // Solo los administradores pueden actualizar asignaciones
-    if (!session.user.roles.includes('ADMIN')) {
+      // Solo los administradores pueden actualizar asignaciones (insensible a mayúsculas/minúsculas)
+    const userRoles = session.user.roles.map(role => role.toUpperCase());
+    if (!userRoles.includes('ADMIN')) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }
-    
-    const data = await req.json();
-    console.log('Datos para actualización:', data);
+      const data = await req.json();
     
     // Verificar datos requeridos
     if (!data.carreraId || !data.curso) {
@@ -142,9 +139,9 @@ export async function DELETE(
     if (!session?.user) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     }
-    
-    // Solo los administradores pueden eliminar asignaciones
-    if (!session.user.roles.includes('ADMIN')) {
+      // Solo los administradores pueden eliminar asignaciones (insensible a mayúsculas/minúsculas)
+    const userRoles = session.user.roles.map(role => role.toUpperCase());
+    if (!userRoles.includes('ADMIN')) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }
     

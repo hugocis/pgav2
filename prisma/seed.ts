@@ -7,7 +7,6 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Starting the seeding process...');
-
   // Define the system roles
   const rolesData = [
     { name: 'Alumno', description: 'Student enrolled at the university' },
@@ -15,6 +14,7 @@ async function main() {
     { name: 'Admin', description: 'System administrator with full access' },
     { name: 'Manager', description: 'Departmental academic coordinator' },
     { name: 'PEC', description: 'Coordinator of educational projects' },
+    { name: 'GOE', description: 'Estudiante con necesidades educativas especiales' },
   ];
 
   // Store created or found roles
@@ -203,8 +203,7 @@ async function main() {
     }
   }
   console.log('✅ Seeding process base data completed!');
-  
-  // Importar datos desde archivos CSV
+    // Importar datos desde archivos CSV
   try {
     // Las rutas son relativas al directorio desde donde se ejecuta el script
     const seedsDir = path.join(__dirname, 'seeds');

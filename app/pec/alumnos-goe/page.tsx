@@ -139,7 +139,7 @@ export default function AlumnosGOE() {
       
       try {
         // Llamada real a la API para obtener los alumnos GOE
-        const response = await fetch(`/api/pec/alumnos-goe?carreraCursoId=${selectedCarreraCurso}`, {
+        const response = await fetch(`/api/alumnos-goe?carreraCursoId=${selectedCarreraCurso}`, {
           credentials: 'include'
         });
         
@@ -299,8 +299,8 @@ export default function AlumnosGOE() {
     
     try {
       const url = editingAlumno 
-        ? `/api/pec/alumnos-goe/${editingAlumno.id}` 
-        : '/api/pec/alumnos-goe';
+        ? `/api/alumnos-goe/${editingAlumno.id}` 
+        : '/api/alumnos-goe';
       
       const method = editingAlumno ? 'PUT' : 'POST';
       
@@ -367,7 +367,7 @@ export default function AlumnosGOE() {
   const handleDeleteAlumno = async (id: string) => {
     if (confirm('¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.')) {
       try {
-        const response = await fetch(`/api/pec/alumnos-goe/${id}`, {
+        const response = await fetch(`/api/alumnos-goe/${id}`, {
           method: 'DELETE',
           credentials: 'include'
         });
