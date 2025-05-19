@@ -177,18 +177,29 @@ export async function PUT(req: NextRequest) {
     }
 
     // Convertir estado de la interfaz al formato de la base de datos
-    const dbStatus = mapStatusToDBStatus(status);
-
-    // Buscar el estado en la base de datos
+    const dbStatus = mapStatusToDBStatus(status);    // Buscar el estado en la base de datos
     const estadoJustificacion = await prisma.estadoJustificacion.findFirst({
       where: {
         denominacion: dbStatus
       }
     });
 
+    // Si no se encuentra el estado específico, buscar todos los estados disponibles para diagnóstico
     if (!estadoJustificacion) {
+      // Obtener todos los estados para diagnóstico
+      const allEstados = await prisma.estadoJustificacion.findMany({
+        select: { id: true, denominacion: true }
+      });
+      
+      console.error(`Error: Estado "${dbStatus}" no encontrado en la base de datos. Estados disponibles:`, 
+        allEstados.map(e => `"${e.denominacion}" (${e.id})`).join(', '));
+      
       return NextResponse.json(
-        { error: 'Estado inválido' },
+        { 
+          error: `Estado inválido: "${dbStatus}". Estados disponibles: ${allEstados.map(e => `"${e.denominacion}"`).join(', ')}`,
+          requestedStatus: status,
+          mappedStatus: dbStatus
+        },
         { status: 400 }
       );
     }
@@ -217,8 +228,8 @@ export async function PUT(req: NextRequest) {
 function mapStatusToDBStatus(uiStatus: string): string {
   const statusMap: Record<string, string> = {
     'pending': 'Pendiente',
-    'approved': 'Aprobada',
-    'rejected': 'Rechazada'
+    'approved': 'Justificado',
+    'rejected': 'Rechazado'
   };
   
   return statusMap[uiStatus] || 'Pendiente';
@@ -227,6 +238,9 @@ function mapStatusToDBStatus(uiStatus: string): string {
 function mapDBStatusToUI(dbStatus: string): string {
   const statusMap: Record<string, string> = {
     'Pendiente': 'pending',
+    'Justificado': 'approved',
+    'Rechazado': 'rejected',
+    // Mantener compatibilidad con valores anteriores si existen
     'Aprobada': 'approved',
     'Rechazada': 'rejected'
   };

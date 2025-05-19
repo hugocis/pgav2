@@ -218,7 +218,7 @@ export default function ProfesorAlumnos() {
       const todosAlumnosGrupo: AlumnoGrupo[] = [];
       
       for (const grupo of grupos) {
-        const alumnosGrupoResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupo.id}`, {
+        const alumnosGrupoResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupo.id}&skipPagination=true`, {
           credentials: 'include'
         });
         

@@ -62,8 +62,7 @@ export default function Justifications() {
   const [selectedJustification, setSelectedJustification] = useState<JustificationRequest | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  
-  const [filter, setFilter] = useState<Filter>({
+    const [filter, setFilter] = useState<Filter>({
     status: 'all',
     dateFrom: '',
     dateTo: '',
@@ -76,6 +75,9 @@ export default function Justifications() {
     comments: ''
   });
   
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -87,10 +89,14 @@ export default function Justifications() {
         if (filter.dateFrom) queryParams.append('dateFrom', filter.dateFrom);
         if (filter.dateTo) queryParams.append('dateTo', filter.dateTo);
         if (filter.subjectCode) queryParams.append('subjectCode', filter.subjectCode);
-        if (filter.searchTerm) queryParams.append('searchTerm', filter.searchTerm);
-          // Hacer la llamada a la API con los filtros aplicados
-        const response = await fetch(`/api/justificaciones?${queryParams.toString()}`, {
-          credentials: 'include'
+        if (filter.searchTerm) queryParams.append('searchTerm', filter.searchTerm);        // Hacer la llamada a la API con los filtros aplicados y asegurando datos frescos
+        const response = await fetch(`/api/justificaciones?${queryParams.toString()}&_=${Date.now()}`, {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Pragma': 'no-cache',
+            'Cache-Control': 'no-cache'
+          }
         });
         
         if (!response.ok) {
@@ -226,14 +232,29 @@ export default function Justifications() {
     
     setFilteredJustifications(result);
   }, [filter, justifications]);
-  
+    // Función para manejar clics fuera del modal
+  const handleClickOutside = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      setShowDetailModal(false);
+    }
+  };
   const viewJustificationDetails = (justification: JustificationRequest) => {
     setSelectedJustification(justification);
     setShowDetailModal(true);
-    setResolution({
-      status: justification.status,
-      comments: justification.comments || ''
-    });
+    
+    // Para solicitudes pendientes, inicializamos el estado con un valor por defecto 'approved'
+    // Para solicitudes ya resueltas, usamos los valores existentes
+    if (justification.status === 'pending') {
+      setResolution({
+        status: 'approved', // Establecer un valor predeterminado válido
+        comments: ''
+      });
+    } else {
+      setResolution({
+        status: justification.status,
+        comments: justification.comments || ''
+      });
+    }
   };
   
   const handleFilterChange = (key: keyof Filter, value: string) => {
@@ -275,11 +296,29 @@ export default function Justifications() {
       default:
         return 'Pendiente';
     }
-  };
-    const handleResolve = async () => {
+  };  const handleResolve = async () => {
     if (!selectedJustification) return;
     
-    try {      // Llamada a la API para actualizar el estado de la justificación
+    // Validar que se ha seleccionado un estado antes de enviar
+    if (!resolution.status) {
+      setUpdateError('Debe seleccionar un estado (Aprobar o Rechazar) antes de guardar.');
+      return;
+    }
+    
+    try {
+      setIsUpdating(true);
+      setUpdateError(null);
+      
+      // Verificar que el estado seleccionado sea válido según la API
+      // Los estados válidos son 'approved' o 'rejected'
+      const validStatus = resolution.status === 'approved' || resolution.status === 'rejected';
+      if (!validStatus) {
+        setUpdateError(`Estado no válido: ${resolution.status}. Debe ser 'approved' o 'rejected'.`);
+        setIsUpdating(false);
+        return;
+      }
+      
+      // Llamada a la API para actualizar el estado de la justificación
       const response = await fetch('/api/justificaciones', {
         method: 'PUT',
         headers: {
@@ -287,16 +326,50 @@ export default function Justifications() {
         },
         body: JSON.stringify({
           id: selectedJustification.id,
-          status: resolution.status,
+          status: resolution.status, // Este es el valor correcto que la API espera: 'approved' o 'rejected'
           comments: resolution.comments,
         }),
         credentials: 'include'
       });
       
-      if (!response.ok) {
-        throw new Error(`Error al actualizar la justificación: ${response.status} ${response.statusText}`);
+      let responseData;      try {
+        // Intentar obtener el cuerpo de la respuesta para un mejor manejo de errores
+        responseData = await response.json();
+        console.log('Respuesta de la API:', responseData);
+      } catch (parseError) {
+        // Si hay error al parsear JSON, continuamos con responseData undefined
+        console.error('Error al parsear respuesta:', parseError);
       }
       
+      if (!response.ok) {
+        // Construir mensaje de error detallado
+        let errorMessage = 'Error al actualizar la justificación';
+        
+        if (responseData) {
+          if (responseData.error) {
+            errorMessage = responseData.error;
+          } else if (responseData.message) {
+            errorMessage = responseData.message;
+          } else if (typeof responseData === 'string') {
+            errorMessage = responseData;
+          }
+          
+          // Si hay información adicional de diagnóstico, añadirla al mensaje
+          if (responseData.requestedStatus) {
+            errorMessage += `\nEstado solicitado: "${responseData.requestedStatus}", mapeado a: "${responseData.mappedStatus}"`;
+          }
+        }
+        
+        // Incluir código de estado en mensajes de error de servidor
+        if (response.status >= 500) {
+          errorMessage = `Error del servidor: ${errorMessage} (${response.status})`;
+        } else if (response.status === 400) {
+          // Mejoramos el mensaje para el error 400 - Bad Request
+          errorMessage = `Error en la solicitud: ${errorMessage}`;
+        }
+        
+        throw new Error(errorMessage);
+      }      
       // Actualizamos el estado local tras la respuesta exitosa
       const updatedJustifications = justifications.map(req => {
         if (req.id === selectedJustification.id) {
@@ -314,14 +387,100 @@ export default function Justifications() {
         return req;
       });
       
+      // Actualizar tanto el array principal como el filtrado
       setJustifications(updatedJustifications);
-      setShowDetailModal(false);
-      setSelectedJustification(null);
+      
+      // Actualizar el array filtrado usando el mismo enfoque
+      setFilteredJustifications(prevFiltered => 
+        prevFiltered.map(req => 
+          req.id === selectedJustification.id 
+            ? {
+                ...req,
+                status: resolution.status,
+                comments: resolution.comments,
+                resolution: resolution.status === 'approved' 
+                  ? 'Justificación aprobada' 
+                  : 'Justificación rechazada',
+                resolutionDate: new Date().toISOString().split('T')[0],
+                resolvedBy: session?.user?.name || 'Manager'
+              }
+            : req
+        )
+      );
+      
+      // Registrar la actualización exitosa en la consola para seguimiento
+      console.log('Estado actualizado exitosamente:', {
+        id: selectedJustification.id,
+        nuevoEstado: resolution.status,
+        justificacionesActualizadas: updatedJustifications.length,
+        filtradas: filteredJustifications.length
+      });
+        // Esperar un momento antes de cerrar el modal para dar feedback visual
+      setTimeout(() => {
+        // Cerrar el modal
+        setShowDetailModal(false);
+        setSelectedJustification(null);
+        
+        // Recargamos los datos de la API después de actualizar, para asegurar sincronización
+        const reloadData = async () => {
+          try {
+            // Construir parámetros de consulta basados en los filtros
+            const queryParams = new URLSearchParams();
+            if (filter.status !== 'all') queryParams.append('status', filter.status);
+            if (filter.dateFrom) queryParams.append('dateFrom', filter.dateFrom);
+            if (filter.dateTo) queryParams.append('dateTo', filter.dateTo);
+            if (filter.subjectCode) queryParams.append('subjectCode', filter.subjectCode);
+            if (filter.searchTerm) queryParams.append('searchTerm', filter.searchTerm);
+            
+            // Hacer la llamada a la API con los filtros aplicados
+            const response = await fetch(`/api/justificaciones?${queryParams.toString()}`, {
+              credentials: 'include',
+              // Añadir un parámetro para evitar caché
+              cache: 'no-store'
+            });
+            
+            if (response.ok) {
+              const freshData = await response.json();
+              setJustifications(freshData);
+              // También actualizamos los datos filtrados para mantener coherencia
+              setFilteredJustifications(prevFiltered => {
+                // Si los filtros están activos, aplicar los filtros
+                if (filter.status !== 'all' || filter.dateFrom || filter.dateTo || 
+                    filter.subjectCode || filter.searchTerm) {
+                  return prevFiltered;
+                }
+                // Si no hay filtros, usar los datos frescos
+                return freshData;
+              });
+              console.log('Datos recargados exitosamente desde API después de la actualización');
+            }
+          } catch (error) {
+            console.error('Error al recargar datos después de actualizar:', error);
+          }
+        };
+        
+        reloadData();
+      }, 1000);
     } catch (error) {
       console.error('Error al actualizar la justificación:', error);
-      alert('Error al actualizar la justificación. Por favor, inténtelo de nuevo.');
+      
+      // Manejo detallado de errores para mostrar mensajes más descriptivos
+      let errorMsg = 'Error al actualizar la justificación. Por favor, inténtelo de nuevo.';
+      
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      }
+      
+      // Si no hay estado seleccionado, mostrar un error específico
+      if (!resolution.status) {
+        errorMsg = 'Debe seleccionar un estado (Aprobar o Rechazar) antes de guardar.';
+      }
+      
+      setUpdateError(errorMsg);
+    } finally {
+      setIsUpdating(false);
     }
-  };  
+  };
   return (
     <DashboardContainer roleName="Manager">
       <div className="bg-gray-50 min-h-full">
@@ -554,7 +713,7 @@ export default function Justifications() {
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900">{justification.studentName}</div>
-                              <div className="text-sm text-gray-500">{justification.studentId} | {justification.studentEmail}</div>
+                              <div className="text-sm text-gray-500">{justification.studentEmail}</div>
                             </div>
                           </div>
                         </td>
@@ -586,155 +745,289 @@ export default function Justifications() {
                 </table>
               )}
             </div>
-          </div>
-
-          {/* Modal de detalle */}
+          </div>      
+          {/* Modal de detalle */}          
           {showDetailModal && selectedJustification && (
             <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-              <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                {/* Background overlay */}
-                <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+              <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0" onClick={handleClickOutside}
+              >
+                {/* Background overlay con negro al 40% de opacidad y efecto blur mejorado */}
+                <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm transition-all duration-300" aria-hidden="true"></div>
                 <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                {/* Modal panel */}
-                <div className="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                {/* Modal panel */}                <div className="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-gray-100">
+                  {/* Barra superior decorativa */}
+                  <div className="h-1.5 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
+                  
                   <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                     <div className="sm:flex sm:items-start">
                       <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                        {/* Header del modal */}
-                        <div className="flex justify-between items-center border-b border-gray-200 pb-3 mb-4">
-                          <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                        {/* Header del modal con estilo mejorado */}
+                        <div className="flex justify-between items-center border-b border-gray-200 pb-3 mb-6">
+                          <h3 className="text-xl font-medium text-gray-900 flex items-center" id="modal-title">
+                            <div className="bg-blue-100 p-2 rounded-full mr-3 shadow-sm">
+                              <FaClipboard className="h-5 w-5 text-blue-600" />
+                            </div>
                             Detalle de Justificación de Falta
                           </h3>
                           <button
                             onClick={() => setShowDetailModal(false)}
                             type="button"
-                            className="bg-white rounded-md text-gray-400 hover:text-gray-500"
+                            className="bg-gray-100 hover:bg-gray-200 rounded-full p-2 text-gray-500 hover:text-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
-                            <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                           </button>
                         </div>
+                          {/* Contenido del modal con diseño mejorado */}
+                        <div className="rounded-md bg-blue-50/50 border border-blue-100 p-4 mb-6">
+                          <div className="flex items-start">
+                            <div className="flex-shrink-0 mt-1">
+                              <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <FaUserGraduate className="h-5 w-5 text-blue-600" />
+                              </div>
+                            </div>
+                            <div className="ml-4">
+                              <h4 className="text-lg font-semibold text-gray-800">{selectedJustification.studentName}</h4>
+                              <p className="text-sm text-gray-500 flex items-center mt-1">
+                                <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full mr-2 border border-blue-200">{selectedJustification.studentId}</span>
+                                {selectedJustification.studentEmail}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                         
-                        {/* Contenido del modal */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">Estudiante</p>
-                            <p className="mt-1 text-sm text-gray-900">{selectedJustification.studentName}</p>
+                          <div className="bg-white p-3 rounded-md border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                            <p className="text-xs uppercase font-semibold text-gray-500 mb-1 flex items-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                              </svg>
+                              Asignatura
+                            </p>
+                            <p className="mt-1 text-gray-900 font-medium">{selectedJustification.subject}</p>
+                            <p className="text-xs text-blue-600 bg-blue-50 inline-block px-2 py-0.5 rounded mt-1 border border-blue-100">{selectedJustification.subjectCode}</p>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">ID de Estudiante</p>
-                            <p className="mt-1 text-sm text-gray-900">{selectedJustification.studentId}</p>
+                          
+                          <div className="bg-white p-3 rounded-md border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                            <p className="text-xs uppercase font-semibold text-gray-500 mb-1 flex items-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h-3l-4 4z" />
+                              </svg>
+                              Fechas
+                            </p>
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-xs text-gray-500">Falta:</p>
+                                <p className="text-gray-900 font-medium">{new Date(selectedJustification.date).toLocaleDateString('es-ES')}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500">Solicitud:</p>
+                                <p className="text-gray-900 font-medium">{new Date(selectedJustification.requestDate).toLocaleDateString('es-ES')}</p>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">Email</p>
-                            <p className="mt-1 text-sm text-gray-900">{selectedJustification.studentEmail}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">Asignatura</p>
-                            <p className="mt-1 text-sm text-gray-900">{selectedJustification.subject} ({selectedJustification.subjectCode})</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">Fecha de Falta</p>
-                            <p className="mt-1 text-sm text-gray-900">{new Date(selectedJustification.date).toLocaleDateString('es-ES')}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">Fecha de Solicitud</p>
-                            <p className="mt-1 text-sm text-gray-900">{new Date(selectedJustification.requestDate).toLocaleDateString('es-ES')}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">Estado</p>
+                          
+                          <div className="bg-white p-3 rounded-md border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                            <p className="text-xs uppercase font-semibold text-gray-500 mb-1 flex items-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Estado
+                            </p>
                             <p className="mt-1">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeClass(selectedJustification.status)}`}>
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusBadgeClass(selectedJustification.status)}`}>
                                 {getStatusText(selectedJustification.status)}
                               </span>
                             </p>
-                          </div>
-                          <div className="md:col-span-2">
-                            <p className="text-sm font-medium text-gray-500">Motivo de la Justificación</p>
-                            <p className="mt-1 text-sm text-gray-900 whitespace-pre-line">{selectedJustification.reason}</p>
-                          </div>
-                          <div className="md:col-span-2">
-                            <p className="text-sm font-medium text-gray-500">Documentación Adjunta</p>
-                            <div className="mt-1 flex items-center">
-                              <FaPaperclip className="mr-2 text-blue-600" />
-                              <a href={selectedJustification.documentationUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
-                                Ver documento adjunto
-                              </a>
+                          </div>                          <div className="md:col-span-2 bg-white p-4 rounded-md border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                            <p className="text-xs uppercase font-semibold text-gray-500 mb-2 flex items-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                              </svg>
+                              Motivo de la Justificación
+                            </p>
+                            <div className="bg-gray-50 rounded-md p-3 border border-gray-200 mt-1">
+                              <p className="text-gray-800 whitespace-pre-line">{selectedJustification.reason}</p>
                             </div>
                           </div>
-
-                          {(selectedJustification.status === 'approved' || selectedJustification.status === 'rejected') && (
+                          
+                          <div className="md:col-span-2 bg-white p-4 rounded-md border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                            <p className="text-xs uppercase font-semibold text-gray-500 mb-2 flex items-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                              </svg>
+                              Documentación Adjunta
+                            </p>
+                            <div className="mt-2 flex items-center">
+                              <div className="bg-blue-50 rounded-md p-3 border border-blue-100 flex items-center hover:bg-blue-100 transition-colors">
+                                <FaPaperclip className="mr-2 text-blue-600" />
+                                <a 
+                                  href={selectedJustification.documentationUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                >
+                                  Ver documento justificativo
+                                </a>
+                              </div>
+                            </div>
+                          </div>                          {(selectedJustification.status === 'approved' || selectedJustification.status === 'rejected') && (
                             <>
-                              <div className="md:col-span-2">
-                                <p className="text-sm font-medium text-gray-500">Resolución</p>
-                                <p className="mt-1 text-sm text-gray-900">{selectedJustification.resolution}</p>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-500">Fecha de Resolución</p>
-                                <p className="mt-1 text-sm text-gray-900">
-                                  {selectedJustification.resolutionDate ? new Date(selectedJustification.resolutionDate).toLocaleDateString('es-ES') : 'N/A'}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-500">Resuelta por</p>
-                                <p className="mt-1 text-sm text-gray-900">{selectedJustification.resolvedBy || 'N/A'}</p>
-                              </div>
-                              {selectedJustification.comments && (
-                                <div className="md:col-span-2">
-                                  <p className="text-sm font-medium text-gray-500">Comentarios</p>
-                                  <p className="mt-1 text-sm text-gray-900 whitespace-pre-line">{selectedJustification.comments}</p>
+                              <div className={`md:col-span-2 mt-3 rounded-md border p-4 ${
+                                selectedJustification.status === 'approved' 
+                                  ? 'bg-green-50 border-green-200' 
+                                  : 'bg-red-50 border-red-200'
+                              }`}>
+                                <div className="flex items-center mb-3">
+                                  {selectedJustification.status === 'approved' ? (
+                                    <div className="flex-shrink-0 bg-green-100 rounded-full p-2">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    </div>
+                                  ) : (
+                                    <div className="flex-shrink-0 bg-red-100 rounded-full p-2">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </div>
+                                  )}
+                                  <h4 className={`ml-3 text-lg font-medium ${
+                                    selectedJustification.status === 'approved' ? 'text-green-800' : 'text-red-800'
+                                  }`}>
+                                    {selectedJustification.resolution}
+                                  </h4>
                                 </div>
-                              )}
-                            </>
-                          )}
-
-                          {selectedJustification.status === 'pending' && (
-                            <>
-                              <div className="md:col-span-2 mt-4 pt-4 border-t border-gray-200">
-                                <h4 className="text-base font-medium text-gray-900">Resolver Solicitud</h4>
                                 
-                                <div className="mt-3 mb-4">
-                                  <label className="text-sm font-medium text-gray-700 block mb-2">Estado</label>
-                                  <div className="flex gap-4">
-                                    <label className="inline-flex items-center">
-                                      <input
-                                        type="radio"
-                                        className="form-radio h-4 w-4 text-blue-600"
-                                        name="status"
-                                        value="approved"
-                                        checked={resolution.status === 'approved'}
-                                        onChange={() => setResolution({...resolution, status: 'approved'})}
-                                      />
-                                      <span className="ml-2 text-sm text-gray-700">Aprobar</span>
-                                    </label>
-                                    <label className="inline-flex items-center">
-                                      <input
-                                        type="radio"
-                                        className="form-radio h-4 w-4 text-blue-600"
-                                        name="status"
-                                        value="rejected"
-                                        checked={resolution.status === 'rejected'}
-                                        onChange={() => setResolution({...resolution, status: 'rejected'})}
-                                      />
-                                      <span className="ml-2 text-sm text-gray-700">Rechazar</span>
-                                    </label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                                  <div className={`rounded-md p-2 ${
+                                    selectedJustification.status === 'approved' ? 'bg-green-100/50' : 'bg-red-100/50'
+                                  }`}>
+                                    <p className="text-xs font-semibold uppercase text-gray-600">Fecha de Resolución</p>
+                                    <p className={`font-medium ${
+                                      selectedJustification.status === 'approved' ? 'text-green-900' : 'text-red-900'
+                                    }`}>
+                                      {selectedJustification.resolutionDate ? new Date(selectedJustification.resolutionDate).toLocaleDateString('es-ES') : 'N/A'}
+                                    </p>
+                                  </div>
+                                  
+                                  <div className={`rounded-md p-2 ${
+                                    selectedJustification.status === 'approved' ? 'bg-green-100/50' : 'bg-red-100/50'
+                                  }`}>
+                                    <p className="text-xs font-semibold uppercase text-gray-600">Resuelta por</p>
+                                    <p className={`font-medium ${
+                                      selectedJustification.status === 'approved' ? 'text-green-900' : 'text-red-900'
+                                    }`}>
+                                      {selectedJustification.resolvedBy || 'N/A'}
+                                    </p>
                                   </div>
                                 </div>
                                 
-                                <div className="mb-4">
-                                  <label htmlFor="comments" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Comentarios (opcional)
-                                  </label>
-                                  <textarea
-                                    id="comments"
-                                    rows={3}
-                                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-2"
-                                    placeholder="Añade comentarios o instrucciones para el estudiante..."
-                                    value={resolution.comments}
-                                    onChange={(e) => setResolution({...resolution, comments: e.target.value})}
-                                  />
+                                {selectedJustification.comments && (
+                                  <div className={`mt-3 p-3 border rounded-md ${
+                                    selectedJustification.status === 'approved' 
+                                      ? 'border-green-200 bg-white' 
+                                      : 'border-red-200 bg-white'
+                                  }`}>
+                                    <p className="text-xs font-semibold uppercase text-gray-600 mb-1">Comentarios</p>
+                                    <p className="text-gray-800 whitespace-pre-line">{selectedJustification.comments}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}                          {selectedJustification.status === 'pending' && (
+                            <>
+                              <div className="md:col-span-2 mt-6 rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-blue-50/30 overflow-hidden">
+                                <div className="px-4 py-3 bg-blue-100/50 border-b border-blue-200">
+                                  <h4 className="font-semibold text-blue-900 flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Resolver Solicitud
+                                  </h4>
+                                </div>
+                                
+                                <div className="p-4">
+                                  <div className="mb-5">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-3">Decisión</label>
+                                    <div className="flex gap-4">
+                                      <label className={`relative flex items-center justify-between w-full p-3 rounded-md cursor-pointer ${
+                                        resolution.status === 'approved' 
+                                          ? 'border-2 border-green-500 bg-green-50' 
+                                          : 'border border-gray-300 bg-white hover:bg-green-50/50'
+                                      }`}>
+                                        <div className="flex items-center">
+                                          <div className={`flex-shrink-0 w-7 h-7 rounded-full ${
+                                            resolution.status === 'approved' ? 'bg-green-100' : 'bg-gray-100'
+                                          } flex items-center justify-center mr-2`}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${
+                                              resolution.status === 'approved' ? 'text-green-600' : 'text-gray-400'
+                                            }`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                          </div>
+                                          <div>
+                                            <span className="font-medium">Aprobar</span>
+                                            <p className="text-xs text-gray-500">Aceptar la justificación de falta</p>
+                                          </div>
+                                        </div>
+                                        <input
+                                          type="radio"
+                                          className="sr-only"
+                                          name="status"
+                                          value="approved"
+                                          checked={resolution.status === 'approved'}
+                                          onChange={() => setResolution({...resolution, status: 'approved'})}
+                                        />
+                                      </label>
+                                      
+                                      <label className={`relative flex items-center justify-between w-full p-3 rounded-md cursor-pointer ${
+                                        resolution.status === 'rejected' 
+                                          ? 'border-2 border-red-500 bg-red-50' 
+                                          : 'border border-gray-300 bg-white hover:bg-red-50/50'
+                                      }`}>
+                                        <div className="flex items-center">
+                                          <div className={`flex-shrink-0 w-7 h-7 rounded-full ${
+                                            resolution.status === 'rejected' ? 'bg-red-100' : 'bg-gray-100'
+                                          } flex items-center justify-center mr-2`}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${
+                                              resolution.status === 'rejected' ? 'text-red-600' : 'text-gray-400'
+                                            }`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                          </div>
+                                          <div>
+                                            <span className="font-medium">Rechazar</span>
+                                            <p className="text-xs text-gray-500">Denegar la justificación de falta</p>
+                                          </div>
+                                        </div>
+                                        <input
+                                          type="radio"
+                                          className="sr-only"
+                                          name="status"
+                                          value="rejected"
+                                          checked={resolution.status === 'rejected'}
+                                          onChange={() => setResolution({...resolution, status: 'rejected'})}
+                                        />
+                                      </label>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="mb-2">
+                                    <label htmlFor="comments" className="block text-sm font-semibold text-gray-700 mb-2">
+                                      Comentarios (opcional)
+                                    </label>
+                                    <textarea
+                                      id="comments"
+                                      rows={3}
+                                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-sm border border-gray-300 rounded-md p-3"
+                                      placeholder="Añade comentarios o instrucciones para el estudiante..."
+                                      value={resolution.comments}
+                                      onChange={(e) => setResolution({...resolution, comments: e.target.value})}
+                                    />
+                                  </div>
                                 </div>
                               </div>
                             </>
@@ -742,27 +1035,89 @@ export default function Justifications() {
                         </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    {selectedJustification.status === 'pending' && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={handleResolve}
-                          disabled={!resolution.status}
-                          className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white sm:ml-3 sm:w-auto sm:text-sm ${resolution.status ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500' : 'bg-gray-400 cursor-not-allowed'}`}
-                        >
-                          Guardar resolución
-                        </button>
-                      </>
+                  </div>                  <div className="bg-gray-50 px-6 py-4 sm:px-6 sm:flex sm:flex-col border-t border-gray-200">
+                    {/* Mensaje de error si existe */}
+                    {updateError && (
+                      <div className="mb-4 bg-red-50 border-l-4 border-red-500 rounded-md shadow-sm overflow-hidden">
+                        <div className="p-3 flex items-start">
+                          <div className="flex-shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="ml-3">
+                            <h3 className="text-sm font-medium text-red-800">Error al actualizar</h3>
+                            <div className="mt-1 text-sm text-red-700">
+                              {updateError}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => setShowDetailModal(false)}
-                      className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                    >
-                      {selectedJustification.status === 'pending' ? 'Cancelar' : 'Cerrar'}
-                    </button>
+                    
+                    <div className="sm:flex sm:flex-row-reverse">
+                      {selectedJustification.status === 'pending' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleResolve}
+                            disabled={!resolution.status || isUpdating}
+                            className={`flex justify-center items-center rounded-md shadow-sm px-5 py-2.5 text-sm font-medium sm:ml-4 ${
+                              isUpdating 
+                                ? 'bg-blue-400 text-white cursor-wait border border-blue-500' 
+                                : resolution.status === 'approved'
+                                  ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white border border-transparent'
+                                  : resolution.status === 'rejected'
+                                    ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border border-transparent'
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed border border-transparent'
+                            } transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                              resolution.status === 'approved' 
+                                ? 'focus:ring-green-500' 
+                                : resolution.status === 'rejected'
+                                  ? 'focus:ring-red-500'
+                                  : 'focus:ring-blue-500'
+                            }`}
+                          >
+                            {isUpdating ? (
+                              <div className="flex items-center">
+                                <svg className="animate-spin mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Procesando...
+                              </div>
+                            ) : resolution.status === 'approved' ? (
+                              <div className="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Aprobar Justificación
+                              </div>
+                            ) : resolution.status === 'rejected' ? (
+                              <div className="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Rechazar Justificación
+                              </div>
+                            ) : (
+                              'Seleccione una opción'
+                            )}
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowDetailModal(false)}
+                        disabled={isUpdating}
+                        className="mt-3 sm:mt-0 w-full sm:w-auto flex justify-center items-center rounded-md border border-gray-300 shadow-sm px-5 py-2.5 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        {selectedJustification.status === 'pending' ? 'Cancelar' : 'Cerrar'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
