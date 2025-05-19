@@ -17,11 +17,18 @@ interface PecCarreraCurso {
   };
 }
 
+interface AsistenciaStats {
+  totalAlumnos: number;
+  asistenciaMedia: number;
+  alumnosConProblemas: number;
+  alumnosGOE: number;
+}
+
 export default function PECDashboard() {
-  const { data: session } = useSession();
-  const [carrerasCursos, setCarrerasCursos] = useState<PecCarreraCurso[]>([]);
+  const { data: session } = useSession();  const [carrerasCursos, setCarrerasCursos] = useState<PecCarreraCurso[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);  const [asistenciaStats, setAsistenciaStats] = useState<any>({
+  const [error, setError] = useState<string | null>(null);  
+  const [asistenciaStats, setAsistenciaStats] = useState<AsistenciaStats>({
     totalAlumnos: 0,
     asistenciaMedia: 0,
     alumnosConProblemas: 0,
@@ -54,16 +61,16 @@ export default function PECDashboard() {
           }
             
           const statsData = await statsResponse.json();
-          setAsistenciaStats(statsData);
-        } catch (statsError) {
+          setAsistenciaStats(statsData);        } catch (statsError) {
           console.error('Error al cargar estadísticas:', statsError);
           // Si falla, inicializamos con valores predeterminados
-          setAsistenciaStats({
+          const defaultStats: AsistenciaStats = {
             totalAlumnos: 0,
             asistenciaMedia: 0,
             alumnosConProblemas: 0,
             alumnosGOE: 0
-          });
+          };
+          setAsistenciaStats(defaultStats);
         }
       } catch (error) {
         console.error('Error al cargar datos:', error);

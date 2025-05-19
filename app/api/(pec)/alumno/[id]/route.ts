@@ -55,7 +55,7 @@ function generarDatosAlumnoSimulados(id: string, nombreCompleto: string, email: 
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar la sesión del usuario
@@ -69,7 +69,7 @@ export async function GET(
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Buscar el usuario con rol ALUMNO
     const alumno = await prisma.user.findFirst({

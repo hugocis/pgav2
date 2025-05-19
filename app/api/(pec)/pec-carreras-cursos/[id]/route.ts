@@ -85,10 +85,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 }
 
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PUT( request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
@@ -98,7 +95,7 @@ export async function PUT(
       });
     }
 
-    const assignmentId = params.id;
+    const assignmentId = (await params).id;
     const { carreraId, curso } = await request.json();
 
     // Validar los datos de entrada

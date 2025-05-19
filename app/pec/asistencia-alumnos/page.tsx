@@ -60,11 +60,9 @@ export default function AsistenciaAlumnos() {
   const [filteredAlumnos, setFilteredAlumnos] = useState<Alumno[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showDetalleModal, setShowDetalleModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState<string>('');  const [showDetalleModal, setShowDetalleModal] = useState(false);
   const [selectedAlumno, setSelectedAlumno] = useState<AlumnoDetalle | null>(null);
   const [isLoadingAlumnoDetalle, setIsLoadingAlumnoDetalle] = useState(false);
-  const [carreraPec, setCarreraPec] = useState<string>('');
   
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -84,14 +82,7 @@ export default function AsistenciaAlumnos() {
 
         if (!response.ok) {
           throw new Error('No se pudieron cargar las asignaciones');
-        }
-
-        const data = await response.json();
-        
-        // Si hay datos, establecer el nombre de la carrera del PEC
-        if (data && data.length > 0) {
-          setCarreraPec(data[0].carrera.denominacion);
-        }
+        }        const data = await response.json();
         
         setCarrerasCursos(data);
       } catch (error) {
@@ -156,7 +147,7 @@ export default function AsistenciaAlumnos() {
     };
 
     fetchAlumnos();
-  }, [selectedCarreraCurso, carrerasCursos, currentPage, pageSize]);
+  }, [selectedCarreraCurso, carrerasCursos, currentPage, pageSize, searchTerm]);
   // Efecto para filtrar alumnos cuando cambia el término de búsqueda
   useEffect(() => {
     // Si hay un término de búsqueda, realizar la búsqueda
@@ -213,45 +204,7 @@ export default function AsistenciaAlumnos() {
       // Si no hay término de búsqueda o es muy corto, mostrar todos los alumnos cargados
       setFilteredAlumnos(alumnos);
     }
-  }, [searchTerm, selectedCarreraCurso, alumnos, searchTerm]);
-  // Función para ver detalles del alumno
-  const verDetalleAlumno = async (alumno: Alumno) => {
-    setIsLoadingAlumnoDetalle(true);
-
-    // Obtener los detalles del alumno de la API
-    try {
-      const response = await fetch(`/api/alumnos-asignatura?alumnoId=${alumno.id}`, {
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error('No se pudieron cargar los detalles del alumno');
-      }
-
-      const alumnoDetalle = await response.json();
-
-      // Asegurarse de que el objeto tiene la estructura esperada
-      const detalleCompleto: AlumnoDetalle = {
-        ...alumno,
-        ...alumnoDetalle,
-        carrera: carrerasCursos.find(cc => cc.id === selectedCarreraCurso)?.carrera?.denominacion || "No especificada",
-        curso: carrerasCursos.find(cc => cc.id === selectedCarreraCurso)?.curso || 0
-      };
-      setSelectedAlumno(detalleCompleto);
-      setShowDetalleModal(true);
-    } catch (error) {
-      console.error('Error al cargar detalles del alumno:', error);
-      alert(`Error al cargar los detalles: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-    } finally {
-      setIsLoadingAlumnoDetalle(false);
-    }
-  };
-
-  // Función para cerrar el modal de detalle
-  const cerrarDetalleModal = () => {
-    setShowDetalleModal(false);
-    setSelectedAlumno(null);
-  };
+  }, [searchTerm, selectedCarreraCurso, alumnos]);
   // No necesitamos generar datos aleatorios, usamos la API real
   // Función para marcar/desmarcar alumno como GOE
   const toggleGoeStatus = async () => {

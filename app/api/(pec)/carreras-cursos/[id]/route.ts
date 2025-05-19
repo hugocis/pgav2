@@ -7,7 +7,7 @@ import { logActivity } from '@/lib/logActivity';
 // GET para obtener una asignación específica por ID
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -21,7 +21,7 @@ export async function GET(
     }
     
     const asignacion = await prisma.pecCarreraCurso.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: { carrera: true },
     });
     
@@ -40,8 +40,8 @@ export async function GET(
       req,
       action: 'update', // Usando 'update' en lugar de 'view' para cumplir con el tipo
       entityType: 'PEC_ASIGNACIONES',
-      entityId: params.id,
-      details: `Se ha consultado la asignación con ID ${params.id}`,
+      entityId: (await params).id,
+      details: `Se ha consultado la asignación con ID ${(await params).id}`,
     });
     
     return NextResponse.json(asignacion);
@@ -54,7 +54,7 @@ export async function GET(
 // PUT para actualizar una asignación existente
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -78,7 +78,7 @@ export async function PUT(
     
     // Verificar que la asignación exista
     const existingAssignment = await prisma.pecCarreraCurso.findUnique({
-      where: { id: params.id }
+      where: { id: (await params).id }
     });
     
     if (!existingAssignment) {
@@ -88,7 +88,7 @@ export async function PUT(
     // Verificar si ya existe otra asignación activa con la misma combinación
     const duplicateAssignment = await prisma.pecCarreraCurso.findFirst({
       where: {
-        id: { not: params.id }, // Excluir la asignación actual
+        id: { not: (await params).id }, // Excluir la asignación actual
         pecId: existingAssignment.pecId,
         carreraId: data.carreraId,
         curso: data.curso,
@@ -105,7 +105,7 @@ export async function PUT(
     
     // Actualizar la asignación
     const updatedAssignment = await prisma.pecCarreraCurso.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         carreraId: data.carreraId,
         curso: data.curso,
@@ -118,8 +118,8 @@ export async function PUT(
       req,
       action: 'update',
       entityType: 'PEC_ASIGNACIONES',
-      entityId: params.id,
-      details: `Se ha actualizado la asignación con ID ${params.id}`,
+      entityId: (await params).id,
+      details: `Se ha actualizado la asignación con ID ${(await params).id}`,
     });
     
     return NextResponse.json(updatedAssignment);
@@ -132,7 +132,7 @@ export async function PUT(
 // DELETE para eliminar/desactivar una asignación
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -147,7 +147,7 @@ export async function DELETE(
     
     // Verificar que la asignación exista
     const existingAssignment = await prisma.pecCarreraCurso.findUnique({
-      where: { id: params.id }
+      where: { id: (await params).id }
     });
     
     if (!existingAssignment) {
@@ -157,7 +157,7 @@ export async function DELETE(
     // Desactivar la asignación en lugar de eliminarla completamente
     // Esto preserva el historial y previene problemas de integridad de datos
     await prisma.pecCarreraCurso.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: { activo: false }
     });
     
@@ -166,8 +166,8 @@ export async function DELETE(
       req,
       action: 'delete',
       entityType: 'PEC_ASIGNACIONES',
-      entityId: params.id,
-      details: `Se ha desactivado la asignación con ID ${params.id}`,
+      entityId: (await params).id,
+      details: `Se ha desactivado la asignación con ID ${(await params).id}`,
     });
     
     return NextResponse.json({ success: true, message: 'Asignación desactivada correctamente' });

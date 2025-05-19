@@ -42,6 +42,20 @@ interface Alumno {
   }[];
 }
 
+// Interface for the data format coming from the API
+interface AlumnoAPI {
+  id: string;
+  name: string;
+  surname1: string;
+  surname2: string;
+  email: string;
+  goe: boolean; // In the API response, GOE status is named 'goe'
+  asistencia: number;
+  faltas: number;
+  ultimaAsistencia: string | null;
+  estado: 'normal' | 'warning' | 'danger';
+}
+
 export default function AlumnosGOE() {
   // Un PEC está asociado a uno o varios curso(s) (1º, 2º, 3º, 4º)
   // y gestiona a los alumnos de ese curso (todos los estudiantes que tienen asignaturas en ese curso)
@@ -123,14 +137,13 @@ export default function AlumnosGOE() {
         // Guardar información de paginación
         setTotalPages(responseData.pagination?.totalPages || 1);
         setTotalAlumnos(responseData.pagination?.total || data.length);
-        
-        // Ordenar por apellido y nombre
-        const alumnosOrdenados = data.sort((a: Alumno, b: Alumno) => {
+          // Ordenar por apellido y nombre
+        const alumnosOrdenados = data.sort((a: AlumnoAPI, b: AlumnoAPI) => {
           return a.surname1.localeCompare(b.surname1) || a.name.localeCompare(b.name);
         });
         
         // Convertir los datos para que coincidan con la estructura de Alumno que esperamos
-        const alumnosFormateados = alumnosOrdenados.map((alumno: any) => ({
+        const alumnosFormateados = alumnosOrdenados.map((alumno: AlumnoAPI) => ({
           id: alumno.id,
           name: alumno.name,
           surname1: alumno.surname1,

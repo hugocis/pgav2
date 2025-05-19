@@ -6,7 +6,7 @@ import { logActivity } from '@/lib/logActivity';
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar la sesión del usuario
@@ -20,7 +20,7 @@ export async function PUT(
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const { goe, notas } = await req.json();
 
     // Buscar el usuario para verificar que existe
