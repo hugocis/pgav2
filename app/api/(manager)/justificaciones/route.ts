@@ -202,6 +202,20 @@ export async function PUT(req: NextRequest) {
         },
         { status: 400 }
       );
+    }    // Primero, obtener la información completa de la justificación para acceder al ID de asistencia
+    const justificacionOriginal = await prisma.solicitudJustificacion.findUnique({
+      where: { id },
+      include: {
+        asistenciaAlumno: true,
+        estadoJustificacion: true,
+      }
+    });
+
+    if (!justificacionOriginal) {
+      return NextResponse.json(
+        { error: 'No se encontró la justificación' },
+        { status: 404 }
+      );
     }
 
     // Actualizar la justificación
@@ -212,7 +226,43 @@ export async function PUT(req: NextRequest) {
         respuesta: comments,
         fechaRespuesta: new Date()
       }
-    });    // Obtener la justificación completa actualizada (con detalles)
+    });
+
+    // Si la justificación se ha aprobado, actualizar también el estado de asistencia a "Justificada"
+    if (status === 'approved') {
+      try {
+        // Buscar el estado de asistencia "Justificada" en la base de datos
+        const estadoJustificada = await prisma.estadoAsistencia.findFirst({
+          where: {
+            denominacion: "Justificada" // Asumiendo que existe este estado en la BD
+          }
+        });
+        
+        if (estadoJustificada) {
+          // Actualizar el estado de asistencia del alumno
+          await prisma.asistenciaAlumno.update({
+            where: {
+              id: justificacionOriginal.asistenciaAlumnoId
+            },
+            data: {
+              estadoAsistenciaId: estadoJustificada.id,
+              // Opcional: podemos actualizar también el campo estado si se utiliza directamente
+              estado: "Justificada"
+            }
+          });
+          
+          console.log(`Asistencia ${justificacionOriginal.asistenciaAlumnoId} actualizada a estado Justificada`);
+        } else {
+          console.error("No se encontró el estado de asistencia 'Justificada'");
+          // Podría crear el estado si no existe, pero es mejor asegurarse de que exista en la DB
+        }
+      } catch (asistenciaError) {
+        console.error('Error al actualizar el estado de asistencia:', asistenciaError);
+        // No fallamos la solicitud principal, pero registramos el error
+      }
+    }
+
+    // Obtener la justificación completa actualizada (con detalles)
     const justificacionCompleta = await prisma.solicitudJustificacion.findUnique({
       where: { id },
       include: {
@@ -223,11 +273,14 @@ export async function PUT(req: NextRequest) {
             surname1: true,
             email: true
           }
+        },
+        asistenciaAlumno: {
+          include: {
+            estadoAsistencia: true
+          }
         }
       }
-    });
-
-    // Responder con datos detallados para facilitar diagnóstico
+    });    // Responder con datos detallados para facilitar diagnóstico
     return NextResponse.json({
       success: true,
       justificacion: updatedJustificacion,
@@ -237,7 +290,14 @@ export async function PUT(req: NextRequest) {
         estadoId: justificacionCompleta?.estadoJustificacionId,
         mapeoUI: mapDBStatusToUI(justificacionCompleta?.estadoJustificacion?.denominacion || ''),
         respuesta: justificacionCompleta?.respuesta,
-        fechaRespuesta: justificacionCompleta?.fechaRespuesta
+        fechaRespuesta: justificacionCompleta?.fechaRespuesta,
+        // Información sobre el estado de asistencia actualizado
+        asistencia: justificacionCompleta?.asistenciaAlumno ? {
+          id: justificacionCompleta.asistenciaAlumno.id,
+          estado: justificacionCompleta.asistenciaAlumno.estado,
+          estadoAsistencia: justificacionCompleta.asistenciaAlumno.estadoAsistencia?.denominacion,
+          estadoAsistenciaId: justificacionCompleta.asistenciaAlumno.estadoAsistenciaId,
+        } : null
       }
     });
   } catch (error) {

@@ -546,12 +546,29 @@ export default function AsistenciaDetallada() {
           return null; // Si no hay registro, se considera falta
         });
 
-        const asistenciasResultados = await Promise.all(asistenciasPromesas);
-
-        // Contar asistencias y faltas con soporte para diversos tipos de asistencia
+        const asistenciasResultados = await Promise.all(asistenciasPromesas);        // Contar asistencias y faltas con soporte para diversos tipos de asistencia
         for (const asistencia of asistenciasResultados) {
           if (asistencia) {
-            const estado = asistencia.estado || (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);
+            const estado = asistencia.estado || (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);            // Verificar si la falta está justificada (tiene una solicitud de justificación aprobada)
+            const tieneJustificacionAprobada = asistencia.SolicitudJustificacion && 
+              asistencia.SolicitudJustificacion.some((s: {
+                id: string;
+                estadoJustificacion: {
+                  id: string;
+                  denominacion: string;
+                } | null;
+                fechaAlegacion: string;
+              }) => 
+                s.estadoJustificacion?.denominacion === 'Justificado'
+              );
+
+            // Si la falta está marcada como "No Asiste" pero tiene justificación aprobada, 
+            // consideramos que no afecta el porcentaje de asistencia
+            if (estado === 'No Asiste' && tieneJustificacionAprobada) {
+              // Contar como asistencia si está justificada
+              asistencias++;
+              continue;
+            }
 
             switch (estado) {
               case 'Asiste':
@@ -697,21 +714,29 @@ export default function AsistenciaDetallada() {
 
         console.log('Total asistencias encontradas para la vista detallada:', todasLasAsistencias.length);
 
-        setSesionesAlumno(todasLasAsistencias);
-
-        // Filtrar faltas que se pueden justificar
-        const faltas = todasLasAsistencias.filter(a =>
-          (a.estado === 'No Asiste' ||
-            a.estadoAsistencia?.denominacion === 'No Asiste' ||
-            a.estado === '50%' ||
-            a.estadoAsistencia?.denominacion === '50%') &&
-          (!a.SolicitudJustificacion ||
-            a.SolicitudJustificacion.length === 0 ||
-            a.SolicitudJustificacion.every(s =>
-              s.estadoJustificacion?.denominacion === 'Rechazado' ||
-              s.estadoJustificacion?.denominacion === 'No Justificado'
-            ))
-        );
+        setSesionesAlumno(todasLasAsistencias);        // Filtrar faltas que se pueden justificar
+        const faltas = todasLasAsistencias.filter(a => {
+          // Comprobar si es una falta (No Asiste o 50%)
+          const esFalta = a.estado === 'No Asiste' || 
+                        a.estadoAsistencia?.denominacion === 'No Asiste' || 
+                        a.estado === '50%' || 
+                        a.estadoAsistencia?.denominacion === '50%';
+          
+          // Comprobar si ya está justificada
+          const tieneJustificacionAprobada = a.SolicitudJustificacion && 
+                           a.SolicitudJustificacion.some(s => 
+                             s.estadoJustificacion?.denominacion === 'Justificado');
+          
+          // Comprobar si tiene justificaciones rechazadas o ninguna justificación
+          const sinJustificacion = !a.SolicitudJustificacion || 
+                                 a.SolicitudJustificacion.length === 0 || 
+                                 a.SolicitudJustificacion.every(s =>
+                                   s.estadoJustificacion?.denominacion === 'Rechazado' ||
+                                   s.estadoJustificacion?.denominacion === 'No Justificado');
+          
+          // Solo incluir faltas que no estén ya justificadas
+          return esFalta && !tieneJustificacionAprobada && sinJustificacion;
+        });
 
         console.log('Faltas justificables encontradas:', faltas.length);
         setFaltasJustificables(faltas);
@@ -951,17 +976,69 @@ export default function AsistenciaDetallada() {
                               stroke="#f1f5f9"
                               strokeWidth={4}
                               strokeDasharray="2 4"
-                            />                              <Pie
+                            />                            <Pie
                               activeIndex={activeIndex}
                               activeShape={(props: unknown) => renderActiveShape(props as ActiveShapeProps)}
                               data={
                                 // Asegurarse de que haya sesiones para mostrar y al menos una asistencia o falta
-                                (matricula.totalSesiones && matricula.totalSesiones > 0 &&
-                                  ((matricula.asistencias ?? 0) > 0 || (matricula.faltas ?? 0) > 0))
-                                  ? [
-                                    { name: 'Asistencias', value: matricula.asistencias || 0, fill: '#059669' },
-                                    { name: 'Faltas', value: matricula.faltas || 0, fill: '#DC2626' },
-                                  ]
+                                (matricula.totalSesiones && matricula.totalSesiones > 0)
+                                  ? (() => {
+                                      // Calculamos los diferentes tipos de asistencia para el gráfico
+                                      const asistenciasPorTipo = {
+                                        asistencias: 0,
+                                        justificadas: 0,
+                                        faltas: 0,
+                                        asistencia50: 0,
+                                        dispensado: 0
+                                      };
+                                      
+                                      // Recorremos las asistencias del alumno para clasificarlas
+                                      sesionesAlumno.forEach(asistencia => {
+                                        const estado = asistencia.estado || 
+                                          (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);
+                                        
+                                        const tieneJustificacionAprobada = asistencia.SolicitudJustificacion && 
+                                          asistencia.SolicitudJustificacion.some(s => 
+                                            s.estadoJustificacion?.denominacion === 'Justificado');
+                                        
+                                        if (estado === 'No Asiste' && tieneJustificacionAprobada) {
+                                          asistenciasPorTipo.justificadas++;
+                                        } else if (estado === 'Asiste') {
+                                          asistenciasPorTipo.asistencias++;
+                                        } else if (estado === '50%') {
+                                          asistenciasPorTipo.asistencia50++;
+                                        } else if (estado === 'Dispensado') {
+                                          asistenciasPorTipo.dispensado++;
+                                        } else if (estado === 'No Asiste') {
+                                          asistenciasPorTipo.faltas++;
+                                        }
+                                      });
+                                      
+                                      // Creamos el array de datos para el gráfico
+                                      const chartData = [];
+                                      
+                                      if (asistenciasPorTipo.asistencias > 0) {
+                                        chartData.push({ name: 'Asistencias', value: asistenciasPorTipo.asistencias, fill: '#059669' });
+                                      }
+                                      
+                                      if (asistenciasPorTipo.justificadas > 0) {
+                                        chartData.push({ name: 'Justificada', value: asistenciasPorTipo.justificadas, fill: '#3B82F6' });
+                                      }
+                                      
+                                      if (asistenciasPorTipo.faltas > 0) {
+                                        chartData.push({ name: 'Faltas', value: asistenciasPorTipo.faltas, fill: '#DC2626' });
+                                      }
+                                      
+                                      if (asistenciasPorTipo.asistencia50 > 0) {
+                                        chartData.push({ name: '50%', value: asistenciasPorTipo.asistencia50, fill: '#EAB308' });
+                                      }
+                                      
+                                      if (asistenciasPorTipo.dispensado > 0) {
+                                        chartData.push({ name: 'Dispensado', value: asistenciasPorTipo.dispensado, fill: '#8B5CF6' });
+                                      }
+                                      
+                                      return chartData.length > 0 ? chartData : [{ name: 'Sin datos', value: 1, fill: '#E2E8F0' }];
+                                    })()
                                   : [{ name: 'Sin sesiones', value: 1, fill: '#E2E8F0' }]
                               }
                               cx="50%"
@@ -981,12 +1058,42 @@ export default function AsistenciaDetallada() {
                               stroke="#ffffff"
                               strokeWidth={3}
                               labelLine={false}
-                            >
-                              {((matricula.totalSesiones ?? 0) > 0)
-                                ? <>
-                                  <Cell key="asistencias" fill="url(#greenGradient)" />
-                                  <Cell key="faltas" fill="url(#redGradient)" />
-                                </>
+                            >                              {((matricula.totalSesiones ?? 0) > 0)
+                                ? (() => {
+                                    // Generar las celdas según los tipos de datos que hay en el gráfico
+                                    return (
+                                      <>
+                                        {sesionesAlumno.some(a => {
+                                          const estado = a.estado || (a.estadoAsistencia && a.estadoAsistencia.denominacion);
+                                          return estado === 'Asiste';
+                                        }) && <Cell key="asistencias" fill="url(#greenGradient)" />}
+                                        
+                                        {sesionesAlumno.some(a => {
+                                          const estado = a.estado || (a.estadoAsistencia && a.estadoAsistencia.denominacion);
+                                          const justified = a.SolicitudJustificacion && 
+                                            a.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Justificado');
+                                          return estado === 'No Asiste' && justified;
+                                        }) && <Cell key="justificadas" fill="url(#blueGradient)" />}
+                                        
+                                        {sesionesAlumno.some(a => {
+                                          const estado = a.estado || (a.estadoAsistencia && a.estadoAsistencia.denominacion);
+                                          return estado === '50%';
+                                        }) && <Cell key="mitad" fill="url(#yellowGradient)" />}
+                                        
+                                        {sesionesAlumno.some(a => {
+                                          const estado = a.estado || (a.estadoAsistencia && a.estadoAsistencia.denominacion);
+                                          return estado === 'Dispensado';
+                                        }) && <Cell key="dispensado" fill="url(#purpleGradient)" />}
+                                        
+                                        {sesionesAlumno.some(a => {
+                                          const estado = a.estado || (a.estadoAsistencia && a.estadoAsistencia.denominacion);
+                                          const justified = a.SolicitudJustificacion && 
+                                            a.SolicitudJustificacion.some(s => s.estadoJustificacion?.denominacion === 'Justificado');
+                                          return estado === 'No Asiste' && !justified;
+                                        }) && <Cell key="faltas" fill="url(#redGradient)" />}
+                                      </>
+                                    );
+                                  })()
                                 : <Cell key="sin-sesiones" fill="#E2E8F0" />
                               }
                             </Pie>
@@ -1130,19 +1237,47 @@ export default function AsistenciaDetallada() {
                                 <span className="bg-gray-100 text-gray-700 px-2.5 py-1.5 rounded-lg text-xs">
                                   {asistencia.sesionClase.grupo.denominacion}
                                 </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                <span className={`px-3 py-1.5 rounded-full text-xs font-medium inline-flex items-center gap-1.5
-                                  ${asistencia.estado === 'Asiste' || asistencia.estadoAsistencia?.denominacion === 'Asiste'
-                                    ? 'bg-green-100 text-green-800'
-                                    : asistencia.estado === '50%' || asistencia.estadoAsistencia?.denominacion === '50%'
-                                      ? 'bg-yellow-100 text-yellow-800'
-                                      : 'bg-red-100 text-red-800'}`}>
-                                  {asistencia.estado === 'Asiste' || asistencia.estadoAsistencia?.denominacion === 'Asiste'
-                                    ? <FaCheck className="text-xs" />
-                                    : <FaTimes className="text-xs" />
-                                  }                                  {asistencia.estadoAsistencia?.denominacion || asistencia.estado}
-                                </span>
+                              </td>                              <td className="px-6 py-4">
+                                {(() => {
+                                  // Comprobar si la falta está justificada
+                                  const tieneJustificacionAprobada = asistencia.SolicitudJustificacion && 
+                                    asistencia.SolicitudJustificacion.some(s => 
+                                      s.estadoJustificacion?.denominacion === 'Justificado');
+                                  
+                                  const estado = asistencia.estado || asistencia.estadoAsistencia?.denominacion;
+                                  
+                                  // Usar un estado "visual" modificado si está justificada
+                                  let estadoVisual = estado;
+                                  let bgColor = '';
+                                  let textColor = '';
+                                  let icon = null;
+                                  
+                                  if (estado === 'No Asiste' && tieneJustificacionAprobada) {
+                                    estadoVisual = 'No Asiste Justificada';
+                                    bgColor = 'bg-blue-100';
+                                    textColor = 'text-blue-800';
+                                    icon = <FaCheck className="text-xs" />;
+                                  } else if (estado === 'Asiste') {
+                                    bgColor = 'bg-green-100';
+                                    textColor = 'text-green-800';
+                                    icon = <FaCheck className="text-xs" />;
+                                  } else if (estado === '50%') {
+                                    bgColor = 'bg-yellow-100';
+                                    textColor = 'text-yellow-800';
+                                    icon = <FaTimes className="text-xs" />;
+                                  } else {
+                                    bgColor = 'bg-red-100';
+                                    textColor = 'text-red-800';
+                                    icon = <FaTimes className="text-xs" />;
+                                  }
+                                  
+                                  return (
+                                    <span className={`px-3 py-1.5 rounded-full text-xs font-medium inline-flex items-center gap-1.5 ${bgColor} ${textColor}`}>
+                                      {icon}
+                                      {estadoVisual}
+                                    </span>
+                                  );
+                                })()}
                               </td>
                               <td className="px-6 py-4">
                                 {asistencia.SolicitudJustificacion && asistencia.SolicitudJustificacion.length > 0 ? (

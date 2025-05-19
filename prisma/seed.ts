@@ -39,7 +39,6 @@ async function main() {
   }
 
   console.log('✅ All roles have been created or verified.');
-
   // Create or verify attendance states
   const estadosAsistencia = [
     { denominacion: 'Asiste' },
@@ -48,6 +47,7 @@ async function main() {
     { denominacion: 'Dispensado' },
     { denominacion: 'Erasmus T' },
     { denominacion: 'Erasmus NT' },
+    { denominacion: 'Justificada' }, // Añadido estado para faltas justificadas
   ];
 
   console.log('🔄 Creating or verifying attendance states...');

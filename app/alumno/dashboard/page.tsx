@@ -297,25 +297,36 @@ export default function AlumnoDashboard() {
                         if (Array.isArray(asistenciasData) && asistenciasData.length > 0) {
                           const asistencia = asistenciasData[0];
                           const estado = asistencia.estado || (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);
+                            // Verificar si la falta tiene justificación aceptada
+                          const tieneJustificacionAceptada = asistencia.SolicitudJustificacion?.some(
+                            (s: any) => s.estadoJustificacion?.denominacion === 'Justificado'
+                          );
                           
                           switch(estado) {
                             case 'Asiste':
                               asistencias++;
-                              break;                            case '50%':                              // Para 50% de asistencia, contamos como 0.5
-                              asistencias += 0.5;
-                              faltas += 0.5;
-                              // Permitir justificar también las faltas del 50%
+                              break;
+                            case '50%':
+                              // Para 50% de asistencia, contamos como 0.5
+                              // Si está justificada, consideramos asistencia completa
+                              if (tieneJustificacionAceptada) {
+                                asistencias += 1; // Contamos como asistencia completa
+                              } else {
+                                asistencias += 0.5;
+                                faltas += 0.5;
                               
-                              // Solo agregar la falta si se puede justificar
-                              if (puedeJustificarFalta(asistencia)) {
-                                setFaltasJustificables(prevFaltas => {
-                                  // Solo agregar la falta si no existe ya en la lista
-                                  const exists = prevFaltas.some(f => f.id === asistencia.id);
-                                  if (!exists) {
-                                    return [...prevFaltas, asistencia];
-                                  }
-                                  return prevFaltas;
-                                });
+                                // Permitir justificar también las faltas del 50%
+                                // Solo agregar la falta si se puede justificar
+                                if (puedeJustificarFalta(asistencia)) {
+                                  setFaltasJustificables(prevFaltas => {
+                                    // Solo agregar la falta si no existe ya en la lista
+                                    const exists = prevFaltas.some(f => f.id === asistencia.id);
+                                    if (!exists) {
+                                      return [...prevFaltas, asistencia];
+                                    }
+                                    return prevFaltas;
+                                  });
+                                }
                               }
                               break;
                             case 'Erasmus T':
@@ -330,18 +341,24 @@ export default function AlumnoDashboard() {
                               totalSesiones--;
                               break;
                             case 'No Asiste':
-                            default:                              faltas++;
-                              
-                              // Solo agregar la falta si se puede justificar
-                              if (puedeJustificarFalta(asistencia)) {
-                                setFaltasJustificables(prevFaltas => {
-                                  // Solo agregar la falta si no existe ya en la lista
-                                  const exists = prevFaltas.some(f => f.id === asistencia.id);
-                                  if (!exists) {
-                                    return [...prevFaltas, asistencia];
-                                  }
-                                  return prevFaltas;
-                                });
+                            default:
+                              // Si está justificada, contamos como asistencia
+                              if (tieneJustificacionAceptada) {
+                                asistencias++; // Contamos como asistencia completa
+                              } else {
+                                faltas++;
+                                
+                                // Solo agregar la falta si se puede justificar
+                                if (puedeJustificarFalta(asistencia)) {
+                                  setFaltasJustificables(prevFaltas => {
+                                    // Solo agregar la falta si no existe ya en la lista
+                                    const exists = prevFaltas.some(f => f.id === asistencia.id);
+                                    if (!exists) {
+                                      return [...prevFaltas, asistencia];
+                                    }
+                                    return prevFaltas;
+                                  });
+                                }
                               }
                               break;
                           }
