@@ -517,7 +517,7 @@ export default function AlumnoDashboard() {
     return tieneSolicitudPendienteORechazada;
   };
 
-  // Determinar si las dispensas están disponibles para una matrícula
+  // Determinar si las dispensas están disponibles para una matrícula  // Función para verificar si se puede solicitar dispensa para una matrícula
   const isDispensaDisponible = (matricula: Matricula, configuracionesCarrera: ConfiguracionCarrera[]) => {
     if (!configuracionesCarrera.length) return false;
 
@@ -530,6 +530,19 @@ export default function AlumnoDashboard() {
     // Verificar si las dispensas están activadas y si estamos en el período permitido
     if (!configCarrera.SolDispensa) return false;
 
+    // Verificar si ya existe una solicitud pendiente para esta matrícula
+    const tieneSolicitudPendiente = solicitudesDispensa.some(
+      solicitud => 
+        solicitud.matriculaId === matricula.id && 
+        (solicitud.estadoDispensa?.denominacion === 'Pendiente' ||
+         solicitud.estadoDispensa?.denominacion === 'Aprobada' ||
+         solicitud.estadoDispensa?.denominacion === 'Aceptada')
+    );
+    
+    // Si ya hay una solicitud pendiente o aprobada, no mostrar la asignatura
+    if (tieneSolicitudPendiente) return false;
+
+    // Verificar si estamos en el periodo permitido para solicitudes
     if (configCarrera.FechaInicioDispensa && configCarrera.FechaFinDispensa) {
       const ahora = new Date();
       const inicio = new Date(configCarrera.FechaInicioDispensa);
@@ -1197,9 +1210,7 @@ export default function AlumnoDashboard() {
                             Si necesitas solicitar una dispensa académica, puedes hacerlo desde la sección de asignaturas.
                           </p>
                         </div>
-                      )}
-
-                      <div className="mt-6">
+                      )}                      <div className="mt-6">
                         <h4 className="font-medium text-gray-700 mb-3">Asignaturas con dispensas disponibles:</h4>
                         {matriculas.some(m => isDispensaDisponible(m, configuracionesCarrera)) ? (
                           <div className="grid gap-4 md:grid-cols-2">
@@ -1220,7 +1231,16 @@ export default function AlumnoDashboard() {
                           </div>
                         ) : (
                           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
-                            No hay dispensas disponibles actualmente para ninguna de tus asignaturas.
+                            {solicitudesDispensa.some(s => s.estadoDispensa?.denominacion === 'Pendiente') ? (
+                              <p className="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Ya tienes solicitudes de dispensa pendientes de revisión. No puedes solicitar más hasta que se resuelvan.
+                              </p>
+                            ) : (
+                              <p>No hay dispensas disponibles actualmente para ninguna de tus asignaturas.</p>
+                            )}
                           </div>
                         )}
                       </div>

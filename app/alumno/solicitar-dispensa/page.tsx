@@ -101,6 +101,27 @@ export default function SolicitarDispensa() {
           if (configuracionCarrera) {
             setConfiguracionCarrera(configuracionCarrera);
           }
+
+          // Verificar si ya existe una solicitud de dispensa pendiente para esta matrícula
+          if (session?.user?.id) {
+            const dispensasResponse = await fetch(`/api/solicitudes-dispensa?alumnoId=${session.user.id}&matriculaId=${data.id}`, {
+              credentials: 'include',
+            });
+            
+            if (dispensasResponse.ok) {
+              const dispensasData = await dispensasResponse.json();
+              
+              // Comprobar si hay alguna solicitud pendiente
+              const tieneSolicitudPendiente = Array.isArray(dispensasData) && dispensasData.some(
+                solicitud => solicitud.estadoDispensa?.denominacion === 'Pendiente'
+              );
+              
+              if (tieneSolicitudPendiente) {
+                setError('Ya tienes una solicitud de dispensa pendiente para esta asignatura. No puedes enviar otra hasta que se resuelva.');
+                console.log('Se encontró solicitud pendiente para esta matrícula');
+              }
+            }
+          }
         } else {
           throw new Error('Registro de matrícula no encontrado');
         }
@@ -138,7 +159,6 @@ export default function SolicitarDispensa() {
       }
     }
   }, [session, matriculaId]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -150,6 +170,24 @@ export default function SolicitarDispensa() {
       // Validar que haya un enlace
       if (!enlaceDocumentacion.startsWith('http://') && !enlaceDocumentacion.startsWith('https://')) {
         throw new Error('Por favor, proporciona un enlace válido (debe comenzar con http:// o https://)');
+      }
+      
+      // Verificar de nuevo si ya existe una solicitud pendiente para esta matrícula
+      const dispensasResponse = await fetch(`/api/solicitudes-dispensa?alumnoId=${session.user.id}&matriculaId=${matricula.id}`, {
+        credentials: 'include',
+      });
+      
+      if (dispensasResponse.ok) {
+        const dispensasData = await dispensasResponse.json();
+        
+        // Comprobar si hay alguna solicitud pendiente
+        const tieneSolicitudPendiente = Array.isArray(dispensasData) && dispensasData.some(
+          solicitud => solicitud.estadoDispensa?.denominacion === 'Pendiente'
+        );
+        
+        if (tieneSolicitudPendiente) {
+          throw new Error('Ya tienes una solicitud de dispensa pendiente para esta asignatura. No puedes enviar otra hasta que se resuelva.');
+        }
       }
       
       // Buscar el estado "Pendiente" para nuevas dispensas
@@ -418,7 +456,6 @@ export default function SolicitarDispensa() {
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clipRule="evenodd" />
-                      </svg>
                     </div>
                   </div>
                 </div>
