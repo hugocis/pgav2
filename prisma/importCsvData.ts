@@ -9,6 +9,15 @@ const prisma = new PrismaClient();
  * Importa datos de CSV a la tabla ProfesoresDetalle
  */
 export async function importProfesoresDetalle(csvPath: string): Promise<void> {
+  console.log(`🌱 Comprobando si es necesario importar datos de profesores desde ${csvPath}...`);
+  
+  // Verificar si ya existen datos en la tabla
+  const existingCount = await prisma.profesoresDetalle.count();
+  if (existingCount > 0) {
+    console.log(`✅ Ya existen ${existingCount} registros de profesores en la base de datos. Omitiendo importación.`);
+    return;
+  }
+  
   console.log(`🌱 Importando datos de profesores desde ${csvPath}...`);
   
   const results: any[] = [];
@@ -193,6 +202,15 @@ export async function importProfesoresDetalle(csvPath: string): Promise<void> {
  * Importa datos de CSV a la tabla ExpedienteAlumno
  */
 export async function importExpedienteAlumno(csvPath: string): Promise<void> {
+  console.log(`🌱 Comprobando si es necesario importar datos de expedientes de alumnos desde ${csvPath}...`);
+  
+  // Verificar si ya existen datos en la tabla
+  const existingCount = await prisma.expedienteAlumno.count();
+  if (existingCount > 0) {
+    console.log(`✅ Ya existen ${existingCount} registros de expedientes en la base de datos. Omitiendo importación.`);
+    return;
+  }
+  
   console.log(`🌱 Importando datos de expedientes de alumnos desde ${csvPath}...`);
   
   const results: any[] = [];
@@ -301,6 +319,15 @@ export async function importExpedienteAlumno(csvPath: string): Promise<void> {
  * Importa datos de CSV a la tabla OfertaAcademica
  */
 export async function importOfertaAcademica(csvPath: string): Promise<void> {
+  console.log(`🌱 Comprobando si es necesario importar datos de oferta académica desde ${csvPath}...`);
+  
+  // Verificar si ya existen datos en la tabla
+  const existingCount = await prisma.ofertaAcademica.count();
+  if (existingCount > 0) {
+    console.log(`✅ Ya existen ${existingCount} registros de oferta académica en la base de datos. Omitiendo importación.`);
+    return;
+  }
+  
   console.log(`🌱 Importando datos de oferta académica desde ${csvPath}...`);
   
   const results: any[] = [];

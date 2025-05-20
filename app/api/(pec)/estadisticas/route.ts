@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 import prisma from '@/lib/prisma';
-import { logActivity } from '@/lib/logActivity';
+
+// Umbral de asistencia para considerar que un alumno tiene problemas
+const UMBRAL_PROBLEMAS_ASISTENCIA = 80; // Porcentaje mínimo de asistencia requerido
 
 export async function GET(req: NextRequest) {
   try {
@@ -31,10 +33,32 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Lista de IDs de carreras asignadas al PEC
-    const carreraIds = carrerasCursos.map(cc => cc.carreraId); carrerasCursos.map(cc => cc.curso);    // Obtener el total de alumnos en estas carreras y cursos
-    // Primero obtenemos los usuarios con rol ALUMNO
-    const usuariosAlumno = await prisma.user.findMany({
+    if (carrerasCursos.length === 0) {
+      return NextResponse.json({
+        totalAlumnos: 0,
+        asistenciaMedia: 0,
+        alumnosConProblemas: 0,
+        alumnosGOE: 0,
+      });
+    }    // Lista de IDs de carreras y cursos asignados al PEC
+    const carreraIds = carrerasCursos.map(cc => cc.carreraId);
+    const cursos = carrerasCursos.map(cc => cc.curso);
+    
+    // Crear un mapa de carrera-curso para filtrado eficiente
+    const carreraCursoMap = new Map();
+    carrerasCursos.forEach(cc => {
+      if (!carreraCursoMap.has(cc.carreraId)) {
+        carreraCursoMap.set(cc.carreraId, []);
+      }
+      carreraCursoMap.get(cc.carreraId).push(cc.curso);
+    });
+
+    console.log(`PEC: ${pecId} tiene asignadas ${carrerasCursos.length} combinaciones de carrera-curso`);
+    console.log(`Carreras: ${carreraIds.join(', ')}`);
+    console.log(`Cursos: ${cursos.join(', ')}`);
+
+    // Obtener el total de alumnos en estas carreras y cursos
+    const alumnos = await prisma.user.findMany({
       where: {
         userRoles: {
           some: {
@@ -43,44 +67,148 @@ export async function GET(req: NextRequest) {
             }
           }
         },
-        AlumnoPlan: {
+        Matricula: {
           some: {
-            plandeEstudios: {
+            asignatura: {
               carreraId: {
                 in: carreraIds
+              },
+              // Filtrar por curso numérico (1, 2, 3, 4)
+              Curso: {
+                in: cursos.map(curso => curso.toString())
               }
             }
           }
         },
         lockout: false
+      },
+      include: {
+        userRoles: {
+          include: {
+            role: true
+          }
+        },
+        Matricula: {
+          where: {
+            asignatura: {
+              carreraId: {
+                in: carreraIds
+              },
+              Curso: {
+                in: cursos.map(curso => curso.toString())
+              }
+            }
+          },
+          include: {
+            asignatura: true,
+          }
+        },
+        AsistenciaAlumno: {
+          include: {
+            sesionClase: {
+              include: {
+                grupo: {
+                  include: {
+                    asignatura: true
+                  }
+                }
+              }
+            },
+            estadoAsistencia: true
+          }
+        }
       }
     });
 
-    // Contamos los alumnos por carrera y curso
-    const totalAlumnos = usuariosAlumno.length;
+    // Contar el total de alumnos
+    const totalAlumnos = alumnos.length;    // Contar alumnos con rol GOE
+    const alumnosConRolGOE = alumnos.filter(alumno => 
+      alumno.userRoles.some(ur => ur.role.name === 'GOE')
+    );
+    const alumnosGOE = alumnosConRolGOE.length;
+    
+    console.log(`Alumnos encontrados: ${totalAlumnos}`);
+    console.log(`Alumnos con rol GOE: ${alumnosGOE}`);
+    if (alumnosConRolGOE.length > 0) {
+      console.log('IDs de alumnos con rol GOE:', alumnosConRolGOE.map(a => a.id));
+    }
 
-    // Obtener la asistencia media
-    // En un caso real, esto requeriría un cálculo más complejo basado en registros de asistencia
-    // Asumiendo que existe una tabla de asistencias con un porcentaje promedio
-    // Simulamos un valor medio de 85%
-    const asistenciaMedia = 85;
+    // Calcular porcentaje de asistencia por alumno y contar problemas
+    let totalPorcentajeAsistencia = 0;
+    let alumnosConAsistenciaValida = 0;
+    let alumnosConProblemas = 0;    // Filtrar asistencias relevantes para los cursos y carreras del PEC
+    for (const alumno of alumnos) {
+      // Agrupar asistencias por asignatura
+      const asistenciasPorAsignatura = new Map();
+      
+      // Recorremos las asistencias del alumno
+      for (const asistencia of alumno.AsistenciaAlumno) {
+        // Si no hay datos de la sesión o del grupo, continuamos
+        if (!asistencia.sesionClase || !asistencia.sesionClase.grupo || !asistencia.sesionClase.grupo.asignatura) {
+          continue;
+        }
+        
+        const asignatura = asistencia.sesionClase.grupo.asignatura;
+        const asignaturaId = asignatura.id;
+        const carreraId = asignatura.carreraId;
+        const curso = parseInt(asignatura.Curso);
+        
+        // Verificar si la asignatura pertenece a una carrera-curso que el PEC gestiona
+        const cursosDeCarrera = carreraCursoMap.get(carreraId) || [];
+        if (!cursosDeCarrera.includes(curso)) {
+          continue; // Ignorar si no es una carrera-curso del PEC
+        }
+        
+        if (!asistenciasPorAsignatura.has(asignaturaId)) {
+          asistenciasPorAsignatura.set(asignaturaId, { total: 0, asistidas: 0, nombre: asignatura.Denominacion });
+        }
+        
+        const datos = asistenciasPorAsignatura.get(asignaturaId);
+        datos.total++;
+        
+        // Consideramos "Asistencia" como asistencia válida
+        if (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion === 'Asistencia') {
+          datos.asistidas++;
+        }
+      }
+      
+      // Si el alumno tiene asignatura relevantes, imprimir información de depuración
+      if (asistenciasPorAsignatura.size > 0 && alumnosGOE > 0) {
+        console.log(`Alumno ${alumno.id} (${alumno.name || ''} ${alumno.surname1 || ''}): ${asistenciasPorAsignatura.size} asignaturas relevantes`);
+        for (const [asignaturaId, datos] of asistenciasPorAsignatura) {
+          console.log(`  - ${datos.nombre}: ${datos.asistidas}/${datos.total} (${Math.round(datos.asistidas / datos.total * 100)}%)`);
+        }
+      }
 
-    // Obtener alumnos con problemas de asistencia (asistencia < 80%)
-    // Simulamos un valor basado en el total de alumnos
-    const alumnosConProblemas = Math.round(totalAlumnos * 0.12); // Aproximadamente 12% de los alumnos    // Obtener alumnos en programa GOE
-    // Necesitamos verificar si hay alguna tabla o campo que indique el estado GOE
-    // Por ejemplo, podría ser un campo en una tabla de información adicional de alumnos
-    // Como no tenemos el campo directo, usamos un valor simulado proporcional al total de alumnos
-    const alumnosGOE = Math.round(totalAlumnos * 0.08); // Aproximadamente 8% de los alumnos
+      // Calcular porcentaje de asistencia por cada asignatura con sesiones
+      let sumaPorcentajes = 0;
+      let asignaturasConSesiones = 0;
 
-    // Registrar la actividad
-    await logActivity({
-      req: req,
-      action: 'update',  
-      entityType: 'PEC_ESTADISTICAS',
-      entityId: pecId,
-      details: `El PEC ha consultado sus estadísticas`,
-    });
+      for (const [, datos] of asistenciasPorAsignatura) {
+        if (datos.total > 0) { // Solo consideramos asignaturas con sesiones
+          const porcentaje = (datos.asistidas / datos.total) * 100;
+          sumaPorcentajes += porcentaje;
+          asignaturasConSesiones++;
+          
+          // Si el porcentaje de esta asignatura está por debajo del umbral,
+          // consideramos que el alumno tiene problemas de asistencia
+          if (porcentaje < UMBRAL_PROBLEMAS_ASISTENCIA) {
+            alumnosConProblemas++;
+            break; // Un alumno solo cuenta una vez, incluso si tiene problemas en varias asignaturas
+          }
+        }
+      }
+
+      // Si el alumno tiene asignaturas con sesiones, calculamos su porcentaje medio
+      if (asignaturasConSesiones > 0) {
+        const porcentajeMedioAlumno = sumaPorcentajes / asignaturasConSesiones;
+        totalPorcentajeAsistencia += porcentajeMedioAlumno;
+        alumnosConAsistenciaValida++;
+      }
+    }    // Calcular la asistencia media global, evitando división por cero
+    const asistenciaMedia = alumnosConAsistenciaValida > 0
+      ? Math.round(totalPorcentajeAsistencia / alumnosConAsistenciaValida)
+      : 0;
 
     return NextResponse.json({
       totalAlumnos,
