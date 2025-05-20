@@ -470,7 +470,6 @@ export default function ProfesorAlumnos() {
     }
     
     // Mostramos los decimales si la asistencia no es un número entero
-    const asistenciasDisplay = Number.isInteger(asistencias) ? asistencias : asistencias.toFixed(1);
     const radius = chartSize[size].width / 2;
     const innerRadius = radius - chartSize[size].strokeWidth;
     const circumference = 2 * Math.PI * innerRadius;
