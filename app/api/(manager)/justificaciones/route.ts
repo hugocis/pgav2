@@ -224,7 +224,8 @@ export async function PUT(req: NextRequest) {
       data: {
         estadoJustificacionId: estadoJustificacion.id,
         respuesta: comments,
-        fechaRespuesta: new Date()
+        fechaRespuesta: new Date(),
+        rechazada: status === 'rejected' // Marcar como rechazada si el estado es 'rejected'
       }
     });
 

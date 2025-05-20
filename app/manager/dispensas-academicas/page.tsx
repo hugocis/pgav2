@@ -154,7 +154,7 @@ export default function AcademicDispensations() {
         if (filter.searchTerm) queryParams.append('searchTerm', filter.searchTerm);
           
         // Hacer la llamada a la API con los filtros aplicados
-        const response = await fetch(`/api/manager/dispensas-academicas?${queryParams.toString()}`, {
+        const response = await fetch(`/api/dispensas-academicas?${queryParams.toString()}`, {
           credentials: 'include'
         });
         
@@ -248,20 +248,19 @@ export default function AcademicDispensations() {
       subjectCode: '',
       searchTerm: ''
     });
-  };
-  const getStatusBadgeClass = (estado: string) => {
+  };  const getStatusBadgeClass = (estado: string) => {
     switch (estado.toLowerCase()) {
       case 'aprobada':
       case 'aceptada':
       case 'justificada':
-        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        return 'bg-emerald-200 text-emerald-900 border-emerald-300';
       case 'rechazada':
       case 'denegada':
       case 'no justificada':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+        return 'bg-indigo-200 text-indigo-900 border-indigo-300';
       case 'pendiente':
       default:
-        return 'bg-sky-100 text-sky-700 border-sky-200';
+        return 'bg-sky-200 text-sky-900 border-sky-300';
     }
   };
 
@@ -269,7 +268,7 @@ export default function AcademicDispensations() {
     if (!selectedRequest) return;
       try {
       // Llamada a la API para actualizar el estado de la solicitud
-      const response = await fetch('/api/manager/dispensas-academicas', {
+      const response = await fetch('/api/dispensas-academicas', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -342,10 +341,8 @@ export default function AcademicDispensations() {
                 </div>
               </li>
             </ol>
-          </nav>
-
-          {/* Header with back button */}          <div className="mb-6 bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="relative bg-gradient-to-r from-blue-600 to-blue-400 px-6 py-5 text-white">
+          </nav>          {/* Header with back button */}          <div className="mb-6 bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-5 text-white">
               <div className="flex justify-between items-center">
                 <div>
                   <div className="flex items-center">
@@ -367,16 +364,14 @@ export default function AcademicDispensations() {
                   </span>
                 </div>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-300 to-blue-100"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-blue-200"></div>
             </div>
-          </div>
-
-          {/* Filtros y acciones */}          <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
-            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100/30">
+          </div>          {/* Filtros y acciones */}          <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+            <div className="p-5 border-b border-gray-200 bg-white">
               <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-                  <div className="bg-blue-100 p-2 rounded-full mr-3 shadow-sm">
-                    <FaClipboardList className="text-blue-600" />
+                  <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] p-2 rounded-full mr-3 shadow-sm">
+                    <FaClipboardList className="text-white" />
                   </div>
                   <div>
                     <span className="text-gray-900">Solicitudes de Dispensas</span>
@@ -399,13 +394,13 @@ export default function AcademicDispensations() {
                     </div>
                   </div>                  <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className="px-4 py-2 bg-blue-50 text-blue-700 rounded-md border border-blue-100 hover:bg-blue-100 flex items-center justify-center transition-colors shadow-sm"
+                    className="px-4 py-2 bg-gray-50 text-gray-700 rounded-md border border-gray-200 hover:bg-gray-100 flex items-center justify-center transition-colors shadow-sm"
                   >
                     <FaFilter className="mr-2" />
                     {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
                   </button>
                   <button
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center transition-colors shadow-sm"
+                    className="px-4 py-2 bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white rounded-md hover:from-[#0a3056] hover:to-[#164879] flex items-center justify-center transition-colors shadow-sm"
                   >
                     <FaFileDownload className="mr-2" />
                     Exportar
@@ -414,12 +409,11 @@ export default function AcademicDispensations() {
               </div>
 
               {/* Filtros avanzados */}
-              {showFilters && (
-                <div className="mt-4 bg-gray-50 p-4 rounded-md border border-gray-200">
+              {showFilters && (                <div className="mt-4 bg-white p-4 rounded-md border border-gray-200">
                   <div className="mb-4 flex justify-between items-center">
                     <h3 className="font-medium text-gray-700">Filtros avanzados</h3>
                     <button 
-                      className="text-sm text-blue-600 hover:text-blue-800"
+                      className="text-sm text-[#0D3C68] hover:text-[#1a5590]"
                       onClick={resetFilters}
                     >
                       Restablecer filtros
@@ -428,11 +422,10 @@ export default function AcademicDispensations() {
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                      <div className="relative">
-                        <select
+                      <div className="relative">                        <select
                           value={filter.status}
                           onChange={(e) => handleFilterChange('status', e.target.value)}
-                          className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md appearance-none"
+                          className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-[#0D3C68] focus:border-[#1a5590] sm:text-sm rounded-md appearance-none"
                         >
                           <option value="all">Todos</option>
                           {estadosDispensa.map(estado => (
@@ -448,14 +441,13 @@ export default function AcademicDispensations() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Fecha desde</label>
-                      <div className="relative">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Fecha desde</label>                      <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <FaCalendarAlt className="h-4 w-4 text-gray-400" />
                         </div>
                         <input
                           type="date"
-                          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#0D3C68] focus:border-[#1a5590]"
                           value={filter.dateFrom}
                           onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
                         />
@@ -463,25 +455,23 @@ export default function AcademicDispensations() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Fecha hasta</label>
-                      <div className="relative">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Fecha hasta</label>                      <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <FaCalendarAlt className="h-4 w-4 text-gray-400" />
                         </div>
                         <input
                           type="date"
-                          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#0D3C68] focus:border-[#1a5590]"
                           value={filter.dateTo}
                           onChange={(e) => handleFilterChange('dateTo', e.target.value)}
                         />
                       </div>
                     </div>
                     
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Código de asignatura</label>
+                    <div>                      <label className="block text-sm font-medium text-gray-700 mb-1">Código de asignatura</label>
                       <input
                         type="text"
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#0D3C68] focus:border-[#1a5590]"
                         placeholder="Ej. MAT101"
                         value={filter.subjectCode}
                         onChange={(e) => handleFilterChange('subjectCode', e.target.value)}
@@ -494,9 +484,8 @@ export default function AcademicDispensations() {
 
             {/* Tabla de solicitudes */}
             <div className="overflow-x-auto">
-              {isLoading ? (
-                <div className="p-8 text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              {isLoading ? (                <div className="p-8 text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0D3C68] mx-auto"></div>
                   <p className="mt-3 text-gray-600">Cargando solicitudes...</p>
                 </div>
               ) : error ? (
@@ -648,14 +637,13 @@ export default function AcademicDispensations() {
                             <p className="text-sm font-medium text-gray-500">Documentación Adjunta</p>
                             {selectedRequest.DocumentacionDispensa && selectedRequest.DocumentacionDispensa.length > 0 ? (
                               <div className="mt-1">
-                                {selectedRequest.DocumentacionDispensa.map((doc, index) => (
-                                  <div key={doc.id} className="flex items-center mt-1 first:mt-0">
-                                    <FaPaperclip className="mr-2 text-blue-600" />
+                                {selectedRequest.DocumentacionDispensa.map((doc, index) => (                              <div key={doc.id} className="flex items-center mt-1 first:mt-0">
+                                    <FaPaperclip className="mr-2 text-[#0D3C68]" />
                                     <a 
                                       href={doc.url} 
                                       target="_blank" 
                                       rel="noopener noreferrer" 
-                                      className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                                      className="text-sm text-[#0D3C68] hover:text-[#1a5590] hover:underline"
                                     >
                                       Ver documento {index + 1} ({new Date(doc.fechaSubida).toLocaleDateString('es-ES')})
                                     </a>
@@ -733,12 +721,11 @@ export default function AcademicDispensations() {
                   </div>
                   <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                     {selectedRequest.estadoDispensa.denominacion.toLowerCase() === 'pendiente' && (
-                      <>
-                        <button
+                      <>                        <button
                           type="button"
                           onClick={handleResolve}
                           disabled={!resolution.status}
-                          className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white sm:ml-3 sm:w-auto sm:text-sm ${resolution.status ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500' : 'bg-gray-400 cursor-not-allowed'}`}
+                          className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white sm:ml-3 sm:w-auto sm:text-sm ${resolution.status ? 'bg-gradient-to-r from-[#0D3C68] to-[#1a5590] hover:from-[#0a3056] hover:to-[#164879] focus:ring-blue-500' : 'bg-gray-400 cursor-not-allowed'}`}
                         >
                           Guardar resolución
                         </button>

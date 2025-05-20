@@ -307,16 +307,18 @@ const StatCard = ({
   bgColor: string;
   textColor: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-}) => (
-  <motion.div
+}) => (  <motion.div
     className={`${bgColor} p-5 rounded-lg border shadow-sm`}
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.5 }}
-  >
-    <div className="flex items-start justify-between">
+  >    <div className="flex items-start justify-between">
       <div>
-        <div className={`text-2xl font-bold ${textColor}`}>{value}</div>
+        <div className={`text-2xl font-bold ${textColor}`}>
+          {typeof value === 'number' ? 
+            (Number.isInteger(value) ? value : value.toFixed(1)) : 
+            value}
+        </div>
         <div className={`text-sm ${textColor} opacity-90`}>{title}</div>
       </div>
       <div className={`${textColor} opacity-80 text-xl`}>
@@ -546,7 +548,30 @@ export default function AsistenciaDetallada() {
           return null; // Si no hay registro, se considera falta
         });
 
-        const asistenciasResultados = await Promise.all(asistenciasPromesas);        // Contar asistencias y faltas con soporte para diversos tipos de asistencia
+        const asistenciasResultados = await Promise.all(asistenciasPromesas);        // Para Debug - Loguear cada asistencia para verificar cálculos
+        console.log('Detalle de cada asistencia:', asistenciasResultados.map(a => {
+          if (!a) return { tipo: 'Sin registro', estado: 'Falta' };
+          const estado = a.estado || (a.estadoAsistencia && a.estadoAsistencia.denominacion);
+          const tieneJustificacionAprobada = a.SolicitudJustificacion && 
+            a.SolicitudJustificacion.some((s: any) => s.estadoJustificacion?.denominacion === 'Justificado');
+          
+          return {
+            id: a.id,
+            fecha: new Date(a.fecha).toLocaleDateString(),
+            estado: estado,
+            estadoOriginal: a.estado,
+            estadoDenominacion: a.estadoAsistencia?.denominacion,
+            justificada: tieneJustificacionAprobada ? 'Sí' : 'No',
+            contabilizaComo: estado === 'Asiste' ? 'Asistencia completa' : 
+                           estado === 'No Asiste Justificada' ? 'Asistencia completa' :
+                           estado === '50%' && tieneJustificacionAprobada ? 'Asistencia completa' : 
+                           estado === '50%' ? '0.5 asistencia + 0.5 falta' : 
+                           estado === 'No Asiste' && tieneJustificacionAprobada ? 'Asistencia completa' : 
+                           'Falta completa'
+          };
+        }));
+        
+        // Contar asistencias y faltas con soporte para diversos tipos de asistencia
         for (const asistencia of asistenciasResultados) {
           if (asistencia) {
             const estado = asistencia.estado || (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);            // Verificar si la falta está justificada (tiene una solicitud de justificación aprobada)
@@ -568,16 +593,25 @@ export default function AsistenciaDetallada() {
               // Contar como asistencia si está justificada
               asistencias++;
               continue;
-            }
-
-            switch (estado) {
+            }            switch (estado) {
               case 'Asiste':
                 asistencias++;
                 break;
               case '50%':
                 // Para 50% de asistencia, contamos como 0.5
-                asistencias += 0.5;
-                faltas += 0.5;
+                // Si está justificada, consideramos asistencia completa
+                if (tieneJustificacionAprobada) {
+                  asistencias += 1; // Contamos como asistencia completa
+                } else {
+                  asistencias += 0.5;
+                  faltas += 0.5;
+                }
+                break;
+              case 'No Asiste Justificada': // Caso específico para asistencias justificadas
+                asistencias++;
+                break;
+              case 'Justificada': // Estado explícito "Justificada"
+                asistencias++;
                 break;
               case 'Erasmus T':
               case 'Erasmus NT':
@@ -599,12 +633,27 @@ export default function AsistenciaDetallada() {
             // Si no hay registro, se considera falta
             faltas++;
           }
-        }
-
-        // Calcular porcentaje de asistencia
+        }        // Calcular porcentaje de asistencia
         const porcentajeAsistencia = totalSesiones > 0
           ? Math.round((asistencias / totalSesiones) * 100)
           : 0;
+            // Log final de cálculos para depuración
+        console.log('Cálculo final de asistencia:', {
+          totalSesiones,
+          asistencias,
+          faltas,
+          porcentajeAsistencia,
+          desglose: 'Cada sesión tiene un valor de 1. Si es 50%, cuenta como 0.5 asistencia y 0.5 falta (salvo que esté justificada, entonces cuenta como 1 completo)',
+          explicacionCalculo: `Porcentaje calculado: (${asistencias} asistencias / ${totalSesiones} sesiones) * 100 = ${porcentajeAsistencia}%`,
+          detalleTiposContabilizados: {
+            'Asiste': 'Cuenta como 1 asistencia',
+            'No Asiste Justificada': 'Cuenta como 1 asistencia (añadido en este fix)',
+            '50% con justificación': 'Cuenta como 1 asistencia',
+            '50% sin justificación': 'Cuenta como 0.5 asistencia y 0.5 falta',
+            'No Asiste con justificación': 'Cuenta como 1 asistencia',
+            'No Asiste sin justificación': 'Cuenta como 1 falta'
+          }
+        });
 
         console.log('Estadísticas calculadas para la matrícula:', {
           totalSesiones,
@@ -982,8 +1031,7 @@ export default function AsistenciaDetallada() {
                               data={
                                 // Asegurarse de que haya sesiones para mostrar y al menos una asistencia o falta
                                 (matricula.totalSesiones && matricula.totalSesiones > 0)
-                                  ? (() => {
-                                      // Calculamos los diferentes tipos de asistencia para el gráfico
+                                  ? (() => {                                      // Calculamos los diferentes tipos de asistencia para el gráfico
                                       const asistenciasPorTipo = {
                                         asistencias: 0,
                                         justificadas: 0,
@@ -1003,6 +1051,12 @@ export default function AsistenciaDetallada() {
                                         
                                         if (estado === 'No Asiste' && tieneJustificacionAprobada) {
                                           asistenciasPorTipo.justificadas++;
+                                        } else if (estado === 'No Asiste Justificada') {
+                                          // Caso explícito para "No Asiste Justificada"
+                                          asistenciasPorTipo.justificadas++;
+                                        } else if (estado === 'Justificada') {
+                                          // Caso explícito para "Justificada"
+                                          asistenciasPorTipo.justificadas++;
                                         } else if (estado === 'Asiste') {
                                           asistenciasPorTipo.asistencias++;
                                         } else if (estado === '50%') {
@@ -1013,6 +1067,8 @@ export default function AsistenciaDetallada() {
                                           asistenciasPorTipo.faltas++;
                                         }
                                       });
+                                      
+                                      console.log('Recuento de asistencias por tipo para el gráfico:', asistenciasPorTipo);
                                       
                                       // Creamos el array de datos para el gráfico
                                       const chartData = [];
@@ -1205,13 +1261,14 @@ export default function AsistenciaDetallada() {
                   </h3>
                 </div>
                 <div className="p-6">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full bg-white rounded-lg">                      <thead>
+                  <div className="overflow-x-auto">                    <table className="min-w-full bg-white rounded-lg">
+                      <thead>
                         <tr className="bg-gray-100 text-left text-xs font-medium text-gray-600 uppercase tracking-wider border-b border-gray-200">
                           <th className="px-6 py-3 rounded-tl-lg">Fecha</th><th className="px-6 py-3">Grupo</th><th className="px-6 py-3">Estado</th><th className="px-6 py-3 rounded-tr-lg">Justificación</th>
                         </tr>
                       </thead>
-                      <tbody className="text-sm divide-y divide-gray-100">                        {sesionesAlumno.length > 0 ? (
+                      <tbody className="text-sm divide-y divide-gray-100">
+                        {sesionesAlumno.length > 0 ? (
                           sesionesAlumno.map((asistencia) => (
                             <tr key={asistencia.id} className="hover:bg-blue-50 transition-colors">
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -1309,8 +1366,8 @@ export default function AsistenciaDetallada() {
                                     <FaFileAlt className="mr-1.5 text-xs" />
                                     Justificar falta                                  </Link>
                                 ) : null}
-                              </td></tr>
-                          ))                        ) : (
+                              </td></tr>                          ))
+                        ) : (
                           <tr><td colSpan={4} className="px-6 py-8 text-center">
                               <div className="flex flex-col items-center">
                                 <FaInfoCircle className="text-3xl text-gray-300 mb-3" />

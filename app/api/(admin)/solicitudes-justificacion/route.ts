@@ -115,9 +115,7 @@ export async function POST(request: NextRequest) {
         { error: 'El registro de asistencia especificado no existe' },
         { status: 400 }
       );
-    }
-
-    // Verificar si ya existe una solicitud para esta asistencia
+    }    // Verificar si ya existe una solicitud para esta asistencia
     const solicitudExistente = await prisma.solicitudJustificacion.findFirst({
       where: {
         asistenciaAlumnoId: asistenciaAlumnoId,
@@ -126,10 +124,37 @@ export async function POST(request: NextRequest) {
     });
 
     if (solicitudExistente) {
-      return NextResponse.json(
-        { error: 'Ya existe una solicitud de justificación para esta asistencia' },
-        { status: 400 }
-      );
+      // Si la solicitud existe pero fue rechazada, actualizarla en lugar de crear una nueva
+      if (solicitudExistente.rechazada) {
+        const solicitudActualizada = await prisma.solicitudJustificacion.update({
+          where: { id: solicitudExistente.id },
+          data: {
+            alegacion,
+            fechaAlegacion: new Date(fechaAlegacion),
+            // Establecer el estado de nuevo a pendiente
+            estadoJustificacionId,
+            // Reiniciar los campos de respuesta y fecha
+            respuesta: null,
+            fechaRespuesta: null,
+            rechazada: false
+          }
+        });
+
+        await logActivity({
+          req: request,
+          action: 'update',
+          entityType: 'solicitudJustificacion',
+          entityId: solicitudActualizada.id,
+          details: `Actualización de solicitud de justificación rechazada del alumno ${alumnoExistente.email}`
+        });
+
+        return NextResponse.json(solicitudActualizada, { status: 200 });
+      } else {
+        return NextResponse.json(
+          { error: 'Ya existe una solicitud de justificación para esta asistencia' },
+          { status: 400 }
+        );
+      }
     }
 
     // Crear la nueva solicitud de justificación

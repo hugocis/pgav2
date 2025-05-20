@@ -40,6 +40,10 @@ interface AsistenciaAlumno {
 interface SolicitudJustificacion {
   id: string;
   fechaAlegacion: string;
+  alegacion?: string;
+  respuesta?: string | null;
+  rechazada?: boolean;
+  fechaRespuesta?: string | null;
   estadoJustificacion?: {
     id: string;
     denominacion: string;
@@ -63,7 +67,6 @@ export default function JustificarFalta() {
   const [alegacion, setAlegacion] = useState('');
   const [enlaceDocumentacion, setEnlaceDocumentacion] = useState('');  
   const [estadosJustificacion, setEstadosJustificacion] = useState<EstadoJustificacion[]>([]);
-
   useEffect(() => {
     const fetchAsistencia = async () => {
       if (!asistenciaId) return;
@@ -82,6 +85,15 @@ export default function JustificarFalta() {
         // La API devuelve un objeto único, no un array
         if (data && data.id) {
           setAsistencia(data);
+          
+          // Comprobar si hay una justificación rechazada y cargar los datos
+          if (data.SolicitudJustificacion && data.SolicitudJustificacion.length > 0) {
+            const justificacion = data.SolicitudJustificacion[0];
+            if (justificacion.rechazada) {
+              // Prellenar el formulario con la alegación anterior
+              setAlegacion(justificacion.alegacion || '');
+            }
+          }
         } else {
           throw new Error('Registro de asistencia no encontrado');
         }
@@ -291,6 +303,23 @@ export default function JustificarFalta() {
               </div>
             ) : (
               <form onSubmit={handleSubmit}>
+                {asistencia && asistencia.SolicitudJustificacion && asistencia.SolicitudJustificacion.length > 0 && 
+                  asistencia.SolicitudJustificacion[0].rechazada && asistencia.SolicitudJustificacion[0].respuesta && (
+                  <div className="mb-6 bg-red-50 p-4 rounded-lg border border-red-200">
+                    <h3 className="font-semibold text-red-700 mb-2 flex items-center">
+                      <FaExclamationTriangle className="mr-2" />
+                      Justificación rechazada anteriormente
+                    </h3>
+                    <p className="text-gray-700 mb-2">Tu justificación anterior fue rechazada por el siguiente motivo:</p>
+                    <div className="p-3 bg-white rounded border border-red-100 text-gray-800">
+                      {asistencia.SolicitudJustificacion[0].respuesta}
+                    </div>
+                    <p className="mt-3 text-sm text-gray-600">
+                      Por favor, revisa el motivo del rechazo, modifica tu justificación y vuelve a enviarla.
+                    </p>
+                  </div>
+                )}
+
                 {asistencia && (
                   <div className="mb-6 bg-gray-50 p-4 rounded-lg">
                     <h3 className="font-semibold text-gray-700 mb-2">Información de la falta</h3>

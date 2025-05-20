@@ -426,6 +426,7 @@ model SolicitudJustificacion {
   respuesta      String?
   fechaAlegacion DateTime
   fechaRespuesta DateTime?
+  rechazada      Boolean   @default(false)  // Indica si la justificación fue rechazada
 
   alumnoId              String
   user                  User                @relation(fields: [alumnoId], references: [id], onDelete: Cascade)

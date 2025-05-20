@@ -118,23 +118,21 @@ export default function ManagerDashboard() {
     };
 
     fetchData();
-  }, []);
-  // Función para obtener la clase de color según el porcentaje
+  }, []);  // Función para obtener la clase de color según el porcentaje
   const getAttendanceColorClass = (rate: number) => {
-    if (rate >= 80) return 'text-emerald-600';
-    if (rate >= 60) return 'text-sky-500';
-    return 'text-indigo-500';
+    if (rate >= 80) return 'text-emerald-700';
+    if (rate >= 60) return 'text-sky-700';
+    return 'text-indigo-700';
   };
-
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'approved':
-        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        return 'bg-emerald-200 text-emerald-900 border-emerald-300';
       case 'rejected':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+        return 'bg-indigo-200 text-indigo-900 border-indigo-300';
       case 'pending':
       default:
-        return 'bg-sky-100 text-sky-700 border-sky-200';
+        return 'bg-sky-200 text-sky-900 border-sky-300';
     }
   };
   const getStatusText = (status: string) => {
@@ -197,7 +195,7 @@ export default function ManagerDashboard() {
                   </div>
                 </div>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-blue-200"></div>
             </div>
           </div>
 
@@ -281,8 +279,8 @@ export default function ManagerDashboard() {
               <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">                <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition duration-300">
                   <div className="p-3 sm:p-5">
                     <div className="flex items-center">
-                      <div className="rounded-full bg-blue-100 p-2 sm:p-3 mr-3 sm:mr-4">
-                        <FaUsers className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                      <div className="rounded-full bg-gradient-to-r from-[#0D3C68] to-[#1a5590] p-2 sm:p-3 mr-3 sm:mr-4">
+                        <FaUsers className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                       </div>
                       <div>
                         <p className="text-xs sm:text-sm font-medium text-gray-500">Total Alumnos</p>
@@ -290,14 +288,12 @@ export default function ManagerDashboard() {
                       </div>
                     </div>
                   </div>
-                  <div className="bg-blue-600 h-1"></div>
-                </div>
-
-                <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition duration-300">
+                  <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] h-1"></div>
+                </div>                <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition duration-300">
                   <div className="p-3 sm:p-5">
                     <div className="flex items-center">
-                      <div className="rounded-full bg-blue-100 p-2 sm:p-3 mr-3 sm:mr-4">
-                        <FaUserCheck className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                      <div className="rounded-full bg-gradient-to-r from-[#0D3C68] to-[#1a5590] p-2 sm:p-3 mr-3 sm:mr-4">
+                        <FaUserCheck className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                       </div>
                       <div>
                         <p className="text-xs sm:text-sm font-medium text-gray-500">Total Profesores</p>
@@ -305,14 +301,12 @@ export default function ManagerDashboard() {
                       </div>
                     </div>
                   </div>
-                  <div className="bg-blue-600 h-1"></div>
-                </div>
-
-                <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition duration-300">
+                  <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] h-1"></div>
+                </div>                <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition duration-300">
                   <div className="p-3 sm:p-5">
                     <div className="flex items-center">
-                      <div className="rounded-full bg-blue-100 p-2 sm:p-3 mr-3 sm:mr-4">
-                        <FaUniversity className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                      <div className="rounded-full bg-gradient-to-r from-[#0D3C68] to-[#1a5590] p-2 sm:p-3 mr-3 sm:mr-4">
+                        <FaUniversity className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                       </div>
                       <div>
                         <p className="text-xs sm:text-sm font-medium text-gray-500">Total Asignaturas</p>
@@ -320,14 +314,12 @@ export default function ManagerDashboard() {
                       </div>
                     </div>
                   </div>
-                  <div className="bg-blue-600 h-1"></div>
-                </div>
-
-                <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition duration-300">
+                  <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] h-1"></div>
+                </div>                <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition duration-300">
                   <div className="p-3 sm:p-5">
                     <div className="flex items-center">
-                      <div className="rounded-full bg-blue-100 p-2 sm:p-3 mr-3 sm:mr-4">
-                        <FaChartBar className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                      <div className="rounded-full bg-gradient-to-r from-[#0D3C68] to-[#1a5590] p-2 sm:p-3 mr-3 sm:mr-4">
+                        <FaChartBar className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                       </div>
                       <div>
                         <p className="text-xs sm:text-sm font-medium text-gray-500">Asistencia Media</p>
@@ -339,13 +331,13 @@ export default function ManagerDashboard() {
                       </div>
                     </div>
                   </div>
-                  <div className="bg-blue-600 h-1"></div>
+                  <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] h-1"></div>
                 </div>
               </div>
 
               {/* Secciones principales */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6">                {/* Solicitudes pendientes */}                <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-                  <div className="bg-gradient-to-r from-blue-600 to-blue-400 p-4 md:p-5 border-b border-gray-200">
+                  <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] p-4 md:p-5 border-b border-gray-200">
                     <h2 className="text-lg md:text-xl font-semibold text-white flex items-center">
                       <div className="bg-white/20 p-2 rounded-full mr-3 shadow-sm backdrop-blur-sm">
                         <FaExclamationTriangle className="text-white text-sm md:text-base" />
@@ -359,11 +351,10 @@ export default function ManagerDashboard() {
                     </h2>
                   </div>
                   <div className="p-4 md:p-5">
-                    <div className="grid grid-cols-1 gap-3 md:gap-4">
-                      <Link href="/manager/dispensas-academicas" className="flex items-center justify-between p-3 md:p-4 bg-gradient-to-r from-blue-50 to-blue-100/50 rounded-lg border border-blue-100 hover:bg-blue-100/70 transition-colors">
+                    <div className="grid grid-cols-1 gap-3 md:gap-4">                      <Link href="/manager/dispensas-academicas" className="flex items-center justify-between p-3 md:p-4 bg-white rounded-lg border border-blue-100 hover:bg-blue-50/70 transition-colors">
                         <div className="flex items-center">
-                          <div className="bg-blue-100 p-1.5 md:p-2 rounded-full">
-                            <FaClipboardList className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
+                          <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] p-1.5 md:p-2 rounded-full">
+                            <FaClipboardList className="h-4 w-4 md:h-5 md:w-5 text-white" />
                           </div>
                           <div className="ml-3">
                             <p className="font-medium text-gray-800 text-sm md:text-base">Dispensas Académicas</p>
@@ -371,15 +362,14 @@ export default function ManagerDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center">
-                          <div className="bg-blue-200 text-blue-800 px-2 md:px-3 py-0.5 md:py-1 rounded-full text-xs md:text-sm font-semibold">
+                          <div className="bg-[#0D3C68] text-white px-2 md:px-3 py-0.5 md:py-1 rounded-full text-xs md:text-sm font-semibold">
                             {stats.pendingDispensations}
                           </div>
                         </div>
-                      </Link>
-                        <Link href="/manager/justificaciones" className="flex items-center justify-between p-3 md:p-4 bg-gradient-to-r from-blue-50 to-blue-100/50 rounded-lg border border-blue-100 hover:bg-blue-100/70 transition-colors">
+                      </Link>                        <Link href="/manager/justificaciones" className="flex items-center justify-between p-3 md:p-4 bg-white rounded-lg border border-blue-100 hover:bg-blue-50/70 transition-colors">
                         <div className="flex items-center">
-                          <div className="bg-blue-100 p-1.5 md:p-2 rounded-full">
-                            <FaFileAlt className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
+                          <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] p-1.5 md:p-2 rounded-full">
+                            <FaFileAlt className="h-4 w-4 md:h-5 md:w-5 text-white" />
                           </div>
                           <div className="ml-3">
                             <p className="font-medium text-gray-800 text-sm md:text-base">Justificaciones de Faltas</p>
@@ -387,16 +377,14 @@ export default function ManagerDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center">
-                          <div className="bg-blue-200 text-blue-800 px-2 md:px-3 py-0.5 md:py-1 rounded-full text-xs md:text-sm font-semibold">
+                          <div className="bg-[#0D3C68] text-white px-2 md:px-3 py-0.5 md:py-1 rounded-full text-xs md:text-sm font-semibold">
                             {stats.pendingJustifications}
                           </div>
                         </div>
-                      </Link>
-                      
-                      <Link href="/manager/firmas-docente" className="flex items-center justify-between p-3 md:p-4 bg-gradient-to-r from-blue-50 to-blue-100/50 rounded-lg border border-blue-100 hover:bg-blue-100/70 transition-colors">
+                      </Link>                      <Link href="/manager/firmas-docente" className="flex items-center justify-between p-3 md:p-4 bg-white rounded-lg border border-blue-100 hover:bg-blue-50/70 transition-colors">
                         <div className="flex items-center">
-                          <div className="bg-blue-100 p-1.5 md:p-2 rounded-full">
-                            <FaFileSignature className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
+                          <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] p-1.5 md:p-2 rounded-full">
+                            <FaFileSignature className="h-4 w-4 md:h-5 md:w-5 text-white" />
                           </div>
                           <div className="ml-3">
                             <p className="font-medium text-gray-800 text-sm md:text-base">Firmas de Docente</p>
@@ -404,7 +392,7 @@ export default function ManagerDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center">
-                          <div className="bg-blue-200 text-blue-800 px-2 md:px-3 py-0.5 md:py-1 rounded-full text-xs md:text-sm font-semibold">
+                          <div className="bg-[#0D3C68] text-white px-2 md:px-3 py-0.5 md:py-1 rounded-full text-xs md:text-sm font-semibold">
                             {stats.pendingSignatures}
                           </div>
                         </div>
@@ -413,7 +401,7 @@ export default function ManagerDashboard() {
                   </div>
                 </div>                {/* Solicitudes recientes */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-                  <div className="bg-gradient-to-r from-blue-500 to-blue-300 p-4 md:p-5 border-b border-gray-200">
+                  <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] p-4 md:p-5 border-b border-gray-200">
                     <h2 className="text-lg md:text-xl font-semibold text-white flex items-center">
                       <div className="bg-white/20 p-2 rounded-full mr-3 shadow-sm backdrop-blur-sm">
                         <FaClipboardList className="text-white" />
@@ -442,8 +430,7 @@ export default function ManagerDashboard() {
                               </span>
                             </div>
                           </div>
-                        ))}
-                        <Link href="/manager/dispensas-academicas" className="block text-center text-sm text-blue-600 hover:text-blue-800 mt-3 font-medium">
+                        ))}                        <Link href="/manager/dispensas-academicas" className="block text-center text-sm text-[#0D3C68] hover:text-[#1a5590] mt-3 font-medium">
                           Ver todas las solicitudes →
                         </Link>
                       </div>
@@ -455,7 +442,7 @@ export default function ManagerDashboard() {
                   </div>
                 </div>                {/* Justificaciones recientes */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-                  <div className="bg-gradient-to-r from-blue-400 to-blue-200 p-4 md:p-5 border-b border-gray-200">
+                  <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] p-4 md:p-5 border-b border-gray-200">
                     <h2 className="text-lg md:text-xl font-semibold text-white flex items-center">
                       <div className="bg-white/20 p-2 rounded-full mr-3 shadow-sm backdrop-blur-sm">
                         <FaFileAlt className="text-white" />
@@ -484,8 +471,7 @@ export default function ManagerDashboard() {
                               </span>
                             </div>
                           </div>
-                        ))}
-                        <Link href="/manager/justificaciones" className="block text-center text-sm text-blue-600 hover:text-blue-800 mt-3 font-medium">
+                        ))}                        <Link href="/manager/justificaciones" className="block text-center text-sm text-[#0D3C68] hover:text-[#1a5590] mt-3 font-medium">
                           Ver todas las justificaciones →
                         </Link>
                       </div>
@@ -498,7 +484,7 @@ export default function ManagerDashboard() {
                 </div>
               </div>              {/* Estadísticas de asistencia por departamento */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-700 to-blue-500 p-5 border-b border-gray-200">
+                <div className="bg-gradient-to-r from-[#0D3C68] to-[#1a5590] p-5 border-b border-gray-200">
                   <h2 className="text-xl font-semibold text-white flex items-center">
                     <div className="bg-white/20 p-2 rounded-full mr-3 shadow-sm backdrop-blur-sm">
                       <FaChartBar className="text-white" />
@@ -511,21 +497,19 @@ export default function ManagerDashboard() {
                     </div>
                   </h2>
                 </div>                <div className="p-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {stats.attendanceByDepartment.map((dept, index) => (
-                      <div key={index} className="bg-gradient-to-r from-blue-50 to-blue-100/50 rounded-lg p-4 border border-blue-100">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">                    {stats.attendanceByDepartment.map((dept, index) => (
+                      <div key={index} className="bg-white rounded-lg p-4 border border-blue-100">
                         <div className="flex justify-between items-center mb-2">
                           <div className="font-medium text-gray-800">{dept.department}</div>
                           <div className={`font-bold ${getAttendanceColorClass(dept.rate)}`}>
                             {dept.rate}%
                           </div>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full ${
-                              dept.rate >= 80 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 
-                              dept.rate >= 60 ? 'bg-gradient-to-r from-sky-500 to-sky-400' : 
-                              'bg-gradient-to-r from-indigo-500 to-indigo-400'
+                        <div className="w-full bg-gray-200 rounded-full h-2">                          <div 
+                            className={`h-3 rounded-full ${
+                              dept.rate >= 80 ? 'bg-gradient-to-r from-[#0D3C68] to-[#1a5590]' : 
+                              dept.rate >= 60 ? 'bg-gradient-to-r from-[#1a5590] to-[#2673be]' : 
+                              'bg-gradient-to-r from-[#2673be] to-[#3991e5]'
                             }`} 
                             style={{ width: `${dept.rate}%` }}>
                           </div>
@@ -534,8 +518,7 @@ export default function ManagerDashboard() {
                     ))}
                   </div>
                   
-                  <div className="mt-5 text-center">
-                    <Link href="/manager/informes-asistencia" className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300">
+                  <div className="mt-5 text-center">                    <Link href="/manager/informes-asistencia" className="inline-flex items-center justify-center px-4 py-2 bg-gradient-to-r from-[#0D3C68] to-[#1a5590] text-white rounded-md hover:from-[#0a3056] hover:to-[#164879] transition duration-300">
                       <FaChartBar className="mr-2" />
                       Ver informes detallados
                     </Link>
