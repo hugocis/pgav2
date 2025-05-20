@@ -111,12 +111,10 @@ export default function AcademicDispensations() {
     status: '',
     comments: ''
   });
-  
+    // Efecto para cargar los estados de dispensa (separado para evitar bucles)
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchEstados = async () => {
       try {
-        setIsLoading(true);
-        
         // Obtener los estados de dispensa para usarlos en filtros y resolución
         const estadosResponse = await fetch('/api/estados-dispensa', {
           credentials: 'include'
@@ -126,6 +124,21 @@ export default function AcademicDispensations() {
           const estadosData = await estadosResponse.json();
           setEstadosDispensa(estadosData);
         }
+      } catch (error) {
+        console.error('Error al cargar estados de dispensa:', error);
+      }
+    };
+
+    if (session?.user?.id) {
+      fetchEstados();
+    }
+  }, [session?.user?.id]);
+
+  // Efecto para cargar los datos de solicitudes de dispensa
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
         
         // Construir parámetros de consulta basados en los filtros
         const queryParams = new URLSearchParams();
@@ -135,14 +148,13 @@ export default function AcademicDispensations() {
             queryParams.append('estadoId', estadoId);
           }
         }
-        
-        if (filter.dateFrom) queryParams.append('dateFrom', filter.dateFrom);
+          if (filter.dateFrom) queryParams.append('dateFrom', filter.dateFrom);
         if (filter.dateTo) queryParams.append('dateTo', filter.dateTo);
         if (filter.subjectCode) queryParams.append('subjectCode', filter.subjectCode);
         if (filter.searchTerm) queryParams.append('searchTerm', filter.searchTerm);
           
         // Hacer la llamada a la API con los filtros aplicados
-        const response = await fetch(`/api/solicitudes-dispensa?${queryParams.toString()}`, {
+        const response = await fetch(`/api/manager/dispensas-academicas?${queryParams.toString()}`, {
           credentials: 'include'
         });
         
@@ -166,7 +178,7 @@ export default function AcademicDispensations() {
       }
     };
 
-    if (session?.user?.id) {
+    if (session?.user?.id && estadosDispensa.length > 0) {
       fetchData();
     }
   }, [filter, session?.user?.id, estadosDispensa]);
@@ -237,29 +249,27 @@ export default function AcademicDispensations() {
       searchTerm: ''
     });
   };
-
   const getStatusBadgeClass = (estado: string) => {
     switch (estado.toLowerCase()) {
       case 'aprobada':
       case 'aceptada':
       case 'justificada':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'rechazada':
       case 'denegada':
       case 'no justificada':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       case 'pendiente':
       default:
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-sky-100 text-sky-700 border-sky-200';
     }
   };
 
   const handleResolve = async () => {
     if (!selectedRequest) return;
-    
-    try {
+      try {
       // Llamada a la API para actualizar el estado de la solicitud
-      const response = await fetch('/api/solicitudes-dispensa', {
+      const response = await fetch('/api/manager/dispensas-academicas', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -334,9 +344,8 @@ export default function AcademicDispensations() {
             </ol>
           </nav>
 
-          {/* Header with back button */}
-          <div className="mb-6 bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-5 text-white">
+          {/* Header with back button */}          <div className="mb-6 bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="relative bg-gradient-to-r from-blue-600 to-blue-400 px-6 py-5 text-white">
               <div className="flex justify-between items-center">
                 <div>
                   <div className="flex items-center">
@@ -353,22 +362,21 @@ export default function AcademicDispensations() {
                   </p>
                 </div>
                 <div>
-                  <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm">
+                  <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm backdrop-blur-sm">
                     {filteredRequests.length} solicitudes
                   </span>
                 </div>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-300 to-blue-100"></div>
             </div>
           </div>
 
-          {/* Filtros y acciones */}
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
-            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-white to-blue-50/30">
+          {/* Filtros y acciones */}          <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100/30">
               <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                   <div className="bg-blue-100 p-2 rounded-full mr-3 shadow-sm">
-                    <FaClipboardList className="text-[#0D3C68]" />
+                    <FaClipboardList className="text-blue-600" />
                   </div>
                   <div>
                     <span className="text-gray-900">Solicitudes de Dispensas</span>
@@ -389,16 +397,15 @@ export default function AcademicDispensations() {
                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                       <FaSearch />
                     </div>
-                  </div>
-                  <button
+                  </div>                  <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 flex items-center justify-center transition-colors shadow-sm"
+                    className="px-4 py-2 bg-blue-50 text-blue-700 rounded-md border border-blue-100 hover:bg-blue-100 flex items-center justify-center transition-colors shadow-sm"
                   >
                     <FaFilter className="mr-2" />
                     {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
                   </button>
                   <button
-                    className="px-4 py-2 bg-[#0D3C68] text-white rounded-md hover:bg-[#0a325a] flex items-center justify-center transition-colors shadow-sm"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center transition-colors shadow-sm"
                   >
                     <FaFileDownload className="mr-2" />
                     Exportar

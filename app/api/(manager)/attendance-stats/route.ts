@@ -43,14 +43,43 @@ export async function GET() {
     // Para cada carrera asignada, calcular su tasa de asistencia
     for (const managerCarrera of managerCarreras) {
       const carrera = managerCarrera.carrera;
+        // Verificar primero si la carrera tiene asignaturas con sesiones
+      const asignaturasConSesiones = await prisma.asignatura.findMany({
+        where: {
+          carreraId: carrera.id,
+          Grupo: {
+            some: {
+              SesionClase: {
+                some: {}
+              }
+            }
+          }
+        },
+        select: {
+          id: true
+        }
+      });
       
-      // Obtener todas las asistencias relacionadas con esta carrera
+      // Si no hay asignaturas con sesiones, ponemos un rate de 0
+      if (asignaturasConSesiones.length === 0) {
+        attendanceData.push({
+          department: carrera.denominacion,
+          rate: 0
+        });
+        continue; // Saltamos a la siguiente iteración
+      }
+      
+      const asignaturaIds = asignaturasConSesiones.map(a => a.id);
+      
+      // Obtener solo las asistencias de asignaturas con sesiones
       const asistencias = await prisma.asistenciaAlumno.findMany({
         where: {
           sesionClase: {
             grupo: {
               asignatura: {
-                carreraId: carrera.id
+                id: {
+                  in: asignaturaIds
+                }
               }
             }
           }
@@ -62,7 +91,7 @@ export async function GET() {
       
       const totalAsistencias = asistencias.length;
       const asistenciasPresentes = asistencias.filter(a =>
-        a.estado === 'Presente' || a.estado === 'P'
+        a.estado === 'Presente' || a.estado === 'P' || a.estado === 'Asiste'
       ).length;
       
       const rate = totalAsistencias > 0 

@@ -89,14 +89,19 @@ export default function AttendanceReports() {
     dateFrom: '',
     dateTo: ''
   });
-  
-  const [attendanceData, setAttendanceData] = useState<AttendanceData[]>([]);
+    const [attendanceData, setAttendanceData] = useState<AttendanceData[]>([]);
   const [filteredData, setFilteredData] = useState<AttendanceData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [reportType, setReportType] = useState<'course' | 'subject' | 'student' | 'rate'>('course');
-  
-  useEffect(() => {
+  interface DepartmentStat {
+    id: string;
+    name: string;
+    value: number;
+  }
+  const [departmentStats, setDepartmentStats] = useState<DepartmentStat[]>([]);
+  const [averageAttendanceRate, setAverageAttendanceRate] = useState(0);
+    useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
@@ -116,7 +121,8 @@ export default function AttendanceReports() {
         
         // Hacer la llamada a la API con los filtros aplicados
         const response = await fetch(`/api/informes-asistencia?${queryParams.toString()}`, {
-          credentials: 'include'
+          credentials: 'include',
+          cache: 'no-store' // Para asegurar siempre datos frescos
         });
         
         if (!response.ok) {
@@ -124,99 +130,88 @@ export default function AttendanceReports() {
         }
         
         const data = await response.json();
+          console.log("Datos recibidos de la API:", data);
         
         // Actualizar los datos de asistencia
         if (data.attendanceData) {
           setAttendanceData(data.attendanceData);
           setFilteredData(data.attendanceData);
+          console.log(`Datos de asistencia establecidos: ${data.attendanceData.length} registros`);
         } else {
-          setAttendanceData(data);
-          setFilteredData(data);
+          console.log("No se encontraron datos de asistencia en la respuesta");
+          setAttendanceData([]);
+          setFilteredData([]);
         }
-          // Actualizar los filtros disponibles si la API los proporciona
-        if (data.academicYears) setAcademicYears(data.academicYears.map((year: AcademicYear) => year.name));
-        if (data.departments) setDepartments(data.departments.map((dept: Department) => dept.name));
-        if (data.subjects) setSubjects(['Todos', ...data.subjects.map((subj: Subject) => subj.Denominacion)]);
-        if (data.courses) setCourses(data.courses);
-        if (data.semesters) setSemesters(data.semesters);
+        
+        // Actualizar los filtros disponibles si la API los proporciona
+        if (data.academicYears && data.academicYears.length > 0) {
+          // Agregar 'Todos' al inicio y convertir los años académicos
+          const years = ['Todos', ...data.academicYears.map((year: AcademicYear) => year.name)];
+          setAcademicYears(years);
+          console.log(`Años académicos establecidos: ${years.length - 1} años`);
+        }
+        
+        if (data.departments && data.departments.length > 0) {
+          // Usar los datos de departamentos de la API, asegurando que 'Todos' está al inicio
+          const deptNames = data.departments.map((dept: Department) => dept.name);
+          if (!deptNames.includes('Todos')) {
+            deptNames.unshift('Todos');
+          }
+          setDepartments(deptNames);
+          console.log(`Departamentos establecidos: ${deptNames.length - 1} departamentos`);
+        }
+        
+        if (data.subjects && data.subjects.length > 0) {
+          // Agregar 'Todos' al inicio y extraer los nombres de las asignaturas
+          const subjectList = ['Todos', ...data.subjects.map((subj: Subject) => subj.Denominacion)];
+          setSubjects(subjectList);
+          console.log(`Asignaturas establecidas: ${subjectList.length - 1} asignaturas`);
+        }
+        
+        if (data.courses) {
+          setCourses(data.courses);
+        }
+        
+        if (data.semesters) {
+          setSemesters(data.semesters);
+        }
+        
+        // Actualizar las estadísticas por departamento para los gráficos
+        if (data.departmentStats && Array.isArray(data.departmentStats)) {
+          console.log(`Estadísticas de departamentos recibidas: ${data.departmentStats.length} departamentos`);
+          setDepartmentStats(data.departmentStats);
+        } else {
+          console.log("No se recibieron estadísticas de departamentos válidas");
+          setDepartmentStats([]);
+        }
+          // Actualizar la tasa de asistencia media
+        if (data.averageAttendanceRate !== undefined) {
+          console.log(`Tasa media de asistencia recibida: ${data.averageAttendanceRate}%`);
+          setAverageAttendanceRate(data.averageAttendanceRate);
+        } else {
+          console.log("No se recibió tasa media de asistencia");          // Si no hay tasa media en la API pero tenemos departmentStats, la calculamos nosotros
+          if (data.departmentStats && Array.isArray(data.departmentStats) && data.departmentStats.length > 0) {
+            const statsWithData = data.departmentStats.filter((dept: DepartmentStat) => dept.value > 0);
+            if (statsWithData.length > 0) {
+              const avgRate = statsWithData.reduce((sum: number, dept: DepartmentStat) => sum + dept.value, 0) / statsWithData.length;
+              console.log(`Tasa media calculada localmente: ${avgRate.toFixed(1)}%`);
+              setAverageAttendanceRate(Number(avgRate.toFixed(1)));
+            } else {
+              setAverageAttendanceRate(0);
+            }
+          } else {
+            setAverageAttendanceRate(0);
+          }
+        }
         
         setError(null);
       } catch (error) {
         console.error('Error al cargar datos de asistencia:', error);
         setError('No se pudieron cargar los datos de asistencia. Por favor, intente nuevamente más tarde.');
         
-        // Usar datos de ejemplo en caso de error
-        const mockData: AttendanceData[] = [
-          {
-            id: '1',
-            subject: 'Matemáticas Discretas',
-            department: 'Ciencias',
-            course: '1º',
-            semester: '1er Semestre',
-            attendanceRate: 78.5,
-            totalStudents: 45,
-            totalSessions: 28,
-            lastUpdateDate: '2025-05-10'
-          },
-          {
-            id: '2',
-            subject: 'Programación II',
-            department: 'Ingeniería',
-            course: '1º',
-            semester: '2do Semestre',
-            attendanceRate: 82.3,
-            totalStudents: 38,
-            totalSessions: 32,
-            lastUpdateDate: '2025-05-09'
-          },
-          {
-            id: '3',
-            subject: 'Historia del Arte',
-            department: 'Humanidades',
-            course: '2º',
-            semester: '1er Semestre',
-            attendanceRate: 75.2,
-            totalStudents: 56,
-            totalSessions: 24,
-            lastUpdateDate: '2025-05-08'
-          },
-          {
-            id: '4',
-            subject: 'Derecho Romano',
-            department: 'Derecho',
-            course: '1º',
-            semester: '1er Semestre',
-            attendanceRate: 81.7,
-            totalStudents: 62,
-            totalSessions: 30,
-            lastUpdateDate: '2025-05-07'
-          },
-          {
-            id: '5',
-            subject: 'Física Cuántica',
-            department: 'Ciencias',
-            course: '3º',
-            semester: '2do Semestre',
-            attendanceRate: 69.8,
-            totalStudents: 34,
-            totalSessions: 22,
-            lastUpdateDate: '2025-05-06'
-          },
-          {
-            id: '6',
-            subject: 'Economía Aplicada',
-            department: 'Economía',
-            course: '2º',
-            semester: '1er Semestre',
-            attendanceRate: 73.2,
-            totalStudents: 51,
-            totalSessions: 26,
-            lastUpdateDate: '2025-05-05'
-          }
-        ];
-        
-        setAttendanceData(mockData);
-        setFilteredData(mockData);
+        // No mostrar datos de ejemplo en caso de error, mostrar array vacío
+        setAttendanceData([]);
+        setFilteredData([]);
       } finally {
         setIsLoading(false);
       }
@@ -683,20 +678,20 @@ export default function AttendanceReports() {
                       Última actualización: {new Date().toLocaleDateString('es-ES')}
                     </div>
                   </div>
-                  
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Asignatura
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Departamento
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Curso
-                          </th>
+                    <div className="overflow-x-auto">
+                    {filteredData.length > 0 ? (
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Asignatura
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Departamento
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Curso
+                            </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Semestre
                           </th>
@@ -762,8 +757,7 @@ export default function AttendanceReports() {
                                   </button>
                                 </div>
                               </td>
-                            </tr>
-                          ))
+                            </tr>                          ))
                         ) : (
                           <tr>
                             <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
@@ -773,11 +767,29 @@ export default function AttendanceReports() {
                         )}
                       </tbody>
                     </table>
+                    ) : (
+                      <div className="text-center py-10">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
+                          <FaChartBar className="w-8 h-8 text-blue-600" />
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-1">No hay datos de asistencia disponibles</h3>
+                        <p className="text-gray-500 mb-5">
+                          {error ? 
+                            error : 
+                            'No se encontraron datos de asistencia con los filtros seleccionados o para las carreras asignadas que tengan sesiones registradas.'
+                          }
+                        </p>
+                        <button
+                          onClick={resetFilters}
+                          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                          Restablecer filtros
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-
-              {/* Panel de estadísticas visuales */}
+              </div>              {/* Panel de estadísticas visuales */}
               <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                 <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-white to-blue-50/30">
                   <h2 className="text-xl font-semibold text-gray-800 flex items-center">
@@ -791,61 +803,150 @@ export default function AttendanceReports() {
                       </div>
                     </div>
                   </h2>
+                  {departmentStats.length === 0 && (
+                    <div className="mt-2 px-3 py-2 bg-blue-50 text-blue-700 text-sm rounded-md flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Solo se muestran estadísticas de departamentos que tienen asignaturas con sesiones registradas
+                    </div>
+                  )}
                 </div>
                 <div className="p-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Gráfico de barras simulado */}
-                    <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                    {/* Gráfico de barras simulado */}                    <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
                       <h3 className="font-medium text-gray-800 mb-4">Asistencia por Departamento</h3>
                       <div className="space-y-4">
-                        {[
-                          { name: 'Ingeniería', value: 82.3 },
-                          { name: 'Ciencias', value: 76.8 },
-                          { name: 'Humanidades', value: 75.2 },
-                          { name: 'Derecho', value: 81.7 },
-                          { name: 'Medicina', value: 88.9 }
-                        ].map((item, index) => (
-                          <div key={index}>
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-sm text-gray-700">{item.name}</span>
-                              <span className={`text-sm font-medium ${getAttendanceColorClass(item.value)}`}>
-                                {item.value.toFixed(1)}%
-                              </span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5">
-                              <div 
-                                className={`h-2.5 rounded-full ${
-                                  item.value >= 80 ? 'bg-green-500' : 
-                                  item.value >= 60 ? 'bg-yellow-500' : 
-                                  'bg-red-500'
-                                }`} 
-                                style={{ width: `${item.value}%` }}>
+                        {departmentStats.length > 0 ? (
+                          departmentStats.map((item, index) => (
+                            <div key={index}>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-sm text-gray-700">{item.name}</span>
+                                <span className={`text-sm font-medium ${getAttendanceColorClass(item.value)}`}>
+                                  {item.value.toFixed(1)}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                <div 
+                                  className={`h-2.5 rounded-full ${
+                                    item.value >= 80 ? 'bg-green-500' : 
+                                    item.value >= 60 ? 'bg-yellow-500' : 
+                                    'bg-red-500'
+                                  }`} 
+                                  style={{ width: `${item.value}%` }}>
+                                </div>
                               </div>
                             </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-4 text-gray-500">
+                            No hay datos de asistencia disponibles para ningún departamento
                           </div>
-                        ))}
+                        )}
                       </div>
                     </div>
-                    
-                    {/* Gráfico circular simulado */}
+                      {/* Gráfico circular con datos reales */}
                     <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
                       <h3 className="font-medium text-gray-800 mb-4">Distribución de Asistencia</h3>
                       <div className="flex items-center justify-center h-64">
-                        <div className="w-48 h-48 rounded-full bg-gray-200 relative overflow-hidden">
-                          <div className="absolute inset-0 border-8 border-white rounded-full"></div>
-                          <div className="absolute top-0 left-0 w-full h-full bg-green-500" style={{ clipPath: 'polygon(50% 50%, 50% 0%, 100% 0%, 100% 70%, 50% 50%)' }}></div>
-                          <div className="absolute top-0 left-0 w-full h-full bg-yellow-500" style={{ clipPath: 'polygon(50% 50%, 100% 70%, 100% 100%, 60% 100%, 50% 50%)' }}></div>
-                          <div className="absolute top-0 left-0 w-full h-full bg-red-500" style={{ clipPath: 'polygon(50% 50%, 60% 100%, 0% 100%, 0% 40%, 50% 50%)' }}></div>
-                          <div className="absolute top-0 left-0 w-full h-full bg-blue-500" style={{ clipPath: 'polygon(50% 50%, 0% 40%, 0% 0%, 50% 0%, 50% 50%)' }}></div>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center">
-                              <div className="text-center">
-                                <div className="text-2xl font-bold text-gray-800">78.5%</div>
-                                <div className="text-xs text-gray-500">Media total</div>
+                        {departmentStats.length > 0 ? (
+                          <div className="w-48 h-48 rounded-full bg-gray-200 relative overflow-hidden">
+                            <div className="absolute inset-0 border-8 border-white rounded-full"></div>
+                            
+                            {/* Calcular cuántos departamentos tienen asistencia alta, media y baja */}
+                            {(() => {
+                              const highAttendance = departmentStats.filter(d => d.value >= 80).length;
+                              const mediumAttendance = departmentStats.filter(d => d.value >= 60 && d.value < 80).length;
+                              const lowAttendance = departmentStats.filter(d => d.value < 60 && d.value > 0).length;
+                              const noData = departmentStats.filter(d => d.value === 0).length;
+                              const total = departmentStats.length;
+                                console.log(`Distribución de asistencia: Alta=${highAttendance}, Media=${mediumAttendance}, Baja=${lowAttendance}, Sin Datos=${noData}, Total=${total}`);
+                              
+                              // Porcentajes más simples para gráfico de pastel
+                              const highPercent = (highAttendance / total) * 100;
+                              const mediumPercent = (mediumAttendance / total) * 100;
+                              const lowPercent = (lowAttendance / total) * 100;
+                              const noDataPercent = (noData / total) * 100;
+                              
+                              return (
+                                <>
+                                  {/* Alta asistencia - Verde (arriba) */}
+                                  {highAttendance > 0 && (
+                                    <div 
+                                      className="absolute bg-green-500" 
+                                      style={{ 
+                                        width: '100%', 
+                                        height: '100%', 
+                                        clipPath: `polygon(50% 0, 100% 0, 100% 50%, 50% 50%)`,
+                                        opacity: highPercent / 100
+                                      }}
+                                    ></div>
+                                  )}
+                                  
+                                  {/* Media asistencia - Amarillo (derecha) */}
+                                  {mediumAttendance > 0 && (
+                                    <div 
+                                      className="absolute bg-yellow-500" 
+                                      style={{ 
+                                        width: '100%', 
+                                        height: '100%', 
+                                        clipPath: `polygon(100% 50%, 100% 100%, 50% 100%, 50% 50%)`,
+                                        opacity: mediumPercent / 100
+                                      }}
+                                    ></div>
+                                  )}
+                                  
+                                  {/* Baja asistencia - Rojo (abajo) */}
+                                  {lowAttendance > 0 && (
+                                    <div 
+                                      className="absolute bg-red-500" 
+                                      style={{ 
+                                        width: '100%', 
+                                        height: '100%', 
+                                        clipPath: `polygon(50% 50%, 50% 100%, 0 100%, 0 50%)`,
+                                        opacity: lowPercent / 100
+                                      }}
+                                    ></div>
+                                  )}
+                                  
+                                  {/* Sin datos - Azul (izquierda) */}
+                                  {noData > 0 && (
+                                    <div 
+                                      className="absolute bg-blue-500" 
+                                      style={{ 
+                                        width: '100%', 
+                                        height: '100%', 
+                                        clipPath: `polygon(0 0, 50% 0, 50% 50%, 0 50%)`,
+                                        opacity: noDataPercent / 100
+                                      }}
+                                    ></div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                            
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center">
+                                <div className="text-center">
+                                  <div className={`text-2xl font-bold ${getAttendanceColorClass(averageAttendanceRate)}`}>
+                                    {averageAttendanceRate.toFixed(1)}%
+                                  </div>
+                                  <div className="text-xs text-gray-500">Media total</div>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="text-center">
+                            <div className="text-gray-500 mb-2">No hay datos de asistencia disponibles</div>
+                            <div className="w-48 h-48 rounded-full bg-gray-100 flex items-center justify-center">
+                              <div className="text-center text-gray-400">
+                                <FaChartBar className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                                <div>Sin datos</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="grid grid-cols-2 gap-2 mt-4">
                         <div className="flex items-center">

@@ -80,26 +80,48 @@ export async function GET() {
           in: carreraIds
         }
       }
-    });
-
-    // 4. Calcular tasa de asistencia media
-    const attendanceStats = await prisma.asistenciaAlumno.groupBy({
-      by: ['estado'],
-      _count: {
+    });    // 4. Calcular tasa de asistencia media, solo para asignaturas con sesiones
+    // Primero obtenemos las asignaturas que tienen al menos una sesión de clase
+    const asignaturasConSesiones = await prisma.asignatura.findMany({
+      where: {
+        carreraId: {
+          in: carreraIds
+        },
+        Grupo: {
+          some: {
+            SesionClase: {
+              some: {}
+            }
+          }
+        }
+      },
+      select: {
         id: true
       }
     });
 
-    let totalAttendances = 0;
-    let presentAttendances = 0;
+    const asignaturaIdsConSesiones = asignaturasConSesiones.map(a => a.id);
 
-    attendanceStats.forEach(stat => {
-      const count = stat._count.id;
-      totalAttendances += count;
-      if (stat.estado === 'Presente' || stat.estado === 'P') {
-        presentAttendances += count;
+    // Ahora calculamos la asistencia solo para esas asignaturas
+    const attendanceStats = await prisma.asistenciaAlumno.findMany({
+      where: {
+        sesionClase: {
+          grupo: {
+            asignaturaId: {
+              in: asignaturaIdsConSesiones
+            }
+          }
+        }
+      },
+      select: {
+        estado: true
       }
     });
+
+    let totalAttendances = attendanceStats.length;
+    let presentAttendances = attendanceStats.filter(a => 
+      a.estado === 'Presente' || a.estado === 'P' || a.estado === 'Asiste'
+    ).length;
 
     const attendanceRate = totalAttendances > 0 
       ? Number(((presentAttendances / totalAttendances) * 100).toFixed(1))
@@ -119,11 +141,9 @@ export async function GET() {
           denominacion: 'Pendiente' // Solo cuenta las que estén marcadas como "Pendiente"
         }
       }
-    });
-
-    // 7. Firmas docentes pendientes (simularemos esto ya que no tenemos un modelo directo para firmas)
+    });    // 7. Firmas docentes pendientes (simularemos esto ya que no tenemos un modelo directo para firmas)
     // En una implementación real esto dependería de la estructura de datos para firmas de docentes
-    const pendingSignatures = 8; // Valor predeterminado hasta tener una tabla para este concepto
+    const pendingSignatures = 0; // Valor actualizado, sin notificaciones pendientes
 
     // 8. Dispensas académicas recientes
     const recentDispensations = await prisma.solicitudDispensa.findMany({
@@ -195,9 +215,7 @@ export async function GET() {
         fechaAlegacion: 'desc'
       },
       take: 3
-    });   
-
-    // Obtener estadísticas solo para las carreras asignadas
+    });       // Obtener estadísticas solo para las carreras asignadas
     const attendanceByDepartment = await prisma.carrera.findMany({
       where: {
         id: {
@@ -205,8 +223,19 @@ export async function GET() {
         }
       },
       select: {
+        id: true,
         denominacion: true,
         Asignatura: {
+          where: {
+            // Filtrar solo asignaturas que tienen al menos una sesión de clase
+            Grupo: {
+              some: {
+                SesionClase: {
+                  some: {}
+                }
+              }
+            }
+          },
           select: {
             id: true,
             Grupo: {
@@ -232,12 +261,13 @@ export async function GET() {
       let totalAsistencias = 0;
       let asistenciasPresentes = 0;
       
+      // Solo procesamos asignaturas que tienen grupos con sesiones
       dept.Asignatura.forEach(asig => {
         asig.Grupo.forEach(grupo => {
           grupo.SesionClase.forEach(sesion => {
             sesion.AsistenciaAlumno.forEach(asistencia => {
               totalAsistencias++;
-              if (asistencia.estado === 'Presente' || asistencia.estado === 'P') {
+              if (asistencia.estado === 'Presente' || asistencia.estado === 'P' || asistencia.estado === 'Asiste') {
                 asistenciasPresentes++;
               }
             });
