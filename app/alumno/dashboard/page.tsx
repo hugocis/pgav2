@@ -1230,10 +1230,10 @@ export default function AlumnoDashboard() {
                             ))}
                           </div>
                         ) : (
-                          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
+                          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
                             {solicitudesDispensa.some(s => s.estadoDispensa?.denominacion === 'Pendiente') ? (
                               <p className="flex items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 Ya tienes solicitudes de dispensa pendientes de revisión. No puedes solicitar más hasta que se resuelvan.

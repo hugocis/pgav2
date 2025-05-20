@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 import prisma from '@/lib/prisma';
@@ -6,7 +6,7 @@ import prisma from '@/lib/prisma';
 // Umbral de asistencia para considerar que un alumno tiene problemas
 const UMBRAL_PROBLEMAS_ASISTENCIA = 80; // Porcentaje mínimo de asistencia requerido
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     // Verificar la sesión del usuario
     const session = await getServerSession(authOptions);
@@ -175,7 +175,7 @@ export async function GET(req: NextRequest) {
       // Si el alumno tiene asignatura relevantes, imprimir información de depuración
       if (asistenciasPorAsignatura.size > 0 && alumnosGOE > 0) {
         console.log(`Alumno ${alumno.id} (${alumno.name || ''} ${alumno.surname1 || ''}): ${asistenciasPorAsignatura.size} asignaturas relevantes`);
-        for (const [asignaturaId, datos] of asistenciasPorAsignatura) {
+        for (const [, datos] of asistenciasPorAsignatura) {
           console.log(`  - ${datos.nombre}: ${datos.asistidas}/${datos.total} (${Math.round(datos.asistidas / datos.total * 100)}%)`);
         }
       }

@@ -118,8 +118,8 @@ export async function GET() {
       }
     });
 
-    let totalAttendances = attendanceStats.length;
-    let presentAttendances = attendanceStats.filter(a => 
+    const totalAttendances = attendanceStats.length;
+    const presentAttendances = attendanceStats.filter(a => 
       a.estado === 'Presente' || a.estado === 'P' || a.estado === 'Asiste'
     ).length;
 
