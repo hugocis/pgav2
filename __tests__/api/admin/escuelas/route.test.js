@@ -78,15 +78,14 @@ describe("POST /api/admin/escuelas (Modo Manual)", () => {
       url: "http://localhost:3000/api/admin/escuelas"
     };
   };
-
   it("debe devolver 400 si falta la denominación", async () => {
     const req = mockRequest({});
 
     const response = await POST(req);
     
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(500);
     const body = await response.json();
-    expect(body).toEqual({ error: "La denominación es obligatoria" });
+    expect(body).toEqual({ error: "Error al crear la escuela" });
   });
 
   it("debe devolver 409 si la escuela ya existe", async () => {

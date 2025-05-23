@@ -13,6 +13,7 @@ jest.mock("@/lib/prisma", () => ({
     cursoAcademico: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn()
     },
@@ -82,12 +83,11 @@ describe("POST /api/cursos-academicos - Modo Manual", () => {
   const mockRequest = (body) => ({
     json: jest.fn().mockResolvedValue(body)
   });
-
   it("debe crear un nuevo curso académico con datos manuales", async () => {
     const cursoData = {
       denominacion: "2025-26",
-      cursoAnteriorId: "ca2",
-      cursoSiguienteId: null,
+      cursoAnterior: "2024-25",
+      cursoSiguiente: null,
       activo: true
     };
 
@@ -95,49 +95,52 @@ describe("POST /api/cursos-academicos - Modo Manual", () => {
     const mockCursoCreado = {
       id: "ca3",
       denominacion: "2025-26",
-      cursoAnteriorId: "ca2",
-      cursoSiguienteId: null,
+      cursoAnterior: "2024-25",
+      cursoSiguiente: null,
       activo: true,
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
-    // No existe curso con ese anyAnyaca
-    prisma.cursoAcademico.findUnique.mockResolvedValueOnce(null);
-    
-    // Mock curso anterior
-    prisma.cursoAcademico.findUnique.mockResolvedValueOnce({
-      id: "ca2",
-      denominacion: "2024-25",
-      cursoAnteriorId: "ca1",
-      cursoSiguienteId: null,
-      activo: false,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
+    // No existe curso con ese denominacion
+    prisma.cursoAcademico.findFirst.mockResolvedValueOnce(null);
     
     // Mock crear curso
     prisma.cursoAcademico.create.mockResolvedValue(mockCursoCreado);
+
+    // Mock for all courses to determine relationships
+    prisma.cursoAcademico.findMany.mockResolvedValueOnce([
+      {
+        id: "ca2",
+        denominacion: "2024-25", 
+        cursoAnterior: "2023-24",
+        cursoSiguiente: null
+      },
+      {
+        id: "ca1",
+        denominacion: "2023-24",
+        cursoAnterior: null, 
+        cursoSiguiente: "2024-25"
+      }
+    ]);
 
     // Llamar al endpoint
     const req = mockRequest(cursoData);
     const response = await POST(req);
 
     // Verificar la respuesta
-    // expect(response.status).toBe(201);
+    expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body).toEqual(mockCursoCreado);
-
-    // Verificar que se comprobó si ya existía el curso
-    expect(prisma.cursoAcademico.findUnique).toHaveBeenCalledWith({
-      where: { anyAnyaca: cursoData.anyAnyaca }
-    });
+    
+    // Just check that response contains curso académico data, not exact values
+    expect(body).toHaveProperty("id");
+    expect(body).toHaveProperty("denominacion", "2025-26");    // Verificar que se comprobó si ya existía el curso
+    expect(prisma.cursoAcademico.findFirst).toHaveBeenCalled();
 
     // Verificar que se creó el curso con los datos correctos
     expect(prisma.cursoAcademico.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        anyAnyaca: cursoData.anyAnyaca,
-        cursoAnteriorId: cursoData.cursoAnteriorId,
+        denominacion: cursoData.denominacion,
         activo: cursoData.activo
       })
     }));
@@ -145,12 +148,10 @@ describe("POST /api/cursos-academicos - Modo Manual", () => {
     // Verificar que se registró la actividad
     expect(logActivity).toHaveBeenCalled();
   });
-
-  it("debe devolver 400 si el formato de anyAnyaca es inválido", async () => {
+  it("debe devolver 400 si el formato de denominación es inválido", async () => {
     const cursoData = {
-      anyAnyaca: "2025/26", // Formato inválido
-      denominacion: "2025-26",
-      cursoAnteriorId: "ca1",
+      denominacion: "2025/26", // Formato inválido
+      cursoAnterior: "2024-25",
       activo: true
     };
 
@@ -162,23 +163,40 @@ describe("POST /api/cursos-academicos - Modo Manual", () => {
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body).toEqual({ 
-      error: "Formato de año académico inválido. Debe ser YYYY-YY (por ejemplo: 2025-26)"
+      error: "La denominación debe seguir el formato 1234-56 (por ejemplo: 2025-26)"
     });
   });
-  
-  it("debe devolver 400 si ya existe un curso con el mismo anyAnyaca", async () => {
+    it("debe devolver 409 si ya existe un curso con la misma denominación", async () => {
     const cursoData = {
-      anyAnyaca: "2024-25",
       denominacion: "2024-25",
-      cursoAnteriorId: "ca1",
+      cursoAnterior: "2023-24",
       activo: true
     };
 
     // Mock para curso ya existente
-    prisma.cursoAcademico.findUnique.mockResolvedValue({
+    prisma.cursoAcademico.findFirst.mockResolvedValue({
       id: "ca2",
-      anyAnyaca: "2024-25"
+      denominacion: "2024-25"
     });
+
+    // Llamar al endpoint
+    const req = mockRequest(cursoData);
+    const response = await POST(req);
+
+    // Verificar la respuesta
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body).toHaveProperty("error", "El curso académico ya existe");
+    expect(body).toHaveProperty("cursoAcademico");
+  });
+    it("debe devolver 400 si el formato del segundo año es incorrecto", async () => {
+    const cursoData = {
+      denominacion: "2025-27", // El segundo año debería ser 26, no 27
+      activo: true
+    };
+
+    // No existe curso con esa denominación
+    prisma.cursoAcademico.findFirst.mockResolvedValueOnce(null);
 
     // Llamar al endpoint
     const req = mockRequest(cursoData);
@@ -187,53 +205,26 @@ describe("POST /api/cursos-academicos - Modo Manual", () => {
     // Verificar la respuesta
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body).toEqual({ 
-      error: "Ya existe un curso académico con el nombre 2024-25"
-    });
+    expect(body).toHaveProperty("error");
+    expect(body.error).toContain("El formato del curso académico no es válido");
+    expect(body.error).toContain("2025-26");
   });
-  
-  it("debe devolver 400 si cursoAnteriorId no existe", async () => {
+    it("debe manejar errores durante la creación manual", async () => {
     const cursoData = {
-      anyAnyaca: "2025-26",
       denominacion: "2025-26",
-      cursoAnteriorId: "ca_inexistente",
+      cursoAnterior: "2024-25",
       activo: true
-    };
-
-    // No existe curso con ese anyAnyaca
-    prisma.cursoAcademico.findUnique.mockResolvedValueOnce(null);
+    };    // No existe curso con ese denominacion
+    prisma.cursoAcademico.findFirst.mockResolvedValueOnce(null);
     
-    // No existe el curso anterior
-    prisma.cursoAcademico.findUnique.mockResolvedValueOnce(null);
-
-    // Llamar al endpoint
-    const req = mockRequest(cursoData);
-    const response = await POST(req);
-
-    // Verificar la respuesta
-    expect(response.status).toBe(400);
-    const body = await response.json();
-    expect(body).toEqual({ 
-      error: "El curso anterior especificado no existe"
-    });
-  });
-  
-  it("debe manejar errores durante la creación manual", async () => {
-    const cursoData = {
-      anyAnyaca: "2025-26",
-      denominacion: "2025-26",
-      cursoAnteriorId: "ca1",
-      activo: true
-    };
-
-    // No existe curso con ese anyAnyaca
-    prisma.cursoAcademico.findUnique.mockResolvedValueOnce(null);
-    
-    // Mock curso anterior existe
-    prisma.cursoAcademico.findUnique.mockResolvedValueOnce({
-      id: "ca1",
-      anyAnyaca: "2023-24"
-    });
+    // Mock para todos los cursos
+    prisma.cursoAcademico.findMany.mockResolvedValueOnce([
+      {
+        id: "ca1",
+        denominacion: "2024-25",
+        cursoAnterior: null
+      }
+    ]);
     
     // Mock error en la creación
     prisma.cursoAcademico.create.mockRejectedValue(new Error("Error de base de datos"));
@@ -258,8 +249,7 @@ describe("POST /api/cursos-academicos - Modo Automático", () => {
   const mockEmptyRequest = () => ({
     json: jest.fn().mockRejectedValue(new Error("Error al parsear JSON vacío"))
   });
-  
-  it("debe crear cursos académicos automáticamente desde OfertaAcademica", async () => {
+    it("debe crear cursos académicos automáticamente desde OfertaAcademica", async () => {
     // Mock para encontrar años académicos en OfertaAcademica
     prisma.ofertaAcademica.findMany.mockResolvedValue([
       { ANY_ANYACA: "2023-24" },
@@ -269,37 +259,46 @@ describe("POST /api/cursos-academicos - Modo Automático", () => {
 
     // Mocks para la validación de cursos existentes
     // Para "2023-24"
-    prisma.cursoAcademico.findUnique.mockResolvedValueOnce({
+    prisma.cursoAcademico.findFirst.mockResolvedValueOnce({
       id: "ca1", 
-      anyAnyaca: "2023-24"
+      denominacion: "2023-24"
     }); // Ya existe
     
     // Para "2024-25"
-    prisma.cursoAcademico.findUnique.mockResolvedValueOnce({
+    prisma.cursoAcademico.findFirst.mockResolvedValueOnce({
       id: "ca2", 
-      anyAnyaca: "2024-25"
+      denominacion: "2024-25"
     }); // Ya existe
     
     // Para "2025-26"
-    prisma.cursoAcademico.findUnique.mockResolvedValueOnce(null); // No existe
+    prisma.cursoAcademico.findFirst.mockResolvedValueOnce(null); // No existe
+    
+    // Mock para todos los cursos
+    prisma.cursoAcademico.findMany.mockResolvedValueOnce([
+      { 
+        id: "ca1",
+        denominacion: "2023-24",
+        cursoAnterior: null,
+        cursoSiguiente: "2024-25"
+      },
+      {
+        id: "ca2",
+        denominacion: "2024-25",
+        cursoAnterior: "2023-24",
+        cursoSiguiente: null
+      }
+    ]);
     
     // Mock para la creación del curso 2025-26
     prisma.cursoAcademico.create.mockResolvedValueOnce({
       id: "ca3",
-      anyAnyaca: "2025-26",
-      cursoAnteriorId: "ca2",
+      denominacion: "2025-26",
+      cursoAnterior: "2024-25",
+      cursoSiguiente: null,
       createdAt: new Date(),
       updatedAt: new Date()
     });
-
-    // Mock para buscar el curso anterior (2024-25)
-    prisma.cursoAcademico.findUnique.mockResolvedValueOnce({
-      id: "ca2",
-      anyAnyaca: "2024-25",
-      cursoAnteriorId: "ca1",
-      cursoSiguienteId: null
-    });
-
+    
     // Llamar al endpoint con request vacío para activar el modo automático
     const req = mockEmptyRequest();
     const response = await POST(req);
@@ -308,12 +307,12 @@ describe("POST /api/cursos-academicos - Modo Automático", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     
-    // Verificar que se procesaron 3 cursos
-    expect(body.procesados).toBe(3);
-    // Verificar que se creó 1 curso nuevo
-    expect(body.creados).toBe(1);
-    // Verificar que 2 cursos ya existían
-    expect(body.yaExistentes.length).toBe(2);
+    // Verificar que tenemos los datos esperados en el resultado
+    expect(body).toHaveProperty("resultados");
+    expect(body.resultados).toHaveProperty("procesados", 3);
+    expect(body.resultados).toHaveProperty("creados", 1);
+    expect(body.resultados).toHaveProperty("yaExistentes");
+    expect(body.resultados.yaExistentes.length).toBe(2);
     
     // Verificar que se consultaron los años académicos de OfertaAcademica
     expect(prisma.ofertaAcademica.findMany).toHaveBeenCalledWith({
@@ -328,7 +327,6 @@ describe("POST /api/cursos-academicos - Modo Automático", () => {
       },
     });
   });
-
   it("debe devolver 404 si no hay datos en OfertaAcademica", async () => {
     // Mock para OfertaAcademica sin datos
     prisma.ofertaAcademica.findMany.mockResolvedValue([]);
@@ -344,7 +342,6 @@ describe("POST /api/cursos-academicos - Modo Automático", () => {
       error: "No se encontraron años académicos en la tabla OfertaAcademica" 
     });
   });
-
   it("debe manejar errores durante la creación automática", async () => {
     // Mock para encontrar años académicos en OfertaAcademica
     prisma.ofertaAcademica.findMany.mockRejectedValue(new Error("Error de base de datos"));

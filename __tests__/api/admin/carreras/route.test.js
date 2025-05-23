@@ -99,8 +99,8 @@ describe("GET /api/carreras", () => {
         id: "carr1",
         denominacion: "Ingeniería Informática",
         escuelaId: "esc1",
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date().toString(),
+        updatedAt: new Date().toString(),
         escuela: { id: "esc1", denominacion: "Escuela de Informática" },
         ConfiguracionCarrera: { SolDispensa: true, SolJustificacion: true },
         PlanDeEstudios: [{ id: "plan1", denominacion: "Plan 2021", codPlan: "INF21" }]
@@ -315,8 +315,8 @@ describe("POST /api/carreras - Modo Manual", () => {
       id: "carr1",
       denominacion: "Ingeniería Informática",
       escuelaId: "esc1",
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: new Date().toString(),
+      updatedAt: new Date().toString()
     };
     prisma.carrera.create.mockResolvedValue(nuevaCarrera);
 

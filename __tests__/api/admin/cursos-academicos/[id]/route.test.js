@@ -47,8 +47,8 @@ describe("GET /api/cursos-academicos/[id]", () => {
       anyAnyaca: "2023-24",
       denominacion: "2023-24",
       activo: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: new Date().toString(),
+      updatedAt: new Date().toString()
     };
 
     // Mock para la búsqueda del curso
@@ -125,7 +125,7 @@ describe("PUT /api/cursos-academicos/[id]", () => {
       anyAnyaca: "2023-24",
       denominacion: "2023-24",
       activo: true,
-      updatedAt: new Date()
+      updatedAt: new Date().toString()
     };
     prisma.cursoAcademico.update.mockResolvedValue(mockCursoActualizado);
 

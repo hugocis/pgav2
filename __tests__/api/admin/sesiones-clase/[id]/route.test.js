@@ -68,7 +68,7 @@ describe("GET /api/admin/sesiones-clase/[id]", () => {
     
     const sesionClaseMock = {
       id: "sesion1",
-      fecha: new Date("2025-05-01T10:00:00Z"),
+      fecha: new Date("2025-05-01T10:00:00Z").toString(),
       grupoId: "grupo1",
       docenteId: "docente1",
       grupo: { id: "grupo1", denominacion: "Grupo A" },
@@ -289,7 +289,7 @@ describe("PUT /api/admin/sesiones-clase/[id]", () => {
     
     const sesionActualizada = {
       id: "sesion1",
-      fecha: new Date(fechaTest),
+      fecha: new Date(fechaTest).toString(),
       grupoId: "grupo1",
       docenteId: "docente1"
     };

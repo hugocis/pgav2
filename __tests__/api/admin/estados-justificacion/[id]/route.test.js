@@ -43,8 +43,8 @@ describe("GET /api/(admin)/estados-justificacion/[id]", () => {
     const mockEstado = {
       id: "ej1",
       denominacion: "Aceptada",
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: new Date().toString(),
+      updatedAt: new Date().toString()
     };
 
     // Mock para la búsqueda del estado
@@ -129,8 +129,8 @@ describe("PUT /api/(admin)/estados-justificacion/[id]", () => {
     const estadoActualizado = {
       id: "ej1",
       denominacion: "Revisada",
-      createdAt: estadoExistente.createdAt,
-      updatedAt: new Date()
+      createdAt: estadoExistente.createdAt.toString(),
+      updatedAt: new Date().toString()
     };
     prisma.estadoJustificacion.update.mockResolvedValue(estadoActualizado);
 
@@ -351,8 +351,8 @@ describe("POST /api/(admin)/estados-justificacion/[id]", () => {
     const nuevoEstado = {
       id: "ej4",
       denominacion: "En revisión",
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: new Date().toString(),
+      updatedAt: new Date().toString()  
     };
     prisma.estadoJustificacion.create.mockResolvedValue(nuevoEstado);
 

@@ -133,7 +133,7 @@ describe("API Manager Carreras [id]", () => {
         managerId: "manager1",
         carreraId: "carrera1",
         activo: true,
-        fechaAlta: new Date("2025-05-20"),
+        fechaAlta: new Date("2025-05-20").toString(),
         fechaBaja: null,
         user: {
           id: "manager1",
@@ -227,8 +227,8 @@ describe("API Manager Carreras [id]", () => {
         managerId: "manager1",
         carreraId: "carrera1",
         activo: false,
-        fechaAlta: new Date("2025-05-20"),
-        fechaBaja: new Date("2025-05-23")
+        fechaAlta: new Date("2025-05-20").toString(),
+        fechaBaja: new Date("2025-05-23").toString()
       };
       prisma.managerCarrera.update.mockResolvedValue(mockActualizado);
 
@@ -276,7 +276,7 @@ describe("API Manager Carreras [id]", () => {
         managerId: "manager1",
         carreraId: "carrera1",
         activo: true,
-        fechaAlta: new Date("2025-05-20"),
+        fechaAlta: new Date("2025-05-20").toString(),
         fechaBaja: null
       };
       prisma.managerCarrera.update.mockResolvedValue(mockActualizado);

@@ -34,9 +34,9 @@ describe("GET /api/(admin)/estados-justificacion", () => {
   it("debe obtener todos los estados de justificación", async () => {
     // Mock para la respuesta de la consulta
     const mockEstados = [
-      { id: "ej1", denominacion: "Aceptada", createdAt: new Date(), updatedAt: new Date() },
-      { id: "ej2", denominacion: "Pendiente", createdAt: new Date(), updatedAt: new Date() },
-      { id: "ej3", denominacion: "Rechazada", createdAt: new Date(), updatedAt: new Date() }
+      { id: "ej1", denominacion: "Aceptada", createdAt: new Date().toString(), updatedAt: new Date().toString() },
+      { id: "ej2", denominacion: "Pendiente", createdAt: new Date().toString(), updatedAt: new Date().toString() },
+      { id: "ej3", denominacion: "Rechazada", createdAt: new Date().toString(), updatedAt: new Date().toString() }
     ];
 
     prisma.estadoJustificacion.findMany.mockResolvedValue(mockEstados);
@@ -93,8 +93,8 @@ describe("POST /api/(admin)/estados-justificacion", () => {
     const nuevoEstado = {
       id: "ej4",
       denominacion: "En revisión",
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: new Date().toString(),
+      updatedAt: new Date().toString()
     };
     prisma.estadoJustificacion.create.mockResolvedValue(nuevoEstado);
 
