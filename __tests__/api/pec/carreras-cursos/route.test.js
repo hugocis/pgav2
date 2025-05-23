@@ -345,7 +345,8 @@ describe("POST /api/(pec)/carreras-cursos", () => {
     });
 
     // Llamar al endpoint
-    const response = await POST(req);    // Verificar la respuesta
+    const response = await POST(req);
+    // Verificar la respuesta
     expect(response.status).toBe(409);
     const body = await response.json();
     expect(body).toEqual({ 
@@ -386,20 +387,21 @@ describe("POST /api/(pec)/carreras-cursos", () => {
       surname1: "Pérez"
     });
 
-    // Mock para la creación exitosa
+    // Mock para la creación exitosa    
     const nuevaAsignacion = {
       id: "asig1",
       pecId: "pec1",
       carreraId: "carr1",
       curso: 1,
       activo: true,
-      createdAt: new Date().toString(),
-      updatedAt: new Date().toString()
+      createdAt: "2025-05-22T20:30:42.782Z",
+      updatedAt: "2025-05-22T20:30:42.782Z"
     };
     prisma.pecCarreraCurso.create.mockResolvedValue(nuevaAsignacion);
 
     // Llamar al endpoint
-    const response = await POST(req);    // Verificar la respuesta
+    const response = await POST(req);
+    // Verificar la respuesta
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toEqual(nuevaAsignacion);
@@ -416,8 +418,14 @@ describe("POST /api/(pec)/carreras-cursos", () => {
 
     // Verificar que se registró la actividad
     expect(logActivity).toHaveBeenCalledWith(expect.objectContaining({
-      action: 'create',
-      entityType: 'PEC_ASIGNACION'
+      action: "create",
+      details: "Se ha creado una nueva asignación de carrera (carr1) y curso (1) para el PEC con ID pec1",
+      entityId: "asig1",
+      entityType: "PEC_ASIGNACIONES",
+      req: {
+        json: expect.any(Function),
+        url: "http://localhost:3000/api/(pec)/carreras-cursos"
+      }
     }));
   });
 
@@ -458,8 +466,9 @@ describe("POST /api/(pec)/carreras-cursos", () => {
 
     // Llamar al endpoint
     const response = await POST(req);
-
-    // Verificar la respuesta de error    expect(response.status).toBe(500);
+    
+    // Verificar la respuesta de error
+    expect(response.status).toBe(500);
     const body = await response.json();
     expect(body).toEqual({ error: "Error al procesar la solicitud" });
   });

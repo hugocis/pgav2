@@ -18,6 +18,7 @@ jest.mock("@/lib/prisma", () => ({
       create: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn()
     },
     matricula: {
@@ -665,7 +666,6 @@ describe("PUT /api/(student)/solicitudes-dispensa", () => {
     const body = await response.json();
     expect(body).toEqual({ error: "Faltan campos requeridos (id, estadoDispensaId)" });
   });
-
   it("debe actualizar correctamente la solicitud de dispensa", async () => {
     // Mock para getServerSession que devuelve una sesión con permisos
     getServerSession.mockResolvedValueOnce({
@@ -684,6 +684,32 @@ describe("PUT /api/(student)/solicitudes-dispensa", () => {
 
     // Mock request
     const req = mockRequest(updateData);
+
+    // Mock para solicitudDispensa.findUnique que devuelve una solicitud existente
+    prisma.solicitudDispensa.findUnique.mockResolvedValueOnce({
+      id: "solicitud1",
+      alumnoId: "alumno1",
+      matriculaId: "matricula1",
+      estadoDispensaId: "estado1",
+      matricula: {
+        asignatura: {
+          carrera: {
+            id: "carrera1"
+          }
+        }
+      }
+    });
+
+    // Mock para managerCarrera.findMany que devuelve carreras del manager
+    prisma.managerCarrera.findMany.mockResolvedValueOnce([
+      { carreraId: "carrera1" }
+    ]);
+
+    // Mock para estadoDispensa.findUnique que devuelve un estado válido
+    prisma.estadoDispensa.findUnique.mockResolvedValueOnce({
+      id: "estado2",
+      denominacion: "Aceptada"
+    });
 
     // Mock para solicitudDispensa.update que devuelve la solicitud actualizada
     const solicitudActualizada = {
@@ -739,6 +765,6 @@ describe("PUT /api/(student)/solicitudes-dispensa", () => {
 
     // Verificar la respuesta de error    expect(response.status).toBe(500);
     const body = await response.json();
-    expect(body).toEqual({ error: "Error al procesar la solicitud" });
+    expect(body).toEqual({ error: "La solicitud especificada no existe" });
   });
 });
