@@ -25,7 +25,10 @@ jest.mock("@/lib/prisma", () => ({
     escuela: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
-      create: jest.fn()
+      create: jest.fn().mockResolvedValue({
+        id: "esc1",
+        denominacion: "Escuela de Informática"
+      })
     },
     managerCarrera: {
       findMany: jest.fn()
@@ -505,16 +508,31 @@ describe("POST /api/carreras - Modo Automático", () => {
 
     // Verificar la respuesta
     expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body).toEqual(expect.objectContaining({
+    const body = await response.json();    expect(body).toEqual({
       message: "Proceso de importación de carreras completado",
-      resultado: expect.objectContaining({
+      resultado: {
         procesados: 1,
-        creados: expect.objectContaining({
-          carreras: 1
-        })
-      })
-    }));
+        creados: {
+          carreras: 1,
+          planes: 1
+        },
+        detalles: [
+          {
+            accion: "Creada",
+            carrera: "Ingeniería Informática",
+            escuela: "Escuela de Informática",
+            planes: [
+              {
+                accion: "Creado",
+                codigo: "GIN21"
+              }
+            ]
+          }
+        ],
+        errores: [],
+        yaExistentes: []
+      }
+    });
 
     // Verificar que se consultaron las ofertas académicas
     expect(prisma.ofertaAcademica.findMany).toHaveBeenCalledWith(expect.objectContaining({
