@@ -5,7 +5,6 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Navbar from '@/components/Navbar';
 import { SessionProvider } from 'next-auth/react';
-import { usePathname, useRouter } from 'next/navigation';
 
 // Mocks necesarios
 jest.mock('next/navigation', () => ({
