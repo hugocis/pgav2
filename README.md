@@ -1,317 +1,317 @@
-﻿# Portal de Gestión de Asistencias (PGA)
+﻿# Attendance Management Portal (PGA)
 
-![Logo UFV](public/logo-UFV.png)
+![UFV Logo](public/logo-UFV.png)
 
-## Descripción
-Portal de Gestión de Asistencias para la Universidad Francisco de Vitoria. 
+## Description
+Attendance Management Portal for Francisco de Vitoria University.
 
-Este sistema permite la gestión integral de asistencia de los alumnos a las diferentes asignaturas, facilitando el proceso tanto para estudiantes como para personal docente y administrativo. La aplicación está diseñada con diferentes roles y permisos para atender a las necesidades específicas de cada tipo de usuario.
+This system allows for comprehensive management of student attendance across different courses, facilitating the process for both students and teaching and administrative staff. The application is designed with different roles and permissions to meet the specific needs of each type of user.
 
-### Características principales
-- Registro y control de asistencia a clases
-- Justificación de ausencias por parte de los alumnos
-- Gestión de dispensas académicas
-- Generación de informes de asistencia
-- Estadísticas de asistencia por asignaturas, grupos y alumnos
-- Panel administrativo para configuración del sistema
+### Main Features
+- Registration and control of class attendance
+- Absence justification by students
+- Management of academic exemptions
+- Generation of attendance reports
+- Attendance statistics by subjects, groups, and students
+- Administrative panel for system configuration
 
-### Tecnologías
+### Technologies
 - **Frontend:** React, Next.js 13+ (App Router)
-- **Backend:** Node.js con API Routes de Next.js
-- **Base de datos:** PostgreSQL con Prisma ORM
-- **Autenticación:** NextAuth.js
+- **Backend:** Node.js with Next.js API Routes
+- **Database:** PostgreSQL with Prisma ORM
+- **Authentication:** NextAuth.js
 - **Testing:** Jest
 
-## Requisitos
-- Node.js 18.x o superior
+## Requirements
+- Node.js 18.x or higher
 - PostgreSQL 14.x
-- Docker (opcional, para desarrollo)
+- Docker (optional, for development)
 
-## Configuración del entorno
+## Environment Setup
 
-### Instalación de dependencias
+### Installing Dependencies
 
-Primero, instala todas las dependencias necesarias:
+First, install all necessary dependencies:
 
 ```bash
 npm install
 ```
 
-### Configuración de la base de datos
+### Database Configuration
 
-Tienes dos opciones para configurar la base de datos:
+You have two options for configuring the database:
 
-#### Opción 1: PostgreSQL local
-Si ya tienes PostgreSQL instalado localmente, solo necesitas crear una base de datos llamada `pga`.
+#### Option 1: Local PostgreSQL
+If you already have PostgreSQL installed locally, you just need to create a database called `pga`.
 
-#### Opción 2: Docker (recomendado para desarrollo)
-El proyecto incluye configuración de Docker para facilitar el desarrollo:
+#### Option 2: Docker (recommended for development)
+The project includes Docker configuration to facilitate development:
 
 ```bash
-# Iniciar contenedor de PostgreSQL
+# Start PostgreSQL container
 npm run docker:up
-# o directamente
+# or directly
 docker-compose up -d
 ```
 
-Para detener los contenedores:
+To stop the containers:
 ```bash
 npm run docker:down
-# o directamente
+# or directly
 docker-compose down
 ```
 
-También puedes utilizar los scripts `restart-docker.ps1` (Windows) o `restart-docker.sh` (Linux/Mac) para reiniciar los contenedores.
+You can also use the scripts `restart-docker.ps1` (Windows) or `restart-docker.sh` (Linux/Mac) to restart the containers.
 
-### Variables de entorno
-Crea un archivo `.env` en la raíz del proyecto con las siguientes variables:
+### Environment Variables
+Create a `.env` file in the root of the project with the following variables:
 
 ```env
-# Base de datos
+# Database
 DATABASE_URL="postgresql://username:password@localhost:5432/pga"
 
 # NextAuth
 NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="tu-secret-aqui"
+NEXTAUTH_SECRET="your-secret-here"
 
-# Email (para recuperación de contraseña)
+# Email (for password recovery)
 EMAIL_SERVER_HOST="smtp.example.com"
 EMAIL_SERVER_PORT=587
-EMAIL_SERVER_USER="tu-usuario@example.com"
-EMAIL_SERVER_PASSWORD="tu-contraseña"
+EMAIL_SERVER_USER="your-username@example.com"
+EMAIL_SERVER_PASSWORD="your-password"
 EMAIL_FROM="noreply@example.com"
 
-# Seguridad
-LOG_INTEGRITY_SECRET="clave-secreta-para-firmar-logs"
+# Security
+LOG_INTEGRITY_SECRET="secret-key-for-signing-logs"
 ```
 
-Para desarrollo con Docker, puedes usar estas credenciales por defecto:
+For development with Docker, you can use these default credentials:
 ```
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/pga"
 ```
 
-## Ejecutar en desarrollo
+## Running in Development
 
-Sigue estos pasos para configurar y ejecutar el proyecto en modo desarrollo:
+Follow these steps to configure and run the project in development mode:
 
 ```bash
-# 1. Instalar dependencias (si no lo has hecho ya)
+# 1. Install dependencies (if you haven't already)
 npm install
 
-# 2. Iniciar base de datos con Docker (opcional)
+# 2. Start database with Docker (optional)
 npm run docker:up
 
-# 3. Aplicar migraciones de la base de datos
+# 3. Apply database migrations
 npx prisma migrate dev
 
-# 4. Cargar datos de prueba (seed)
+# 4. Load test data (seed)
 npm run seed
-# o directamente
+# or directly
 npx prisma db seed
 
-# 5. Iniciar servidor de desarrollo
+# 5. Start development server
 npm run dev
 ```
 
-Una vez ejecutados estos comandos, la aplicación estará disponible en [http://localhost:3000](http://localhost:3000).
+Once these commands are executed, the application will be available at [http://localhost:3000](http://localhost:3000).
 
-### Comandos útiles durante el desarrollo
+### Useful Commands During Development
 
 ```bash
-# Generar cliente de Prisma (después de cambiar schema.prisma)
+# Generate Prisma client (after changing schema.prisma)
 npx prisma generate
 
-# Ver estructura de la base de datos con Prisma Studio
+# View database structure with Prisma Studio
 npx prisma studio
 
-# Formatear los archivos de Prisma
+# Format Prisma files
 npx prisma format
 
-# Resetear la base de datos (¡cuidado! eliminará todos los datos)
+# Reset the database (caution! will delete all data)
 npx prisma migrate reset
 ```
 
-## Ejecutar en producción
+## Running in Production
 
-Para desplegar la aplicación en un entorno de producción:
+To deploy the application in a production environment:
 
 ```bash
-# 1. Instalar dependencias sin desarrollo
+# 1. Install dependencies without development
 npm install --production
 
-# 2. Construir la aplicación
+# 2. Build the application
 npm run build
 
-# 3. Aplicar migraciones (solo si hay cambios en el esquema)
+# 3. Apply migrations (only if there are schema changes)
 npx prisma migrate deploy
 
-# 4. Iniciar servidor
+# 4. Start server
 npm start
 ```
 
-### Consideraciones para producción
+### Production Considerations
 
-- Asegúrate de configurar correctamente las variables de entorno para el entorno de producción
-- Utiliza un servicio de PostgreSQL gestionado o configura correctamente un servidor propio
-- Configura un proxy inverso (como Nginx) delante de la aplicación
-- Establece un sistema de monitorización para la aplicación
+- Make sure to properly configure environment variables for the production environment
+- Use a managed PostgreSQL service or properly configure your own server
+- Set up a reverse proxy (like Nginx) in front of the application
+- Establish a monitoring system for the application
 
-### Despliegue con Docker
+### Deployment with Docker
 
-También puedes utilizar Docker para producción con el Dockerfile incluido:
+You can also use Docker for production with the included Dockerfile:
 
 ```bash
-# Construir la imagen
+# Build the image
 docker build -t pga-app .
 
-# Ejecutar el contenedor
+# Run the container
 docker run -p 3000:3000 --env-file .env.production pga-app
 ```
 
 ## Testing
 
-Este proyecto utiliza Jest para pruebas unitarias. Para ejecutar los tests:
+This project uses Jest for unit testing. To run tests:
 
 ```bash
-# Ejecutar todos los tests
+# Run all tests
 npm test
 
-# Ejecutar tests con watch mode (útil durante desarrollo)
+# Run tests with watch mode (useful during development)
 npm run test:watch
 
-# Generar informe de cobertura
+# Generate coverage report
 npm run test:coverage
 
-# Ejecutar sólo tests específicos
-npm run test:api    # Tests de API
-npm run test:lib    # Tests de utilidades/funciones
+# Run specific tests only
+npm run test:api    # API route tests
+npm run test:lib    # Utility/function tests
 ```
 
-### Estructura de tests
-Los tests están organizados en directorios que reflejan la estructura del proyecto:
+### Test Structure
+Tests are organized in directories that reflect the project structure:
 
 ```
 __tests__/
-  ├── api/         # Tests para las rutas API
-  │    ├── auth/   # Tests para autenticación
-  │    └── user/   # Tests para usuarios
-  └── lib/         # Tests para funciones de utilidad
+  ├── api/         # Tests for API routes
+  │    ├── auth/   # Authentication tests
+  │    └── user/   # User tests
+  └── lib/         # Tests for utility functions
 ```
 
-## Estructura del proyecto
+## Project Structure
 
-El proyecto sigue la estructura de Next.js con App Router:
+The project follows the Next.js structure with App Router:
 
 ```
-app/                      # Directorio principal de Next.js App Router
-  ├── api/                # Endpoints API
-  │   ├── (admin)/        # API para administradores
-  │   ├── (manager)/      # API para gestores
-  │   ├── (pec)/          # API para PEC
-  │   ├── (student)/      # API para estudiantes
-  │   ├── (teacher)/      # API para profesores
-  │   ├── auth/           # API de autenticación
-  │   ├── health/         # API de estado del sistema
-  │   └── user/           # API de usuarios
-  ├── auth/               # Páginas de autenticación
-  ├── admin/              # Panel de administrador
-  │   ├── dashboard/      # Dashboard del administrador
-  │   ├── users/          # Gestión de usuarios
-  │   ├── curso-academico/# Configuración de cursos
-  │   └── ...             # Otros módulos de administración
-  ├── alumno/             # Panel de alumno
-  ├── manager/            # Panel de gestor
-  ├── pec/                # Panel de PEC
-  └── profesor/           # Panel de profesor
-      ├── pasar-clase/    # Registro de asistencia
-      └── ...             # Otras funcionalidades
-components/               # Componentes React reutilizables
-lib/                      # Utilidades y funciones
-  ├── actions/            # Acciones del servidor
-  ├── authOptions.ts      # Configuración de autenticación
-  └── prisma.ts           # Cliente de Prisma
-prisma/                   # Esquema y migraciones de Prisma
-  ├── schema.prisma       # Definición del modelo de datos
-  ├── seed.ts             # Script para cargar datos de prueba
-  └── migrations/         # Migraciones de la base de datos
-public/                   # Archivos estáticos
-types/                    # Definiciones de tipos TypeScript
-__tests__/                # Tests unitarios y de integración
-__mocks__/                # Mocks para testing
+app/                      # Main Next.js App Router directory
+  ├── api/                # API Endpoints
+  │   ├── (admin)/        # API for administrators
+  │   ├── (manager)/      # API for managers
+  │   ├── (pec)/          # API for PEC
+  │   ├── (student)/      # API for students
+  │   ├── (teacher)/      # API for teachers
+  │   ├── auth/           # Authentication API
+  │   ├── health/         # System health API
+  │   └── user/           # User API
+  ├── auth/               # Authentication pages
+  ├── admin/              # Administrator panel
+  │   ├── dashboard/      # Administrator dashboard
+  │   ├── users/          # User management
+  │   ├── curso-academico/# Course configuration
+  │   └── ...             # Other administration modules
+  ├── alumno/             # Student panel
+  ├── manager/            # Manager panel
+  ├── pec/                # PEC panel
+  └── profesor/           # Teacher panel
+      ├── pasar-clase/    # Attendance registration
+      └── ...             # Other functionalities
+components/               # Reusable React components
+lib/                      # Utilities and functions
+  ├── actions/            # Server actions
+  ├── authOptions.ts      # Authentication configuration
+  └── prisma.ts           # Prisma client
+prisma/                   # Prisma schema and migrations
+  ├── schema.prisma       # Data model definition
+  ├── seed.ts             # Script to load test data
+  └── migrations/         # Database migrations
+public/                   # Static files
+types/                    # TypeScript type definitions
+__tests__/                # Unit and integration tests
+__mocks__/                # Mocks for testing
 ```
 
-### Sistema de roles
+### Role System
 
-El portal distingue entre diferentes tipos de usuarios, cada uno con su propio panel y funcionalidades:
+The portal distinguishes between different types of users, each with their own panel and functionalities:
 
-#### 1. Administrador (`admin`)
-- Gestión completa de usuarios y permisos
-- Configuración de carreras, asignaturas y cursos académicos
-- Vista general de actividad del sistema
-- Gestión de matrículas
+#### 1. Administrator (`admin`)
+- Complete user and permission management
+- Configuration of degree programs, subjects, and academic years
+- System activity overview
+- Enrollment management
 
-#### 2. Alumno (`alumno`)
-- Visualización de su asistencia por asignaturas
-- Justificación de ausencias
-- Solicitud de dispensas académicas
+#### 2. Student (`alumno`)
+- View of their attendance by subject
+- Justification of absences
+- Request for academic exemptions
 
-#### 3. Gestor (`manager`)
-- Gestión de justificaciones presentadas por alumnos
-- Tramitación de dispensas académicas
-- Generación de informes de asistencia
-- Control de firmas de docentes
+#### 3. Manager (`manager`)
+- Management of justifications submitted by students
+- Processing of academic exemptions
+- Generation of attendance reports
+- Control of teacher signatures
 
 #### 4. PEC (`pec`)
-- Gestión de asistencia de alumnos
-- Consulta de alumnos GOE (Grupo de Orientación Educativa)
-- Vista específica para seguimiento de alumnos
+- Student attendance management
+- Consultation of GOE students (Educational Guidance Group)
+- Specific view for student monitoring
 
-#### 5. Profesor (`profesor`)
-- Registro de asistencia en clase
-- Consulta de historial de sesiones
-- Visualización de estadísticas de asistencia
-- Gestión de grupos y alumnos asignados
+#### 5. Teacher (`profesor`)
+- Class attendance registration
+- Consultation of session history
+- Visualization of attendance statistics
+- Management of groups and assigned students
 
-## Contribución
+## Contribution
 
-Si deseas contribuir al proyecto:
+If you wish to contribute to the project:
 
-1. Crea un fork del repositorio
-2. Crea una rama para tu funcionalidad (`git checkout -b feature/nueva-funcionalidad`)
-3. Realiza tus cambios y haz commit (`git commit -am 'Añadir nueva funcionalidad'`)
-4. Sube tus cambios a tu fork (`git push origin feature/nueva-funcionalidad`)
-5. Crea un Pull Request
+1. Create a fork of the repository
+2. Create a branch for your feature (`git checkout -b feature/new-feature`)
+3. Make your changes and commit (`git commit -am 'Add new feature'`)
+4. Push your changes to your fork (`git push origin feature/new-feature`)
+5. Create a Pull Request
 
-### Convenciones de código
-- Utiliza ESLint para mantener la consistencia del código
-- Escribe tests para todas las nuevas funcionalidades
-- Sigue las prácticas de TypeScript para el tipado estricto
+### Code Conventions
+- Use ESLint to maintain code consistency
+- Write tests for all new features
+- Follow TypeScript practices for strict typing
 
-## Versiones
+## Versions
 
-### v1.0.0 (Mayo 2025)
-- Versión inicial del Portal de Gestión de Asistencias
-- Implementación de todos los roles básicos
-- Sistema de justificación y dispensas
+### v1.0.0 (May 2025)
+- Initial version of the Attendance Management Portal
+- Implementation of all basic roles
+- Justification and exemption system
 
-## Licencia
-Propiedad de la Universidad Francisco de Vitoria.
+## License
+Property of Francisco de Vitoria University.
 
-## Solución de problemas comunes
+## Troubleshooting
 
-### Problemas con la base de datos
-- **Error "Could not connect to database"**: Verifica que PostgreSQL esté en ejecución y que las credenciales en `.env` sean correctas.
-- **Error al ejecutar migraciones**: Intenta ejecutar `npx prisma migrate reset --force` para reiniciar la base de datos.
-- **Prisma Client no está generado**: Ejecuta `npx prisma generate` para regenerar el cliente.
+### Database Issues
+- **Error "Could not connect to database"**: Verify that PostgreSQL is running and that the credentials in `.env` are correct.
+- **Error running migrations**: Try running `npx prisma migrate reset --force` to reset the database.
+- **Prisma Client is not generated**: Run `npx prisma generate` to regenerate the client.
 
-### Problemas con Docker
-- **No se puede conectar al contenedor**: Verifica que Docker esté en ejecución y utiliza `docker ps` para comprobar el estado del contenedor.
-- **Conflicto de puertos**: Si el puerto 5432 ya está en uso, modifica el puerto mapeado en `docker-compose.yml`.
-- **Contenedor no inicia**: Utiliza `docker logs [nombre-contenedor]` para ver los logs de error.
+### Docker Issues
+- **Cannot connect to container**: Verify that Docker is running and use `docker ps` to check the status of the container.
+- **Port conflict**: If port 5432 is already in use, modify the mapped port in `docker-compose.yml`.
+- **Container doesn't start**: Use `docker logs [container-name]` to see the error logs.
 
-### Problemas con Next.js
-- **Error "Module not found"**: Verifica que todas las dependencias estén instaladas con `npm install`.
-- **Problemas de compilación**: Limpia la caché con `npm run clean` y vuelve a intentar.
-- **Cambios no se reflejan**: Reinicia el servidor de desarrollo.
+### Next.js Issues
+- **Error "Module not found"**: Verify that all dependencies are installed with `npm install`.
+- **Build problems**: Clean the cache with `npm run clean` and try again.
+- **Changes are not reflected**: Restart the development server.
 
-Para cualquier otro problema, por favor abre un issue en el repositorio del proyecto con una descripción detallada del error y los pasos para reproducirlo.
+For any other issues, please open an issue in the project repository with a detailed description of the error and the steps to reproduce it.
