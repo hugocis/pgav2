@@ -1,7 +1,7 @@
 ﻿# Attendance Management Portal (PGA)
 
 <div align="center">
-    <img src="public/logo-UFV.png" alt="UFV Logo">
+    <img src="public/logo-UFV.png" alt="UFV Logo" width="250px">
     <br><br>
     <img src="public/Background.jpeg" alt="Background Image" width="600px">
 </div>
