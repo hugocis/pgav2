@@ -13,3 +13,548 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model OfertaAcademica {
+  id              Int     @id @default(autoincrement()) // Auto-incrementing ID to identify each record
+  ANY_ANYACA      String? // Academic year
+  DENOMINACION    String? // Denomination
+  ID_BOLONIA      String? // Bologna process ID
+  BOLONIA         String? // Bologna information
+  CARRERAS        String? // Associated careers
+  DEN_GUIAS_DOC   String? // Denomination in teaching guides
+  CURSOS          String? // Courses
+  CURSO_PLAN      String? // Course plan
+  COD_AGORA       String? // Agora code
+  MATERIA         String? // Subject
+  MATERIA_PLAN    String? // Subject in plan
+  GRUPOS          String? // Available groups
+  CREDITOS        Float? // Subject credits
+  CUATRIMESTRE    String? // Term in which it's taught
+  TIPODEMATERIA   String? // Subject type
+  HORAS_SEMANA_1C Float? // Weekly hours in first term
+  HORAS_SEMANA_2C Float? // Weekly hours in second term
+  PORC_DOC        String? // Teaching percentage
+  MODULO_PLAN     String? // Plan module
+  AREA            String? // Knowledge area
+  COD_MATERIA     String? // Subject code
+
+  @@unique([ANY_ANYACA, COD_MATERIA]) // Make these fields unique
+}
+
+model ProfesoresDetalle {
+  id                    Int     @id @default(autoincrement()) //
+  CODPROF               String? // Código del profesor
+  ID_ASIGNACION         Int? // ID de asignación
+  PORCENTAJE_DOCENCIA   String? // Porcentaje de docencia
+  CODASIGNATURA         String? // Código de la asignatura
+  MATERIA               String? // Materia
+  AREA                  String? // Área de conocimiento
+  GRUPO_GA              String? // Grupo GA
+  GRUPOS_UXXI           String? // Grupos UXXI
+  HORARIOS_1C_LUNES     String? // Horarios del 1er cuatrimestre - Lunes
+  HORARIOS_1C_MARTES    String? // Horarios del 1er cuatrimestre - Martes
+  HORARIOS_1C_MIERCOLES String? // Horarios del 1er cuatrimestre - Miércoles
+  HORARIOS_1C_JUEVES    String? // Horarios del 1er cuatrimestre - Jueves
+  HORARIOS_1C_VIERNES   String? // Horarios del 1er cuatrimestre - Viernes
+  HORARIOS_1C_SABADO    String? // Horarios del 1er cuatrimestre - Sábado
+  HORARIOS_2C_LUNES     String? // Horarios del 2do cuatrimestre - Lunes
+  HORARIOS_2C_MARTES    String? // Horarios del 2do cuatrimestre - Martes
+  HORARIOS_2C_MIERCOLES String? // Horarios del 2do cuatrimestre - Miércoles
+  HORARIOS_2C_JUEVES    String? // Horarios del 2do cuatrimestre - Jueves
+  HORARIOS_2C_VIERNES   String? // Horarios del 2do cuatrimestre - Viernes
+  HORARIOS_2C_SABADO    String? // Horarios del 2do cuatrimestre - Sábado
+  AULASL1               String? // Aulas 1er cuatrimestre - Lunes
+  AULASM1               String? // Aulas 1er cuatrimestre - Martes
+  AULASX1               String? // Aulas 1er cuatrimestre - Miércoles
+  AULASJ1               String? // Aulas 1er cuatrimestre - Jueves
+  AULASV1               String? // Aulas 1er cuatrimestre - Viernes
+  AULASS1               String? // Aulas 1er cuatrimestre - Sábado
+  AULASL2               String? // Aulas 2do cuatrimestre - Lunes
+  AULASM2               String? // Aulas 2do cuatrimestre - Martes
+  AULASX2               String? // Aulas 2do cuatrimestre - Miércoles
+  AULASJ2               String? // Aulas 2do cuatrimestre - Jueves
+  AULASV2               String? // Aulas 2do cuatrimestre - Viernes
+  AULASS2               String? // Aulas 2do cuatrimestre - Sábado
+  CODCURSO              String? // Código del curso
+  CODCURSOPLAN          String? // Código del curso en el plan
+  APELLIDO1             String? // Primer apellido
+  APELLIDO2             String? // Segundo apellido
+  NOMBRE                String? // Nombre del profesor
+  DNI                   String? // DNI del profesor
+  LETRADNI              String? // Letra del DNI
+  DOC_COMPLETO          String? // Documento completo (DNI + Letra)
+  EMAIL                 String? // Correo electrónico
+  TANDA                 String? // Tanda del profesor (diurna/nocturna)
+  ANY_ANYACA            String? // Año académico
+  COD_CARRERA           String? // Código de la carrera
+  CARRERA               String? // Nombre de la carrera
+  TITULACION            String? // Titulación
+  ID_DIRECTOR           String? // ID del director
+  DIRECTOR              String? // Nombre del director
+  RESPONSABLE           String? // Nombre del responsable
+  FACULTAD              String? // Facultad
+  ID_DECANO             String? // ID del decano
+  DECANO                String? // Nombre del decano
+  TITULOPROPIO          String? // Título propio
+  ID_TIPO_DOCENCIA      Int? // ID del tipo de docencia
+  ACTIVO                String? // Fecha de activación
+  COD_MATERIA           String? // Código de la materia
+  GENERO                String? // Género (o/a - masculino/femenino)
+
+  @@unique([DNI, CODASIGNATURA, ANY_ANYACA, GRUPOS_UXXI]) // No puede estar duplicado un profesor, en el mismo año, en el mismo grupo en el mismo código de asignatura  
+}
+
+model ExpedienteAlumno {
+  id                      Int     @id @default(autoincrement()) // ID autoincremental
+  PRS_CODNUM              Int? // Código numérico del expediente del alumno
+  DNI                     String? // DNI del alumno
+  LLENIF                  String? // LLENIF
+  APE1                    String? // Primer apellido
+  APE2                    String? // Segundo apellido
+  NOMBRE                  String? // Nombre del alumno
+  FECHA_NACIMIENTO        String? // Fecha de nacimiento
+  SEXO                    String? // Sexo del alumno
+  EMAIL                   String? // Correo electrónico
+  CARRERA                 String? // Carrera del alumno
+  MODO_ACCESO             String? // Modo de acceso a la carrera
+  CARDENOM                String? // Denominación de la carrera
+  CONVOCA                 String? // Convocatoria
+  CODIGO                  String? // Código de la asignatura
+  ASIG_DENOM              String? // Denominación de la asignatura
+  CURSO                   Float? // Curso actual
+  CURSO_PLAN              Float? // Curso en el plan
+  GRUPO                   String? // Grupo del alumno
+  DOBLE_GRADO             String? // Indica si está cursando un doble grado
+  NUMMAT                  Float? // Número de matrícula
+  BLOQUEO                 String? // Estado de bloqueo del expediente
+  FECHA_ULT_MOD_MATRICULA String? // Fecha de la última modificación de la matrícula
+
+  @@unique([DNI, CARRERA, CODIGO, CONVOCA, GRUPO])
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+model User {
+  id                   String    @id @default(cuid())
+  username             String    @unique
+  name                 String?
+  surname1             String?
+  surname2             String?
+  email                String    @unique
+  password             String
+  resetPasswordToken   String? // Token para restablecer contraseña
+  resetPasswordExpires DateTime? // Fecha de expiración del token
+  lockout              Boolean   @default(false) // Campo para bloquear acceso a usuarios
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  userRoles              UserRole[]
+  activities             ActivityLog[]
+  Docencia               Docencia[]
+  AlumnoPlan             AlumnoPlan[]
+  Grupo                  Grupo[]
+  AlumnoGrupo            AlumnoGrupo[]
+  SesionClase            SesionClase[]
+  AsistenciaAlumno       AsistenciaAlumno[]
+  SolicitudJustificacion SolicitudJustificacion[]
+  HorariosProfesor       HorariosProfesor[]
+  Matricula              Matricula[]
+  SolicitudDispensa      SolicitudDispensa[]
+  Asignatura             Asignatura[]
+  // Nuevas relaciones
+  ManagerCarrera         ManagerCarrera[]
+  PecCarreraCurso        PecCarreraCurso[]
+}
+
+model Role {
+  id          Int    @id @default(autoincrement())
+  name        String @unique
+  description String
+
+  userRoles UserRole[]
+}
+
+model UserRole {
+  id         String   @id @default(uuid())
+  userId     String
+  roleId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+}
+
+model ActivityLog {
+  id         String  @id @default(uuid())
+  action     String // The action performed (e.g., "create", "update", "delete")
+  details    String?
+  entityType String // The type of entity affected (e.g., "user", "role", "asignatura")
+  entityId   String?
+  prevHash   String?
+  hash       String
+  signature  String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  timestamp DateTime @default(now())
+}
+
+model CursoAcademico {
+  id             String  @id @default(uuid())
+  activo         Boolean @default(false)
+  denominacion   String
+  cursoAnterior  String?
+  cursoSiguiente String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Asignatura      Asignatura[]
+  AlumnoPlan      AlumnoPlan[]
+}
+
+model Escuela {
+  id           String @id @default(uuid())
+  denominacion String
+
+  Carrera Carrera[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Carrera {
+  id           String @id @default(uuid())
+  denominacion String
+
+  escuelaId String
+  escuela   Escuela @relation(fields: [escuelaId], references: [id], onDelete: Cascade)
+
+  ConfiguracionCarrera ConfiguracionCarrera[]
+  Asignatura           Asignatura[]
+  // Nuevas relaciones
+  ManagerCarrera       ManagerCarrera[]
+  PecCarreraCurso      PecCarreraCurso[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  PlanDeEstudios PlanDeEstudios[]
+}
+
+model ConfiguracionCarrera {
+  id                  String    @id @default(uuid())
+  FechaInicioDispensa DateTime?
+  FechaFinDispensa    DateTime?
+  SolDispensa         Boolean   @default(false)
+  SolJustificacion    Boolean   @default(false)
+
+  carreraId String
+  carrera   Carrera @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PlanDeEstudios {
+  id           String @id @default(uuid())
+  denominacion String
+  codPlan      String
+
+  carreraId String
+  carrera   Carrera @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  AlumnoPlan AlumnoPlan[]
+}
+
+model Asignatura {
+  id            String @id @default(uuid())
+  CodAsignatura String
+  Denominacion  String
+  Curso         String
+  Cuatrimestre  String
+
+  carreraId        String
+  carrera          Carrera        @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+  cursoAcademicoId String
+  cursoAcademico   CursoAcademico @relation(fields: [cursoAcademicoId], references: [id], onDelete: Cascade)
+  profesorId       String
+  user             User           @relation(fields: [profesorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Docencia         Docencia[]
+  Grupo            Grupo[]
+  Matricula        Matricula[]
+  HorariosProfesor HorariosProfesor[]
+}
+
+model Matricula {
+  id        String    @id @default(uuid())
+  fechaalta DateTime  @default(now())
+  fechaBaja DateTime?
+  mostrar   Boolean   @default(false)
+
+  alumno_id    String
+  user         User       @relation(fields: [alumno_id], references: [id], onDelete: Cascade)
+  asignaturaId String
+  asignatura   Asignatura @relation(fields: [asignaturaId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  SolicitudDispensa SolicitudDispensa[]
+}
+
+model Docencia {
+  id        String    @id @default(uuid())
+  fechaalta DateTime  @default(now())
+  fechaBaja DateTime?
+
+  asignaturaId String
+  asignatura   Asignatura @relation(fields: [asignaturaId], references: [id], onDelete: Cascade)
+
+  profesorId String
+  user       User   @relation(fields: [profesorId], references: [id], onDelete: Cascade)
+
+  mostrar   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AlumnoPlan {
+  id        String    @id @default(uuid())
+  fechaalta DateTime  @default(now())
+  fechaBaja DateTime?
+
+  alumno_id        String
+  user             User           @relation(fields: [alumno_id], references: [id], onDelete: Cascade)
+  cursoAcademicoId String
+  cursoAcademico   CursoAcademico @relation(fields: [cursoAcademicoId], references: [id], onDelete: Cascade)
+  plandeEstudiosId String
+  plandeEstudios   PlanDeEstudios @relation(fields: [plandeEstudiosId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Grupo {
+  id           String @id @default(uuid())
+  denominacion String
+
+  asignaturaId String
+  asignatura   Asignatura @relation(fields: [asignaturaId], references: [id], onDelete: Cascade)
+
+  profesorId String
+  user       User   @relation(fields: [profesorId], references: [id], onDelete: Cascade)
+
+  AlumnoGrupo AlumnoGrupo[]
+
+  SesionClase SesionClase[]
+}
+
+model AlumnoGrupo {
+  id        String @id @default(uuid())
+  alumno_Id String
+  user      User   @relation(fields: [alumno_Id], references: [id], onDelete: Cascade)
+  grupoId   String
+  grupo     Grupo  @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+}
+
+model SesionClase {
+  id    String   @id @default(uuid())
+  fecha DateTime
+
+  grupoId   String
+  grupo     Grupo  @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  docenteId String
+  user      User   @relation(fields: [docenteId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  AsistenciaAlumno AsistenciaAlumno[]
+}
+
+model EstadoAsistencia {
+  id           String @id @default(uuid())
+  denominacion String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  AsistenciaAlumno AsistenciaAlumno[]
+}
+
+model AsistenciaAlumno {
+  id     String   @id @default(uuid())
+  fecha  DateTime
+  estado String
+
+  sesionClaseId      String
+  sesionClase        SesionClase      @relation(fields: [sesionClaseId], references: [id], onDelete: Cascade)
+  alumnoId           String
+  user               User             @relation(fields: [alumnoId], references: [id], onDelete: Cascade)
+  estadoAsistenciaId String
+  estadoAsistencia   EstadoAsistencia @relation(fields: [estadoAsistenciaId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  SolicitudJustificacion SolicitudJustificacion[]
+}
+
+model EstadoJustificacion {
+  id           String @id @default(uuid())
+  denominacion String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  SolicitudJustificacion SolicitudJustificacion[]
+}
+
+model SolicitudJustificacion {
+  id             String    @id @default(uuid())
+  alegacion      String
+  respuesta      String?
+  fechaAlegacion DateTime
+  fechaRespuesta DateTime?
+  rechazada      Boolean   @default(false)  // Indica si la justificación fue rechazada
+
+  alumnoId              String
+  user                  User                @relation(fields: [alumnoId], references: [id], onDelete: Cascade)
+  estadoJustificacionId String
+  estadoJustificacion   EstadoJustificacion @relation(fields: [estadoJustificacionId], references: [id], onDelete: Cascade)
+  asistenciaAlumnoId    String
+  asistenciaAlumno      AsistenciaAlumno    @relation(fields: [asistenciaAlumnoId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  DocumentacionJustificacion DocumentacionJustificacion[]
+}
+
+model DocumentacionJustificacion {
+  id          String   @id @default(uuid())
+  url         String
+  fechaSubida DateTime
+
+  solicitudJustificacionId String
+  solicitudJustificacion   SolicitudJustificacion @relation(fields: [solicitudJustificacionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HorariosProfesor {
+  id        String  @id @default(uuid())
+  lunes     String?
+  martes    String?
+  miercoles String?
+  jueves    String?
+  viernes   String?
+  sabado    String?
+
+  profesorId   String
+  user         User       @relation(fields: [profesorId], references: [id], onDelete: Cascade)
+  asignaturaId String
+  asignatura   Asignatura @relation(fields: [asignaturaId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DocumentacionDispensa {
+  id          String   @id @default(uuid())
+  url         String
+  fechaSubida DateTime
+
+  solicitudDispensaId String
+  solicitudDispensa   SolicitudDispensa @relation(fields: [solicitudDispensaId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EstadoDispensa {
+  id           String @id @default(uuid())
+  denominacion String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  SolicitudDispensaEstado SolicitudDispensa[] @relation(name: "estadoDispensaRelacion")
+  SolicitudDispensas      SolicitudDispensa[] @relation(name: "dispensasEstados")
+}
+
+model SolicitudDispensa {
+  id             String    @id @default(uuid())
+  alegacion      String
+  respuesta      String?
+  fechaAlegacion DateTime
+  fechaRespuesta DateTime?
+
+  alegacionReclamacion      String?
+  respuestaReclamacion      String?
+  fechaAlegacionReclamacion DateTime?
+  fechaRespuestaReclamacion DateTime?
+
+  alumnoId         String
+  user             User           @relation(fields: [alumnoId], references: [id], onDelete: Cascade)
+  matriculaId      String
+  matricula        Matricula      @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+  estadoDispensaId String
+  estadoDispensa   EstadoDispensa @relation(name: "estadoDispensaRelacion", fields: [estadoDispensaId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  DocumentacionDispensa DocumentacionDispensa[]
+  EstadoDispensa        EstadoDispensa[]        @relation(name: "dispensasEstados")
+}
+
+// Modelo para relacionar managers con carreras
+model ManagerCarrera {
+  id        String    @id @default(uuid())
+  managerId String // ID del usuario manager
+  carreraId String // ID de la carrera
+  fechaAlta DateTime  @default(now())
+  fechaBaja DateTime?
+  activo    Boolean   @default(true)
+
+  // Relaciones
+  user    User    @relation(fields: [managerId], references: [id], onDelete: Cascade)
+  carrera Carrera @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([managerId, carreraId]) // Un manager no puede estar asignado dos veces a la misma carrera
+}
+
+// Modelo para relacionar PEC con carreras y cursos (1º,2º,3º,4º)
+model PecCarreraCurso {
+  id               String    @id @default(uuid())
+  pecId            String // ID del usuario PEC
+  carreraId        String // ID de la carrera
+  curso            Int       // Curso (1, 2, 3, 4)
+  fechaAlta        DateTime  @default(now())
+  fechaBaja        DateTime?
+  activo           Boolean   @default(true)
+
+  // Relaciones
+  user    User    @relation(fields: [pecId], references: [id], onDelete: Cascade)
+  carrera Carrera @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pecId, carreraId, curso]) // Un PEC no puede estar asignado dos veces a la misma combinación de carrera y curso
+}
