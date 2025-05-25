@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react';
 import DashboardContainer from '@/components/DashboardContainer';
 import Link from 'next/link';
 import {
-  FaUserGraduate,
   FaChartBar,
   FaClipboardList,
   FaBriefcaseMedical,
@@ -14,7 +13,6 @@ import {
   FaTachometerAlt,
   FaHome,
   FaUsers,
-  FaUserCheck
 } from 'react-icons/fa';
 
 interface PecCarreraCurso {

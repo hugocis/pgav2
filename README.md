@@ -1,108 +1,112 @@
-# Portal de Gestión Académica (PGA)
+﻿# Portal de Gestión de Asistencias (PGA)
 
-Aplicación web para la gestión académica universitaria, desarrollada con Next.js, Prisma y PostgreSQL. Facilita la administración de asistencia a clase, gestión de matrículas, dispensas académicas, justificaciones y otros aspectos relacionados con la vida académica.
-
-## Características
-
-- **Gestión de asistencia**: Permite a los profesores registrar asistencia y a los alumnos revisar sus registros.
-- **Múltiples roles**: Funcionalidad adaptada para alumnos, profesores, administradores y gestores académicos.
-- **Justificaciones**: Sistema para solicitar, revisar y aprobar justificaciones de ausencia.
-- **Dispensas académicas**: Gestión de solicitudes de dispensas para actividades académicas específicas.
-- **Dashboard personalizado**: Interfaz adaptada a cada tipo de usuario.
-- **Registro de actividad**: Control detallado de acciones realizadas en el sistema.
-
-## Tecnologías
-
-- **Frontend**: Next.js 15, React 19, Tailwind CSS
-- **Backend**: API Routes de Next.js
-- **Base de datos**: PostgreSQL con Prisma ORM
-- **Autenticación**: NextAuth.js
-- **Contenedorización**: Docker y Docker Compose
+## Descripción
+Portal de Gestión de Asistencias para la Universidad Francisco de Vitoria.
 
 ## Requisitos
+- Node.js 18.x o superior
+- PostgreSQL 14.x
+- Docker (opcional, para desarrollo)
 
-- Node.js (versión 20 o superior)
-- npm (versión 10 o superior)
-- PostgreSQL (opcional si usas Docker)
-- Docker y Docker Compose (opcional)
+## Configuración del entorno
 
-## Instalación y Ejecución
+### Variables de entorno
+Crea un archivo `.env` en la raíz del proyecto con las siguientes variables:
 
-### Desarrollo Local
+```env
+# Base de datos
+DATABASE_URL="postgresql://username:password@localhost:5432/pga"
 
-1. **Clonar el repositorio**
-   ```bash
-   git clone <url-del-repositorio>
-   cd pga
-   ```
+# NextAuth
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="tu-secret-aqui"
 
-2. **Instalar dependencias**
-   ```bash
-   npm install
-   ```
+# Email (para recuperación de contraseña)
+EMAIL_SERVER_HOST="smtp.example.com"
+EMAIL_SERVER_PORT=587
+EMAIL_SERVER_USER="tu-usuario@example.com"
+EMAIL_SERVER_PASSWORD="tu-contraseña"
+EMAIL_FROM="noreply@example.com"
 
-3. **Configurar variables de entorno**
-   ```bash
-   cp .env.example .env
-   ```
-   Edita `.env` con tus configuraciones locales.
+# Seguridad
+LOG_INTEGRITY_SECRET="clave-secreta-para-firmar-logs"
+```
 
-4. **Configurar la base de datos**
-   ```bash
-   npx prisma migrate dev
-   npx prisma generate
-   ```
+## Ejecutar en desarrollo
 
-5. **Ejecutar el servidor de desarrollo**
-   ```bash
-   npm run dev
-   ```
+```bash
+# Instalar dependencias
+npm install
 
-La aplicación estará disponible en [http://localhost:3000](http://localhost:3000).
+# Iniciar base de datos con Docker (opcional)
+npm run docker:up
 
-### Usando Docker
+# Aplicar migraciones
+npx prisma migrate dev
 
-1. **Configurar variables de entorno para Docker**
-   ```bash
-   cp .env.example .env.production
-   ```
-   Edita `.env.production` con las configuraciones para Docker.
+# Cargar datos de prueba
+npm run seed
 
-2. **Construir e iniciar los contenedores**
-   ```bash
-   npm run docker:build
-   npm run docker:up
-   ```
+# Iniciar servidor de desarrollo
+npm run dev
+```
 
-3. **Ver logs (opcional)**
-   ```bash
-   npm run docker:logs
-   ```
+## Ejecutar en producción
 
-La aplicación estará disponible en [http://localhost:3000](http://localhost:3000).
+```bash
+# Construir la aplicación
+npm run build
 
-Para más detalles sobre la configuración de Docker, consulta [README-docker.md](README-docker.md).
+# Iniciar servidor
+npm start
+```
+
+## Testing
+
+Este proyecto utiliza Jest para pruebas unitarias. Para ejecutar los tests:
+
+```bash
+# Ejecutar todos los tests
+npm test
+
+# Ejecutar tests con watch mode (útil durante desarrollo)
+npm run test:watch
+
+# Generar informe de cobertura
+npm run test:coverage
+
+# Ejecutar sólo tests específicos
+npm run test:api    # Tests de API
+npm run test:lib    # Tests de utilidades/funciones
+```
+
+### Estructura de tests
+Los tests están organizados en directorios que reflejan la estructura del proyecto:
+
+```
+__tests__/
+  ├── api/         # Tests para las rutas API
+  │    ├── auth/   # Tests para autenticación
+  │    └── user/   # Tests para usuarios
+  └── lib/         # Tests para funciones de utilidad
+```
 
 ## Estructura del proyecto
 
 ```
-app/                      # Código de la aplicación Next.js
-  api/                    # API Routes (backend)
-  (rutas de frontend)     # Páginas de la aplicación
-components/               # Componentes React reutilizables
-lib/                      # Utilidades y configuraciones
-prisma/                   # Esquemas y migraciones de Prisma
-public/                   # Archivos estáticos
-scripts/                  # Scripts de utilidad
-types/                    # Declaraciones de tipos TypeScript
+app/                # Directorio principal de Next.js App Router
+  ├── api/          # Endpoints API
+  ├── auth/         # Páginas de autenticación
+  ├── admin/        # Panel de administrador
+  ├── alumno/       # Panel de alumno
+  ├── manager/      # Panel de gestor
+  ├── pec/          # Panel de PEC
+  └── profesor/     # Panel de profesor
+components/         # Componentes React
+lib/                # Utilidades y funciones
+prisma/             # Esquema y migraciones de Prisma
+public/             # Archivos estáticos
 ```
 
-## Entornos de ejecución
-
-- **Desarrollo**: Ejecuta `npm run dev` para desarrollo local
-- **Producción con Docker**: Usa Docker Compose como se describe en la sección Docker
-- **Producción sin Docker**: Construye la aplicación con `npm run build` y ejecútala con `npm start`
-
 ## Licencia
-
-Este proyecto es privado y está destinado exclusivamente para uso académico.
+Propiedad de la Universidad Francisco de Vitoria.

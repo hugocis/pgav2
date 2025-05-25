@@ -72,6 +72,14 @@ interface AsistenciaAlumno {
     fecha: string;
     grupoId: string;
   };
+  SolicitudJustificacion?: {
+    id: string;
+    estadoJustificacion?: {
+      id: string;
+      denominacion: string;
+    };
+    fechaAlegacion: string;
+  }[];
 }
 
 interface SesionClase {
@@ -263,8 +271,7 @@ export default function ProfesorAlumnos() {
         sesionesMap.set(grupo.id, sesionesGrupo);
         
         // Para cada sesión, obtener asistencias
-        for (const sesion of sesionesGrupo) {
-          const asistenciasResponse = await fetch(`/api/asistencias-alumno?sesionClaseId=${sesion.id}`, {
+        for (const sesion of sesionesGrupo) {          const asistenciasResponse = await fetch(`/api/asistencias-alumno?sesionClaseId=${sesion.id}&includeJustificaciones=true`, {
             credentials: 'include'
           });
           
@@ -312,27 +319,27 @@ export default function ProfesorAlumnos() {
           const asistencias = asistenciasMap.get(grupoId) || [];
           
           // Filtrar asistencias solo para este alumno en este grupo
-          const asistenciasAlumno = asistencias.filter(a => a.alumnoId === alumnoId);
+          const asistenciasAlumno = asistencias.filter(a => a.alumnoId === alumnoId);          // Variable para contar asistencias totales considerando fracciones
+          let asistenciasTotales = 0;
           
-          // Contar asistencias positivas ("Asiste")
-          const asistenciasPositivas = asistenciasAlumno.filter(a => 
-            a.estado === 'Asiste' || 
-            (a.estadoAsistencia && a.estadoAsistencia.denominacion === 'Asiste')
-          ).length;
+          // Recorrer todas las asistencias del alumno para calcular el valor correcto
+          asistenciasAlumno.forEach(a => {
+            // Usar la función auxiliar para determinar el valor de asistencia
+            const infoAsistencia = getEstadoAsistencia(a);
+            asistenciasTotales += infoAsistencia.valorAsistencia;
+          });
           
           const numSesiones = sesiones.length;
-          const porcentaje = numSesiones > 0 ? Math.round((asistenciasPositivas / numSesiones) * 100) : 0;
-          
-          estadisticas.gruposEstadisticas[grupoId] = {
+          const porcentaje = numSesiones > 0 ? Math.round((asistenciasTotales / numSesiones) * 100) : 0;
+            estadisticas.gruposEstadisticas[grupoId] = {
             grupoId,
             grupoNombre: grupo.denominacion,
             sesiones: numSesiones,
-            asistencias: asistenciasPositivas,
+            asistencias: asistenciasTotales,
             porcentaje
-          };
-          
+          };          
           estadisticas.totalSesiones += numSesiones;
-          estadisticas.totalAsistencias += asistenciasPositivas;
+          estadisticas.totalAsistencias += asistenciasTotales;
         });
         
         // Calcular porcentaje total
@@ -383,15 +390,17 @@ export default function ProfesorAlumnos() {
       const data: ExcelData = {
         'Alumno': alumno.nombreCompleto,
       };
-      
-      // Añadir cada grupo como columna
+        // Añadir cada grupo como columna
       Object.values(alumno.gruposEstadisticas).forEach(grupo => {
-        data[`Grupo ${grupo.grupoNombre}`] = `${grupo.porcentaje}% (${grupo.asistencias}/${grupo.sesiones})`;
+        // Formatear asistencias con decimal solo si es necesario
+        const asistenciasFormateadas = Number.isInteger(grupo.asistencias) ? 
+          grupo.asistencias : grupo.asistencias.toFixed(1);
+        data[`Grupo ${grupo.grupoNombre}`] = `${grupo.porcentaje}% (${asistenciasFormateadas}/${grupo.sesiones})`;
       });
-      
-      // Añadir totales
+        // Añadir totales
       data['Total sesiones'] = alumno.totalSesiones;
-      data['Total asistencias'] = alumno.totalAsistencias;
+      data['Total asistencias'] = Number.isInteger(alumno.totalAsistencias) ? 
+        alumno.totalAsistencias : alumno.totalAsistencias.toFixed(1);
       data['% Total'] = `${alumno.porcentajeTotal}%`;
       
       return data;
@@ -426,7 +435,6 @@ export default function ProfesorAlumnos() {
       setCurrentPage(pageNumber);
     }
   };
-
   // Componente para mostrar el gráfico de asistencia mejorado visualmente
   const AttendancePieChart = ({ 
     asistencias, 
@@ -459,7 +467,9 @@ export default function ProfesorAlumnos() {
       fillColor = 'rgb(239, 68, 68)'; // rojo
       bgRingColor = 'rgba(239, 68, 68, 0.15)';
       textColor = 'text-red-600';
-    }    // Cálculos para el gráfico SVG
+    }
+    
+    // Mostramos los decimales si la asistencia no es un número entero
     const radius = chartSize[size].width / 2;
     const innerRadius = radius - chartSize[size].strokeWidth;
     const circumference = 2 * Math.PI * innerRadius;
@@ -570,9 +580,8 @@ export default function ProfesorAlumnos() {
           >
             {porcentaje}%
           </div>
-        </div>
-        <div className={`text-xs mt-1 ${textColor} font-medium`}>
-          {asistencias}/{total}
+        </div>        <div className={`text-xs mt-1 ${textColor} font-medium`}>
+          {Number.isInteger(asistencias) ? asistencias : asistencias.toFixed(1)}/{total}
         </div>
       </div>
     );
@@ -1076,3 +1085,36 @@ export default function ProfesorAlumnos() {
     </DashboardContainer>
   );
 }
+
+// Determinar el estado de asistencia de un alumno considerando justificaciones y dispensas
+const getEstadoAsistencia = (asistencia: AsistenciaAlumno) => {
+  const estado = asistencia.estado || (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);
+  
+  // Verificar si la asistencia tiene justificación aprobada
+  const tieneJustificacionAprobada = asistencia.SolicitudJustificacion && 
+    Array.isArray(asistencia.SolicitudJustificacion) && 
+    asistencia.SolicitudJustificacion.some(s => 
+      s.estadoJustificacion?.denominacion === 'Justificado'
+    );
+  
+  // Devolver un objeto con información detallada del estado
+  return {
+    estado,
+    justificada: tieneJustificacionAprobada,
+    valorAsistencia: 
+      // Asistencia completa
+      estado === 'Asiste' ? 1 :
+      // Falta justificada o estado específico de justificación
+      (estado === 'No Asiste' && tieneJustificacionAprobada) || 
+      estado === 'Justificada' || 
+      estado === 'No Asiste Justificada' ? 1 :
+      // Media asistencia justificada
+      estado === '50%' && tieneJustificacionAprobada ? 1 :
+      // Media asistencia sin justificar
+      estado === '50%' ? 0.5 :
+      // Dispensado cuenta como asistencia completa
+      estado === 'Dispensado' ? 1 :
+      // Cualquier otro caso (faltas sin justificar) no suma
+      0
+  };
+};

@@ -550,10 +550,16 @@ export default function AsistenciaDetallada() {
 
         const asistenciasResultados = await Promise.all(asistenciasPromesas);        // Para Debug - Loguear cada asistencia para verificar cálculos
         console.log('Detalle de cada asistencia:', asistenciasResultados.map(a => {
-          if (!a) return { tipo: 'Sin registro', estado: 'Falta' };
-          const estado = a.estado || (a.estadoAsistencia && a.estadoAsistencia.denominacion);
+          if (!a) return { tipo: 'Sin registro', estado: 'Falta' };          const estado = a.estado || (a.estadoAsistencia && a.estadoAsistencia.denominacion);
           const tieneJustificacionAprobada = a.SolicitudJustificacion && 
-            a.SolicitudJustificacion.some((s: any) => s.estadoJustificacion?.denominacion === 'Justificado');
+            a.SolicitudJustificacion.some((s: {
+              id: string;
+              estadoJustificacion?: {
+                id: string;
+                denominacion: string;
+              };
+              fechaAlegacion: string;
+            }) => s.estadoJustificacion?.denominacion === 'Justificado');
           
           return {
             id: a.id,
@@ -1046,7 +1052,14 @@ export default function AsistenciaDetallada() {
                                           (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);
                                         
                                         const tieneJustificacionAprobada = asistencia.SolicitudJustificacion && 
-                                          asistencia.SolicitudJustificacion.some(s => 
+                                          asistencia.SolicitudJustificacion.some((s: {
+                                            id: string;
+                                            estadoJustificacion: {
+                                              id: string;
+                                              denominacion: string;
+                                            } | null;
+                                            fechaAlegacion: string;
+                                          }) => 
                                             s.estadoJustificacion?.denominacion === 'Justificado');
                                         
                                         if (estado === 'No Asiste' && tieneJustificacionAprobada) {
