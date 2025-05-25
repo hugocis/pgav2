@@ -1,6 +1,10 @@
 ﻿# Attendance Management Portal (PGA)
 
-![UFV Logo](public/logo-UFV.png)
+<div align="center">
+    <img src="public/logo-UFV.png" alt="UFV Logo">
+    <br><br>
+    <img src="public/Background.jpeg" alt="Background Image" width="600px">
+</div>
 
 ## Description
 Attendance Management Portal for Francisco de Vitoria University.
