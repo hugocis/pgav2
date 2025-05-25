@@ -16,7 +16,7 @@ This system allows for comprehensive management of student attendance across dif
 - Administrative panel for system configuration
 
 ### Technologies
-- **Frontend:** React, Next.js 13+ (App Router)
+- **Frontend:** React, Next.js 15+ (App Router)
 - **Backend:** Node.js with Next.js API Routes
 - **Database:** PostgreSQL with Prisma ORM
 - **Authentication:** NextAuth.js
