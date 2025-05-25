@@ -118,29 +118,26 @@ export default function ProfesorGrupos() {
             setIsLoading(false);
             return;
           }
-        }
-          // Cargar grupos de la asignatura donde el profesor es el dueño
+        }          // Load groups from the subject where the teacher is the owner
         const gruposResponse = await fetch(`/api/grupos?asignaturaId=${asignaturaId}`, {
           credentials: 'include'
         });
         
         if (!gruposResponse.ok) {
-          throw new Error('No se pudieron cargar los grupos');
+          throw new Error('Could not load groups');
         }
         
-        const gruposData = await gruposResponse.json();
-        // Filtrar solo los grupos donde el profesor es el dueño
+        const gruposData = await gruposResponse.json();        // Filter only groups where the teacher is the owner
         let gruposFiltrados = [];
         if (gruposData && gruposData.grupos && Array.isArray(gruposData.grupos)) {
           gruposFiltrados = gruposData.grupos.filter((grupo: Grupo) => grupo.profesorId === session.user.id);
         } else {
-          console.error('Formato de respuesta de grupos incorrecto:', gruposData);
+          console.error('Incorrect groups response format:', gruposData);
         }
           // Marcar grupos predefinidos (Grupo A, Grupo B, etc.) o los que tienen ID menor o igual a 100
         gruposFiltrados = gruposFiltrados.map((grupo: Grupo) => {
-          // Es un grupo predefinido si:
-          // 1. Su denominación es exactamente "GRUPO A", "GRUPO B", "GRUPO A INGLÉS", o "GRUPO B INGLÉS"
-          // 2. O si su ID es menor o igual a 100
+          // Es un grupo predefinido si:          // 1. Its name is exactly "GRUPO A", "GRUPO B", "GRUPO A INGLÉS", or "GRUPO B INGLÉS"
+          // 2. Or if its ID is less than or equal to 100
           const nombreMayusculas = grupo.denominacion.toUpperCase();
           const esGrupoPredefinidoExacto = ["GRUPO A", "GRUPO B", "GRUPO A INGLÉS", "GRUPO B INGLÉS"].includes(nombreMayusculas);
           const esGrupoConIdPredefinido = (parseInt(grupo.id) <= 100);
@@ -151,43 +148,35 @@ export default function ProfesorGrupos() {
             esGrupoPredefinido: esPredefinido
           };
         });
-        
-        setGrupos(gruposFiltrados);
-        setDebugInfo(prev => prev + `| Grupos cargados: ${gruposFiltrados.length}`);
-        console.log("Grupos cargados:", gruposFiltrados);
-          // Cargar alumnos de la asignatura específica
+          setGrupos(gruposFiltrados);
+        setDebugInfo(prev => prev + `| Groups loaded: ${gruposFiltrados.length}`);
+          // Load students from the specific subject
         const alumnosResponse = await fetch(`/api/alumnos-asignatura?asignaturaId=${asignaturaId}`, {
           credentials: 'include'
         });
         
         if (!alumnosResponse.ok) {
-          throw new Error('No se pudieron cargar los alumnos de la asignatura');
-        }        const alumnosAsignaturaData = await alumnosResponse.json();
-        console.log("Respuesta API alumnos-asignatura:", alumnosAsignaturaData);        // Extraer alumnos de la asignatura (solo los matriculados en esta asignatura específica)
+          throw new Error('No se pudieron cargar los alumnos de la asignatura');        }        const alumnosAsignaturaData = await alumnosResponse.json();
+        // Extract students from the subject (only those enrolled in this specific subject)
         let alumnosMatriculados: Alumno[] = [];
         if (alumnosAsignaturaData && Array.isArray(alumnosAsignaturaData)) {
           alumnosMatriculados = alumnosAsignaturaData.map((matricula: Matricula) => {
             if (matricula && matricula.user) {
               return matricula.user;
-            }
-            return null;
+            }            return null;
           }).filter((a: Alumno | null) => a !== null);
           
-          console.log("Alumnos matriculados en la asignatura:", alumnosMatriculados.length);
-        }          // Cargar las relaciones alumno-grupo solo para los grupos del profesor
+        }          // Load student-group relationships only for the teacher's groups
         const promesasAlumnosGrupo = gruposFiltrados.map((grupo: Grupo) => 
           fetch(`/api/alumnos-grupo?grupoId=${grupo.id}&skipPagination=true`, { credentials: 'include' })
             .then(response => {
               if (!response.ok) return [];
-              return response.json().then(result => {
-                // Con skipPagination=true la API ahora devuelve directamente el array
+              return response.json().then(result => {                // With skipPagination=true the API now returns the array directly
                 if (Array.isArray(result)) {
-                  console.log(`Cargados ${result.length} alumnos para grupo ${grupo.denominacion}`);
                   return result;
                 } 
-                // Para mantener compatibilidad, verificamos también el formato anterior
+                // To maintain compatibility, we also check the previous format
                 else if (result && result.data && Array.isArray(result.data)) {
-                  console.log(`Cargados ${result.data.length} alumnos para grupo ${grupo.denominacion}`);
                   return result.data;
                 } else {
                   console.error(`Formato inesperado en respuesta de alumnos-grupo:`, result);
@@ -204,10 +193,9 @@ export default function ProfesorGrupos() {
         const resultadosAlumnosGrupo = await Promise.all(promesasAlumnosGrupo);
         const alumnosGrupoProfesor = resultadosAlumnosGrupo.flat();
         setTodosLosAlumnosGrupo(alumnosGrupoProfesor);
-        setDebugInfo(prev => prev + `| Alumnos-grupo cargados: ${alumnosGrupoProfesor.length}`);// Si no hay alumnos matriculados, intenta extraerlos de los alumnos-grupo
-        if (alumnosMatriculados.length === 0) {
-          console.log("No hay alumnos matriculados, extrayendo de los grupos...");
-          // Extraer alumnos únicos a partir de los datos de alumnos-grupo
+        if (alumnosAsignatura.length > 0) { 
+        setDebugInfo(prev => prev + `| Alumnos-grupo cargados: ${alumnosGrupoProfesor.length}`);// Si no hay alumnos matriculados, intenta extraerlos de los alumnos-grupo        if (alumnosMatriculados.length === 0) {
+          // Extract unique students from student-group data
           const mapaAlumnos = new Map();
           alumnosGrupoProfesor.forEach(ag => {
             if (ag && ag.user && ag.user.id) {
@@ -222,15 +210,13 @@ export default function ProfesorGrupos() {
           const apellidoB = b.surname1 || '';
           return apellidoA.localeCompare(apellidoB) || a.name.localeCompare(b.name);
         });
-        
-        setAlumnosAsignatura(alumnosMatriculados);
-        setDebugInfo(prev => prev + `| Alumnos cargados: ${alumnosMatriculados.length}`);
-        console.log("Alumnos matriculados:", alumnosMatriculados.length);
+          setAlumnosAsignatura(alumnosMatriculados);
+        setDebugInfo(prev => prev + `| Students loaded: ${alumnosMatriculados.length}`);
         
         setIsLoading(false);
       } catch (error) {
-        console.error('Error al cargar datos:', error);
-        setError(`Error al cargar los datos: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+        console.error('Error loading data:', error);
+        setError(`Error loading data: ${error instanceof Error ? error.message : 'Unknown error'}`);
         setIsLoading(false);
       }
     };
@@ -264,20 +250,19 @@ export default function ProfesorGrupos() {
       setGrupos([...grupos, data.grupo]);
       setModalCrearGrupoAbierto(false);
       setNuevoGrupoNombre('');
-      
-      // Mostrar notificación de éxito
+        // Show success notification
       setNotification({
-        message: `¡Grupo "${nuevoGrupoNombre.trim()}" creado correctamente!`,
+        message: `Group "${nuevoGrupoNombre.trim()}" created successfully!`,
         type: 'success'
       });
       
-      // Ocultar la notificación después de 3 segundos
+      // Hide notification after 3 seconds
       setTimeout(() => {
         setNotification(null);
       }, 3000);
     } catch (error) {
-      console.error('Error al crear el grupo:', error);
-      alert('Error al crear el grupo. Por favor, inténtalo de nuevo.');
+      console.error('Error creating group:', error);
+      alert('Error creating group. Please try again.');
     }
   };
 
@@ -303,53 +288,50 @@ export default function ProfesorGrupos() {
       
       setModalConfirmacionAbierto(false);
       setGrupoAEliminar(null);
-      
-      // Mostrar notificación de éxito
+        // Show success notification
       setNotification({
-        message: `Grupo "${nombreGrupoEliminado}" eliminado correctamente`,
+        message: `Group "${nombreGrupoEliminado}" deleted successfully`,
         type: 'success'
       });
       
-      // Ocultar la notificación después de 3 segundos
+      // Hide notification after 3 seconds
       setTimeout(() => {
         setNotification(null);
       }, 3000);
     } catch (error) {
-      console.error('Error al eliminar el grupo:', error);
-      alert('Error al eliminar el grupo. Por favor, inténtalo de nuevo.');
+      console.error('Error deleting group:', error);
+      alert('Error deleting group. Please try again.');
     }
   };  const toggleAlumnoEnGrupo = async (alumnoId: string, grupoId: string) => {
     try {
       const alumnoYaEnGrupo = todosLosAlumnosGrupo.find(
         ag => ag.alumno_Id === alumnoId && ag.grupoId === grupoId
       );
-      
-      if (alumnoYaEnGrupo) {
-        // Si el alumno ya está en el grupo, lo eliminamos
+        if (alumnoYaEnGrupo) {
+        // If the student is already in the group, remove them
         const deleteResponse = await fetch(`/api/alumnos-grupo/${alumnoYaEnGrupo.id}`, {
           method: 'DELETE',
           credentials: 'include',
         });
         
         if (!deleteResponse.ok) {
-          throw new Error('Error al eliminar al alumno del grupo');
+          throw new Error('Error removing student from group');
         }
         
-        // Actualizar localmente
+        // Update locally
         setTodosLosAlumnosGrupo(
           todosLosAlumnosGrupo.filter(ag => ag.id !== alumnoYaEnGrupo.id)
         );
         
         setNotification({
-          message: 'Alumno eliminado del grupo correctamente',
+          message: 'Student successfully removed from group',
           type: 'success'
         });
         setTimeout(() => setNotification(null), 3000);
-      } else {
-        // Si el alumno no está en el grupo, lo añadimos directamente
-        // Ya no eliminamos al alumno de otros grupos, permitiendo que esté en múltiples grupos
+      } else {        // If the student is not in the group, add them directly
+        // We no longer remove the student from other groups, allowing them to be in multiple groups
         
-        // Añadir al alumno al grupo seleccionado
+        // Add the student to the selected group
         const addResponse = await fetch('/api/alumnos-grupo', {
           method: 'POST',
           headers: {
@@ -364,38 +346,32 @@ export default function ProfesorGrupos() {
         
         if (!addResponse.ok) {
           const errorData = await addResponse.json();
-          console.error('Error al añadir alumno al grupo:', errorData);
-          throw new Error(errorData.error || 'Error al añadir el alumno al grupo');
+          console.error('Error al añadir alumno al grupo:', errorData);          throw new Error(errorData.error || 'Error adding student to group');
         }
         
-        // Actualizar localmente - la API podría devolver el objeto directamente o dentro de una propiedad
+        // Update locally - the API could return the object directly or inside a property
         const respuestaJson = await addResponse.json();
         const nuevoAlumnoGrupo = respuestaJson.data || respuestaJson;
         
         setTodosLosAlumnosGrupo([...todosLosAlumnosGrupo, nuevoAlumnoGrupo]);
         
         setNotification({
-          message: 'Alumno añadido al grupo correctamente',
+          message: 'Student added to group successfully',
           type: 'success'
         });
         setTimeout(() => setNotification(null), 3000);
-      }
-    } catch (error) {
-      console.error('Error al cambiar el estado del alumno en el grupo:', error);
+      }    } catch (error) {
+      console.error('Error changing student status in group:', error);
       setNotification({
-        message: error instanceof Error ? error.message : 'Error al cambiar el estado del alumno en el grupo',
+        message: error instanceof Error ? error.message : 'Error changing student status in group',
         type: 'error'
       });
       setTimeout(() => setNotification(null), 5000);
-    }
-  };// Función para editar el nombre de un grupo
+    }  };// Function to edit a group's name
   const handleEditarGrupo = async () => {
     if (!grupoAEditar || !nombreEditadoGrupo.trim()) return;
-    
-  try {
-      // Inspeccionar el objeto del grupo que vamos a editar para depuración
-      console.log('Grupo a editar completo:', JSON.stringify(grupoAEditar, null, 2));
-      
+      try {
+      // Inspect the group object we're going to edit
       const response = await fetch(`/api/grupos/${grupoAEditar.id}`, {
         method: 'PUT',
         headers: {
@@ -408,62 +384,52 @@ export default function ProfesorGrupos() {
           profesorId: grupoAEditar.profesorId
         }),
       });
-      
-      if (!response.ok) {
-        throw new Error('No se pudo actualizar el nombre del grupo');
-      }        // Actualizar localmente
+        if (!response.ok) {
+        throw new Error('Could not update group name');
+      }        // Update locally
       const grupoActualizado = await response.json();
-      console.log('Respuesta de la API al actualizar grupo:', grupoActualizado);
-      
-      // Asegurarnos de que denominacion se asigna correctamente
+        // Make sure the name is assigned correctly
       const nuevaDenominacion = nombreEditadoGrupo.trim();
       
-      // Asegurarse de preservar todas las propiedades importantes, incluido esGrupoPredefinido
+      // Make sure all important properties are preserved, including esGrupoPredefinido
       const grupoConPropiedadesPreservadas = {
         ...grupoAEditar,
         ...grupoActualizado,
-        // Forzar la actualización de la denominación explícitamente
+        // Force the explicit update of the denomination
         denominacion: nuevaDenominacion,
-        // Asegurar que esGrupoPredefinido se conserva
+        // Ensure esGrupoPredefinido is preserved
         esGrupoPredefinido: grupoAEditar.esGrupoPredefinido
       };
-        // Crear una nueva copia del array de grupos con el grupo actualizado
+        // Create a new copy of the groups array with the updated group
       const gruposActualizados = grupos.map(g => 
         g.id === grupoAEditar.id ? grupoConPropiedadesPreservadas : g
       );
-      
-      console.log('Grupo después de actualizar:', grupoConPropiedadesPreservadas);
-      console.log('Grupos actualizados:', gruposActualizados);
-      
-      // Actualizar el estado con el nuevo array
+        // Update state with the new array
       setGrupos(gruposActualizados);
-        // Limpiar el estado después de completar la edición
+        // Clean up state after completing the edit
       setModalEditarGrupoAbierto(false);
       setGrupoAEditar(null);
       setNombreEditadoGrupo('');
-      
-      // Mostrar notificación de éxito
+        // Show success notification
       setNotification({
-        message: `¡Grupo "${nuevaDenominacion}" actualizado correctamente!`,
+        message: `Group "${nuevaDenominacion}" updated successfully!`,
         type: 'success'
       });
       
-      // Ocultar la notificación después de 3 segundos
+      // Hide notification after 3 seconds
       setTimeout(() => {
         setNotification(null);
       }, 3000);
     } catch (error) {
-      console.error('Error al editar el grupo:', error);
-      alert('Error al editar el nombre del grupo. Por favor, inténtalo de nuevo.');
-    }
-  };  // Función auxiliar para comprobar si un alumno está en un grupo específico
+      console.error('Error editing group:', error);
+      alert('Error editing group name. Please try again.');
+    }  };  // Helper function to check if a student is in a specific group
   const estaAlumnoEnGrupo = (alumnoId: string, grupoId: string): boolean => {
     return todosLosAlumnosGrupo.some(
       ag => ag.alumno_Id === alumnoId && ag.grupoId === grupoId
     );
   };
-
-  // Filtrar alumnos por término de búsqueda
+  // Filter students by search term
   const alumnosFiltrados = searchTermAlumnos
     ? alumnosAsignatura.filter(alumno => 
         alumno && `${alumno.surname1 || ''} ${alumno.name || ''}`.toLowerCase().includes(searchTermAlumnos.toLowerCase()) ||
@@ -471,7 +437,7 @@ export default function ProfesorGrupos() {
       )
     : alumnosAsignatura;
   return (
-    <DashboardContainer roleName="Profesor">      {/* Notificación de éxito */}
+    <DashboardContainer roleName="Profesor">      {/* Success notification */}
       {notification && (
         <div className={`fixed top-20 right-4 z-50 px-6 py-3 rounded-lg shadow-lg border ${
           notification.type === 'success' 

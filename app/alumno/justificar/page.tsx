@@ -79,18 +79,16 @@ export default function JustificarFalta() {
 
         if (!response.ok) {
           throw new Error('Error al obtener la información de asistencia');
-        }
-
-        const data = await response.json();
-        // La API devuelve un objeto único, no un array
+        }        const data = await response.json();
+        // The API returns a single object, not an array
         if (data && data.id) {
           setAsistencia(data);
           
-          // Comprobar si hay una justificación rechazada y cargar los datos
+          // Check if there's a rejected justification and load the data
           if (data.SolicitudJustificacion && data.SolicitudJustificacion.length > 0) {
             const justificacion = data.SolicitudJustificacion[0];
             if (justificacion.rechazada) {
-              // Prellenar el formulario con la alegación anterior
+              // Prefill the form with the previous allegation
               setAlegacion(justificacion.alegacion || '');
             }
           }
@@ -102,8 +100,7 @@ export default function JustificarFalta() {
         setError(`Error al cargar los datos: ${error instanceof Error ? error.message : 'Error desconocido'}`);
       } finally {
         setIsLoading(false);
-      }
-    };    // Obtener los estados de justificación
+      }    };    // Get justification states
     const fetchEstadosJustificacion = async () => {
       try {
         const response = await fetch('/api/estados-justificacion', {
@@ -111,14 +108,13 @@ export default function JustificarFalta() {
         });
 
         if (!response.ok) {
-          throw new Error('Error al obtener los estados de justificación');
+          throw new Error('Error getting justification states');
         }        
         
         const data = await response.json();
         setEstadosJustificacion(data);
-          console.log('Estados de justificación disponibles:', data);
-        // Mostrar los IDs y denominaciones para depuración
-        console.log('Estados detallados:', data.map((e: EstadoJustificacion) => `${e.denominacion} (${e.id})`));
+          console.log('Estados de justificación disponibles:', data);        // Show IDs and names for debugging
+        console.log('Detailed states:', data.map((e: EstadoJustificacion) => `${e.denominacion} (${e.id})`));
       } catch (error) {
         console.error('Error al obtener estados de justificación:', error);
       }
@@ -140,9 +136,8 @@ export default function JustificarFalta() {
       setIsLoading(true);
         // Validar que haya un enlace
       if (!enlaceDocumentacion.startsWith('http://') && !enlaceDocumentacion.startsWith('https://')) {
-        throw new Error('Por favor, proporciona un enlace válido (debe comenzar con http:// o https://)');
-      }      // Crear los datos para la solicitud de justificación
-      // Buscar el estado "Pendiente" para nuevas justificaciones
+        throw new Error('Por favor, proporciona un enlace válido (debe comenzar con http:// o https://)');      }      // Create data for the justification request
+      // Find the "Pending" state for new justifications
       const pendienteEstado = estadosJustificacion.find((estado: EstadoJustificacion) => 
         estado.denominacion.toLowerCase() === 'pendiente'
       );
@@ -168,8 +163,7 @@ export default function JustificarFalta() {
         fechaAlegacion: new Date(), // Usando el objeto Date directamente
         alegacion: alegacion,
         estadoJustificacionId: estadoJustificacionId
-      };
-        // Enviar la solicitud de justificación
+      };        // Send justification request
       const response = await fetch('/api/solicitudes-justificacion', {
         method: 'POST',
         headers: {
@@ -178,20 +172,18 @@ export default function JustificarFalta() {
         body: JSON.stringify(solicitudData),
         credentials: 'include',
       });
-        if (!response.ok) {
-        // Intentar obtener el mensaje de error detallado de la API
-        let errorMessage = 'Error al enviar la solicitud de justificación';        try {
+        if (!response.ok) {        // Try to get detailed error message from the API
+        let errorMessage = 'Error sending justification request';        try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
-          console.error('Error detallado:', errorData);
-          console.error('Datos enviados:', solicitudData);
+          console.error('Detailed error:', errorData);
+          console.error('Data sent:', solicitudData);
         } catch {
-          console.error('No se pudo obtener detalle del error');
+          console.error('Could not get error details');
         }
         throw new Error(`${errorMessage} (código: ${response.status})`);
       }
-      
-      const result = await response.json();      // Registrar la documentación como un enlace
+        const result = await response.json();      // Register the documentation as a link
       const docData = {
         solicitudJustificacionId: result.id,
         url: enlaceDocumentacion,
@@ -221,29 +213,27 @@ export default function JustificarFalta() {
       }
       
       setSuccess(true);
-      
-      // Redirección a dashboard después de un tiempo
+        // Redirect to dashboard after a delay
       setTimeout(() => {
         router.push('/alumno/dashboard');
       }, 2000);    } catch (error) {
-      console.error('Error detallado completo:', error);
+      console.error('Complete detailed error:', error);
       
-      // Mostrar información detallada del error en la consola para depuración
+      // Show detailed error information in console for debugging
       if (error instanceof Error) {
-        console.error('Mensaje del error:', error.message);
+        console.error('Error message:', error.message);
         if ('cause' in error && error.cause) {
-          console.error('Causa del error:', error.cause);
+          console.error('Error cause:', error.cause);
         }
       }
       
       let errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-      
-      // Dar un mensaje más amigable para ciertos errores comunes
+        // Give a more friendly message for certain common errors
       if (errorMessage.includes('estado de justificación especificado no existe')) {
-        errorMessage = 'El sistema no tiene configurados los estados de justificación correctamente. Por favor, contacte con el administrador y mencione este error.';
+        errorMessage = 'The system does not have the justification states properly configured. Please contact the administrator and mention this error.';
       }
       
-      setError(`Error al enviar la justificación: ${errorMessage}`);
+      setError(`Error sending justification: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }

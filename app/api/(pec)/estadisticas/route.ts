@@ -50,14 +50,9 @@ export async function GET() {
       if (!carreraCursoMap.has(cc.carreraId)) {
         carreraCursoMap.set(cc.carreraId, []);
       }
-      carreraCursoMap.get(cc.carreraId).push(cc.curso);
-    });
+      carreraCursoMap.get(cc.carreraId).push(cc.curso);    });
 
-    console.log(`PEC: ${pecId} tiene asignadas ${carrerasCursos.length} combinaciones de carrera-curso`);
-    console.log(`Carreras: ${carreraIds.join(', ')}`);
-    console.log(`Cursos: ${cursos.join(', ')}`);
-
-    // Obtener el total de alumnos en estas carreras y cursos
+    // Get the total number of students in these degrees and courses
     const alumnos = await prisma.user.findMany({
       where: {
         userRoles: {
@@ -126,12 +121,7 @@ export async function GET() {
       alumno.userRoles.some(ur => ur.role.name === 'GOE')
     );
     const alumnosGOE = alumnosConRolGOE.length;
-    
-    console.log(`Alumnos encontrados: ${totalAlumnos}`);
-    console.log(`Alumnos con rol GOE: ${alumnosGOE}`);
-    if (alumnosConRolGOE.length > 0) {
-      console.log('IDs de alumnos con rol GOE:', alumnosConRolGOE.map(a => a.id));
-    }
+  
 
     // Calcular porcentaje de asistencia por alumno y contar problemas
     let totalPorcentajeAsistencia = 0;
@@ -171,14 +161,7 @@ export async function GET() {
           datos.asistidas++;
         }
       }
-      
-      // Si el alumno tiene asignatura relevantes, imprimir información de depuración
-      if (asistenciasPorAsignatura.size > 0 && alumnosGOE > 0) {
-        console.log(`Alumno ${alumno.id} (${alumno.name || ''} ${alumno.surname1 || ''}): ${asistenciasPorAsignatura.size} asignaturas relevantes`);
-        for (const [, datos] of asistenciasPorAsignatura) {
-          console.log(`  - ${datos.nombre}: ${datos.asistidas}/${datos.total} (${Math.round(datos.asistidas / datos.total * 100)}%)`);
-        }
-      }
+        // If the student has relevant subjects, proceed with calculations
 
       // Calcular porcentaje de asistencia por cada asignatura con sesiones
       let sumaPorcentajes = 0;

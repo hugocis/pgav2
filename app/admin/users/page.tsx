@@ -348,13 +348,11 @@ export default function AdminUsers() {
           // Intentar parsear la respuesta solo si hay contenido
           let updatedUser: Partial<User> = {};
           let text = "";
-          
-          try {
-            // Capturar errores específicamente al leer la respuesta
+            try {
+            // Capture errors specifically when reading the response
             text = await response.text();
           } catch (readError) {
-            console.log("Error al leer la respuesta:", readError);
-            // Continuar con texto vacío para manejar el caso como respuesta vacía
+            // Continue with empty text to handle the case as an empty response
           }
           
           if (text && text.trim()) {

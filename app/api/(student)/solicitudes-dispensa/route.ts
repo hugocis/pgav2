@@ -5,45 +5,40 @@ import { authOptions } from '@/lib/authOptions';
 
 export async function POST(req: NextRequest) {
   try {
-    // Verificar autenticación
+    // Verify authentication
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     // Obtener y validar los datos
     const data = await req.json();
-    
-    // Validación manual de los datos
+      // Manual validation of data
     if (!data.alumnoId || typeof data.alumnoId !== 'string') {
       return NextResponse.json(
-        { error: 'El ID del alumno es requerido y debe ser un string' },
+        { error: 'Student ID is required and must be a string' },
         { status: 400 }
       );
     }
-    
-    if (!data.matriculaId || typeof data.matriculaId !== 'string') {
+      if (!data.matriculaId || typeof data.matriculaId !== 'string') {
       return NextResponse.json(
-        { error: 'El ID de la matrícula es requerido y debe ser un string' },
+        { error: 'Registration ID is required and must be a string' },
         { status: 400 }
       );
     }
-    
-    if (!data.alegacion || typeof data.alegacion !== 'string') {
+      if (!data.alegacion || typeof data.alegacion !== 'string') {
       return NextResponse.json(
-        { error: 'La alegación es obligatoria y debe ser un string' },
+        { error: 'Allegation is required and must be a string' },
         { status: 400 }
       );
     }
-    
-    if (!data.estadoDispensaId || typeof data.estadoDispensaId !== 'string') {
+      if (!data.estadoDispensaId || typeof data.estadoDispensaId !== 'string') {
       return NextResponse.json(
-        { error: 'El ID del estado de dispensa es requerido y debe ser un string' },
+        { error: 'Exemption status ID is required and must be a string' },
         { status: 400 }
       );
     }
-    
-    // Convertir fechaAlegacion a Date si es string
+      // Convert allegationDate to Date if it's a string
     let fechaAlegacion: Date;
     if (data.fechaAlegacion instanceof Date) {
       fechaAlegacion = data.fechaAlegacion;
@@ -51,36 +46,32 @@ export async function POST(req: NextRequest) {
       fechaAlegacion = new Date(data.fechaAlegacion);
       if (isNaN(fechaAlegacion.getTime())) {
         return NextResponse.json(
-          { error: 'La fecha de alegación debe ser válida' },
+          { error: 'Allegation date must be valid' },
           { status: 400 }
         );
       }
     } else {
-      fechaAlegacion = new Date(); // Si no se proporciona, usamos la fecha actual
+      fechaAlegacion = new Date(); // If not provided, use current date
     }
 
     // Verificar que el alumnoId pertenece al usuario autenticado o es un administrador
     const roles = session.user.roles || [];
-    const isAdmin = roles.includes('admin');
-
-    if (!isAdmin && session.user.id !== data.alumnoId) {
+    const isAdmin = roles.includes('admin');    if (!isAdmin && session.user.id !== data.alumnoId) {
       return NextResponse.json(
-        { error: 'No tienes permiso para crear una solicitud para este alumno' },
+        { error: 'You do not have permission to create a request for this student' },
         { status: 403 }
       );
     }
 
-    // Verificar que la matrícula existe y pertenece al alumno
+    // Verify that the registration exists and belongs to the student
     const matricula = await prisma.matricula.findUnique({
       where: {
         id: data.matriculaId,
         alumno_id: data.alumnoId
       }
-    });
-
-    if (!matricula) {
+    });    if (!matricula) {
       return NextResponse.json(
-        { error: 'La matrícula especificada no existe o no pertenece al alumno' },
+        { error: 'The specified registration does not exist or does not belong to the student' },
         { status: 404 }
       );
     }
@@ -99,7 +90,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verificar si ya existe una solicitud de dispensa pendiente para esta matrícula
+    // Check if there is already a pending exemption request for this registration
     const pendienteId = await prisma.estadoDispensa.findFirst({
       where: { denominacion: 'Pendiente' },
       select: { id: true }
@@ -112,11 +103,9 @@ export async function POST(req: NextRequest) {
           alumnoId: data.alumnoId,
           estadoDispensaId: pendienteId.id
         }
-      });
-
-      if (solicitudExistente) {
+      });      if (solicitudExistente) {
         return NextResponse.json(
-          { error: 'Ya existe una solicitud de dispensa pendiente para esta matrícula' },
+          { error: 'There is already a pending exemption request for this registration' },
           { status: 409 }
         );
       }
@@ -146,10 +135,10 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    // Verificar autenticación
+    // Verify authentication
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     // Obtener los roles del usuario
@@ -157,7 +146,7 @@ export async function GET(req: NextRequest) {
     const isAdmin = roles.includes('admin');
     const isManager = roles.includes('manager');
 
-    // Parámetros de consulta
+    // Query parameters
     const url = new URL(req.url);
     const alumnoId = url.searchParams.get('alumnoId');
     const matriculaId = url.searchParams.get('matriculaId');
@@ -222,14 +211,12 @@ export async function GET(req: NextRequest) {
 
     if (estadoId) {
       query.where = { ...query.where, estadoDispensaId: estadoId };
-    }
-
-    // Restricciones según el rol
+    }    // Restrictions based on role
     if (!isAdmin && !isManager) {
-      // Si es alumno, solo puede ver sus propias solicitudes
+      // If student, can only see their own requests
       query.where = { ...query.where, alumnoId: session.user.id };
     } else if (isManager) {
-      // Si es manager, puede ver las solicitudes de las carreras que gestiona
+      // If manager, can see requests from degrees they manage
       const managerCarreras = await prisma.managerCarrera.findMany({
         where: {
           managerId: session.user.id,
@@ -271,21 +258,18 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  try {
-    // Verificar autenticación
+  try {    // Verify authentication
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
-    }
-
-    // Verificar roles
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }    // Verify roles
     const roles = session.user.roles || [];
     const isAdmin = roles.includes('admin');
     const isManager = roles.includes('manager');
 
     if (!isAdmin && !isManager) {
       return NextResponse.json(
-        { error: 'No tienes permiso para actualizar solicitudes de dispensa' },
+        { error: 'You do not have permission to update exemption requests' },
         { status: 403 }
       );
     }

@@ -44,19 +44,16 @@ export default function AdminConfiguracionCarreras() {
   
   const [carreras, setCarreras] = useState<Carrera[]>([]);
   const [carrerasSinConfig, setCarrerasSinConfig] = useState<Carrera[]>([]);
-  
-  // Estados para paginación
+    // States for pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  
-  // Estados para el diálogo de edición
+    // States for edit dialog
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedConfiguracion, setSelectedConfiguracion] = useState<ConfiguracionCarrera | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMessage, setUpdateMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  
-  // Estados para el diálogo de creación
+    // States for creation dialog
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -66,8 +63,7 @@ export default function AdminConfiguracionCarreras() {
   const fechaFinDispensaRef = useRef<HTMLInputElement>(null);
   const solDispensaRef = useRef<HTMLInputElement>(null);
   const solJustificacionRef = useRef<HTMLInputElement>(null);
-  
-  // Referencias para los campos del formulario de creación
+    // References for creation form fields
   const newCarreraRef = useRef<HTMLSelectElement>(null);
   const newFechaInicioDispensaRef = useRef<HTMLInputElement>(null);
   const newFechaFinDispensaRef = useRef<HTMLInputElement>(null);
@@ -119,7 +115,7 @@ export default function AdminConfiguracionCarreras() {
     fetchCarreras();
   }, []);
 
-  // Filtrado de configuraciones y cálculo de carreras sin configuración
+  // Filtering configurations and calculating degrees without configuration
   useEffect(() => {
     let result = [...configuraciones];
     
@@ -131,23 +127,22 @@ export default function AdminConfiguracionCarreras() {
       result = result.filter(config => config.carreraId === selectedCarrera);
     }
 
-    setFilteredConfiguraciones(result);
-    setCurrentPage(1); // Resetear página cuando cambian los filtros
-      // Calcular carreras sin configuración para mostrarlas como opciones en el diálogo de creación
-    // Asegurar que las comparaciones sean del mismo tipo (número)
+    setFilteredConfiguraciones(result);    setCurrentPage(1); // Reset page when filters change
+      // Calculate degrees without configuration to show them as options in the creation dialog
+    // Ensure comparisons are of the same type (number)
     const carrerasConConfig = configuraciones.map(config => config.carreraId);
     setCarrerasSinConfig(carreras.filter(carrera => !carrerasConConfig.some(id => id === carrera.id)));
     
   }, [searchTerm, selectedCarrera, configuraciones, carreras]);
   
-  // Obtener las configuraciones para la página actual
+  // Get configurations for the current page
   const getCurrentPageItems = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = Math.min(startIndex + itemsPerPage, filteredConfiguraciones.length);
     return filteredConfiguraciones.slice(startIndex, endIndex);
   };
 
-  // Función para manejar cambios de página con botones
+  // Function to handle page changes with buttons
   const changePage = (direction: 'prev' | 'next') => {
     const totalPages = Math.ceil(filteredConfiguraciones.length / itemsPerPage);
     
@@ -157,7 +152,7 @@ export default function AdminConfiguracionCarreras() {
       setCurrentPage(currentPage + 1);
     }
 
-    // Animación de scroll suave
+    // Smooth scroll animation
     if (scrollContainerRef.current) {
       const newPage = direction === 'prev' ? currentPage - 1 : currentPage + 1;
       const scrollAmount = ((newPage - 1) / (totalPages - 1)) * 
@@ -206,10 +201,10 @@ export default function AdminConfiguracionCarreras() {
       });      
       
       if (response.ok) {
-        // Actualizar la configuración en el estado local
+        // Update configuration in local state
         const updatedConfiguracion = await response.json();
           
-        // Construir la configuración actualizada manteniendo la referencia a carrera
+        // Build the updated configuration maintaining the reference to the degree
         const updatedConfig = {
           ...selectedConfiguracion,
           ...updatedConfiguracion,
@@ -235,10 +230,9 @@ export default function AdminConfiguracionCarreras() {
           );
           return [...newFiltered];
         });
+          setUpdateMessage({ text: 'Configuration updated successfully', type: 'success' });
         
-        setUpdateMessage({ text: 'Configuración actualizada correctamente', type: 'success' });
-        
-        // Esperar 1.5 segundos antes de cerrar el diálogo
+        // Wait 1.5 seconds before closing the dialog
         setTimeout(() => {
           handleCloseDialog();
         }, 1500);
@@ -295,7 +289,7 @@ export default function AdminConfiguracionCarreras() {
         FechaFinDispensa: fechaFin ? new Date(fechaFin).toISOString() : null,
         SolDispensa: newSolDispensaRef.current?.checked || false,
         SolJustificacion: newSolJustificacionRef.current?.checked || false
-      };console.log('Datos enviados al API:', newConfigData);
+      };
       
       const response = await fetch('/api/configuracion-carrera', {
         method: 'POST',
@@ -322,16 +316,16 @@ export default function AdminConfiguracionCarreras() {
           return [...prevFiltered, { ...newConfig }];
         });
         
-        setCreateMessage({ text: 'Configuración creada correctamente', type: 'success' });        // Actualizar la lista de carreras sin configuración
+        setCreateMessage({ text: 'Configuration created successfully', type: 'success' });        // Update the list of degrees without configuration
         setCarrerasSinConfig(prevCarreras => 
           prevCarreras.filter(c => c.id !== carreraId) // carreraId es una string (UUID)
         );
         
-        // Esperar 1.5 segundos antes de cerrar el diálogo
+        // Wait 1.5 seconds before closing the dialog
         setTimeout(() => {
           handleCloseCreateDialog();
         }, 1500);      } else {
-        let errorMessage = 'Error al crear la configuración';
+        let errorMessage = 'Error creating the configuration';
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;

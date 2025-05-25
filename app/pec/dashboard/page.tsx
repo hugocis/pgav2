@@ -61,7 +61,7 @@ export default function PECDashboard() {
         const data = await response.json();
         setCarrerasCursos(data);
 
-        // Obtener las estadísticas de los alumnos asignados
+        // Get statistics of assigned students
         try {
           const statsResponse = await fetch(`/api/estadisticas?pecId=${session.user.id}`, {
             credentials: 'include'
@@ -238,7 +238,7 @@ export default function PECDashboard() {
                 </div>
               </div>
 
-              {/* Sección de carreras y cursos asignados */}
+              {/* Section of assigned degrees and courses */}
               <div className="bg-white rounded-lg shadow-sm mb-8 overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h2 className="text-xl font-semibold text-gray-800">Carreras y Cursos Asignados</h2>
@@ -283,7 +283,7 @@ export default function PECDashboard() {
                 </div>
               </div>
 
-              {/* Sección de acciones rápidas */}
+              {/* Quick actions section */}
               <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h2 className="text-xl font-semibold text-gray-800">Acciones Rápidas</h2>

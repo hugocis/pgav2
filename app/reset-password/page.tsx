@@ -47,9 +47,7 @@ function ResetPasswordForm() {
 
     try {
       setIsLoading(true);
-      setError('');
-
-      // Importamos la función de reseteo
+      setError('');      // Import the reset function
       const { completePasswordReset } = await import('@/lib/actions/password-reset-complete');
       const result = await completePasswordReset(token as string, password);
 
@@ -62,7 +60,7 @@ function ResetPasswordForm() {
         setError(result.message);
       }
     } catch (error) {
-      setError('Ha ocurrido un error al restablecer tu contraseña. Inténtalo de nuevo más tarde.');
+      setError('An error occurred while resetting your password. Please try again later.');
       console.error(error);
     } finally {
       setIsLoading(false);

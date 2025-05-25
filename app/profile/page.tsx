@@ -23,14 +23,14 @@ import {
   FaBriefcase
 } from 'react-icons/fa';
 
-// Interfaz para el estado del formulario de cambio de contraseña
+// Interface for password change form state
 interface PasswordFormState {
   currentPassword: string;
   newPassword: string;
   confirmPassword: string;
 }
 
-// Interfaz para el mensaje de estado
+// Interface for status message
 interface StatusMessage {
   type: 'success' | 'error' | 'info';
   text: string;
@@ -39,11 +39,10 @@ interface StatusMessage {
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  
-  // Pestañas para la página de perfil
+    // Tabs for profile page
   const [activeTab, setActiveTab] = useState<'info' | 'security'>('info');
   
-  // Referencias para los inputs de contraseña
+  // References for password inputs
   const currentPasswordRef = useRef<HTMLInputElement>(null);
   const newPasswordRef = useRef<HTMLInputElement>(null);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
@@ -60,25 +59,23 @@ export default function ProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<StatusMessage | null>(null);
-
-  // Manejar cambio de contraseña
+  // Handle password change
   const handlePasswordChange = async (e: FormEvent) => {
     e.preventDefault();
     
-    // Validar coincidencia de contraseña nueva
+    // Validate new password match
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setPasswordMessage({
         type: 'error',
-        text: 'Las contraseñas nuevas no coinciden'
+        text: 'New passwords do not match'
       });
       return;
     }
     
-    // Validar longitud mínima
+    // Validate minimum length
     if (passwordForm.newPassword.length < 8) {
-      setPasswordMessage({
-        type: 'error',
-        text: 'La contraseña debe tener al menos 8 caracteres'
+      setPasswordMessage({        type: 'error',
+        text: 'Password must be at least 8 characters long'
       });
       return;
     }

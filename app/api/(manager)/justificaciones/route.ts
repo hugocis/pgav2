@@ -249,10 +249,7 @@ export async function PUT(req: NextRequest) {
               estadoAsistenciaId: estadoJustificada.id,
               // Opcional: podemos actualizar también el campo estado si se utiliza directamente
               estado: "Justificada"
-            }
-          });
-          
-          console.log(`Asistencia ${justificacionOriginal.asistenciaAlumnoId} actualizada a estado Justificada`);
+            }          });
         } else {
           console.error("No se encontró el estado de asistencia 'Justificada'");
           // Podría crear el estado si no existe, pero es mejor asegurarse de que exista en la DB

@@ -231,17 +231,12 @@ export default function ProfesorEstadisticas() {
               return [];
             })
         );
-          const resultadosAsistencias = await Promise.all(promesasAsistencias);
-        const todasLasAsistencias = resultadosAsistencias.flat();
-        
-        // Log para depuración
-        console.log(`Grupo ${grupoSeleccionado}: ${alumnos.length} alumnos, ${sesionesOrdenadas.length} sesiones, ${todasLasAsistencias.length} registros de asistencia`);
+          const resultadosAsistencias = await Promise.all(promesasAsistencias);        const todasLasAsistencias = resultadosAsistencias.flat();
         
         setAsistencias(todasLasAsistencias);
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Error al cargar sesiones y asistencias:', error);
-        setError(`Error al cargar los datos: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+        setIsLoading(false);      } catch (error) {
+        console.error('Error loading sessions and attendance records:', error);
+        setError(`Error loading data: ${error instanceof Error ? error.message : 'Unknown error'}`);
         setIsLoading(false);
       }
     };

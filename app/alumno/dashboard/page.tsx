@@ -139,7 +139,7 @@ interface ConfiguracionCarrera {
   };
 }
 
-// Nuevas interfaces añadidas
+// New interfaces added
 interface AlumnoGrupo {
   grupoId?: string;
   grupo_Id?: string;
@@ -183,10 +183,9 @@ export default function AlumnoDashboard() {
   const [faltasJustificables, setFaltasJustificables] = useState<AsistenciaAlumno[]>([]);
   const [configuracionesCarrera, setConfiguracionesCarrera] = useState<ConfiguracionCarrera[]>([]);
   const [solicitudesDispensa, setSolicitudesDispensa] = useState<SolicitudDispensa[]>([]);
-  
-  // Agregamos un estado para el filtro de faltas
+    // Add a state for attendance filter
   const [filtroFaltas, setFiltroFaltas] = useState<'todas' | 'pendientes' | 'sinjustificar'>('todas');
-  // Función para obtener las faltas filtradas según el criterio seleccionado
+  // Function to get filtered absences according to selected criteria
   const getFaltasFiltradas = () => {
     switch (filtroFaltas) {
       case 'pendientes':

@@ -99,16 +99,15 @@ export default function PasarClase() {
     setFecha(fechaActual);
     setHora(horaActual);
   }, []);
-  
-  // Agregar la funcionalidad para marcar visualmente los días con sesiones en el calendario
+    // Add functionality to visually mark days with sessions on the calendar
   useEffect(() => {
     if (!fechasConSesion.length) return;
     
-    // Esta función se ejecutará cuando se abra el calendario
+    // This function will run when the calendar is opened
     const handleCalendarOpen = () => {
-      // Dar tiempo para que el DOM del calendario se renderice
+      // Give time for the calendar DOM to render
       setTimeout(() => {
-        // Intentar marcar los días con sesiones
+        // Try to mark days with sessions
         document.querySelectorAll('td[data-date]').forEach(day => {
           const dateValue = day.getAttribute('data-date');
           if (dateValue && fechasConSesion.includes(dateValue)) {
@@ -180,16 +179,15 @@ export default function PasarClase() {
         if (!gruposResponse.ok) {
           throw new Error('No se pudieron cargar los grupos');
         }
-        
-        const gruposData = await gruposResponse.json();
-        // Filtrar solo los grupos donde el profesor es el dueño
+          const gruposData = await gruposResponse.json();
+        // Filter only groups where the teacher is the owner
         const gruposFiltrados = gruposData.grupos.filter((grupo: Grupo) => 
           grupo.profesorId === session.user.id
         );
         
         setGrupos(gruposFiltrados);
         
-        // Si hay grupos disponibles, seleccionar el primero por defecto
+        // If there are available groups, select the first one by default
         if (gruposFiltrados.length > 0) {
           setGrupoSeleccionado(gruposFiltrados[0].id);
         }
@@ -214,20 +212,19 @@ export default function PasarClase() {
       }
     };
     
-    fetchData();
-  }, [asignaturaId, session?.user?.id]);  // Aplicar estilos a los días del calendario que tienen sesiones
+    fetchData();  }, [asignaturaId, session?.user?.id]);  // Apply styles to calendar days that have sessions
   useEffect(() => {
     if (fechasConSesion.length === 0) return;
     
-    // Crear un estilo personalizado para marcar los días con sesiones en verde
+    // Create custom style to mark days with sessions in green
     const styleId = 'calendar-green-days-style';
     
-    // Eliminar el estilo anterior si existe
+    // Remove previous style if it exists
     if (document.getElementById(styleId)) {
       document.getElementById(styleId)?.remove();
     }
     
-    // Crear reglas de CSS para cada fecha con sesiones
+    // Create CSS rules for each date with sessions
     const cssRules = fechasConSesion.map(fecha => {
       return `
         input[type="date"].calendar-with-green-days::-webkit-calendar-picker-indicator {
@@ -260,21 +257,20 @@ export default function PasarClase() {
       document.getElementById(styleId)?.remove();
     };
   }, [fechasConSesion]);
-  
-  // Cargar alumnos y fechas con sesión cuando se selecciona un grupo
+    // Load students and session dates when a group is selected
   useEffect(() => {
     if (!grupoSeleccionado) return;
     
     const fetchData = async () => {
       setIsLoading(true);
       
-      try {        // Cargar alumnos del grupo
+      try {        // Load students from the group
         const alumnosResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupoSeleccionado}&skipPagination=true`, {
           credentials: 'include'
         });
         
         if (!alumnosResponse.ok) {
-          throw new Error('No se pudieron cargar los alumnos del grupo');
+          throw new Error('Could not load students from the group');
         }
           const responseData = await alumnosResponse.json();
         
@@ -335,8 +331,7 @@ export default function PasarClase() {
     
     fetchData();
   }, [grupoSeleccionado]);
-
-  // Filtrar alumnos por término de búsqueda
+  // Filter students by search term
   const alumnosFiltrados = searchTerm
     ? alumnosGrupo.filter(alumnoGrupo => 
         alumnoGrupo.user && (
@@ -345,9 +340,9 @@ export default function PasarClase() {
         )
       )
     : alumnosGrupo;
-  // Cambiar estado de asistencia al hacer clic
+  // Change attendance status on click
   const cambiarEstadoAsistencia = (alumnoId: string) => {
-    // Crear un pequeño efecto de "click"
+    // Create a small "click" effect
     const element = document.getElementById(`alumno-${alumnoId}`);
     if (element) {
       element.classList.add('scale-95', 'shadow-inner');
@@ -364,11 +359,10 @@ export default function PasarClase() {
     const nuevasAsistencias = new Map(asistencias);
     nuevasAsistencias.set(alumnoId, nuevoEstado);
     setAsistencias(nuevasAsistencias);
-  };
-    // Guardar la sesión de clase y las asistencias
+  };    // Save the class session and attendance records
   const guardarSesion = async () => {
     if (!grupoSeleccionado || !fecha || !hora) {
-      setError('Por favor, selecciona un grupo, fecha y hora válidos');
+      setError('Please select a valid group, date and time');
       return;
     }
     
@@ -377,10 +371,10 @@ export default function PasarClase() {
       setError(null);
       setSuccess(null);
       
-      // Crear la fecha completa con la hora
+      // Create complete date with time
       const fechaHora = new Date(`${fecha}T${hora}`);
       
-      // Crear la sesión de clase
+      // Create class session
       const sesionResponse = await fetch('/api/sesiones-clase', {
         method: 'POST',
         headers: {
@@ -440,25 +434,23 @@ export default function PasarClase() {
         await Promise.all(promesasAsistencias);
       
       setSuccess('¡Sesión de clase y asistencias registradas con éxito! Redirigiendo al historial...');
-      
-      // Reiniciar todas las asistencias a "Asiste" para una nueva sesión
+        // Reset all attendance records to "Asiste" for a new session
       const asistenciasIniciales = new Map<string, string>();
       alumnosGrupo.forEach((alumnoGrupo: AlumnoGrupo) => {
         asistenciasIniciales.set(alumnoGrupo.alumno_Id, 'Asiste');
       });
       setAsistencias(asistenciasIniciales);
       
-      // Hacer scroll suave pero rápidamente al inicio para mostrar el mensaje de éxito
+      // Scroll smoothly but quickly to the top to show the success message
       window.scrollTo({ top: 0, behavior: 'smooth' });
       
       // Redirigir al historial después de 3 segundos
       setTimeout(() => {
         router.push(`/profesor/historial-sesiones?asignatura=${asignaturaId}`);
       }, 3000);
-      
-    } catch (error) {      console.error('Error al guardar la sesión:', error);
-      setError(`Error al guardar la sesión: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-      // Si hay error, hacer scroll al inicio para mostrar el mensaje de error
+        } catch (error) {      console.error('Error saving the session:', error);
+      setError(`Error saving the session: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // If there's an error, scroll to the top to show the error message
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setIsSaving(false);

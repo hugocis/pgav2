@@ -79,14 +79,12 @@ export default function SolicitarDispensa() {
 
         if (!response.ok) {
           throw new Error('Error al obtener la información de matrícula');
-        }
-
-        const data = await response.json();
-        // La API devuelve un objeto único, no un array
+        }        const data = await response.json();
+        // The API returns a single object, not an array
         if (data && data.id) {
           setMatricula(data);
           
-          // Una vez que tenemos la matrícula, buscamos la configuración de la carrera
+          // Once we have the enrollment, we look for the career configuration
           const configResponse = await fetch(`/api/configuracion-carrera?carreraId=${data.asignatura.carrera.id}`, {
             credentials: 'include',
           });
@@ -100,9 +98,7 @@ export default function SolicitarDispensa() {
           
           if (configuracionCarrera) {
             setConfiguracionCarrera(configuracionCarrera);
-          }
-
-          // Verificar si ya existe una solicitud de dispensa pendiente para esta matrícula
+          }          // Check if there's already a pending exemption request for this enrollment
           if (session?.user?.id) {
             const dispensasResponse = await fetch(`/api/solicitudes-dispensa?alumnoId=${session.user.id}&matriculaId=${data.id}`, {
               credentials: 'include',
@@ -171,8 +167,7 @@ export default function SolicitarDispensa() {
       if (!enlaceDocumentacion.startsWith('http://') && !enlaceDocumentacion.startsWith('https://')) {
         throw new Error('Por favor, proporciona un enlace válido (debe comenzar con http:// o https://)');
       }
-      
-      // Verificar de nuevo si ya existe una solicitud pendiente para esta matrícula
+        // Check again if there's already a pending request for this enrollment
       const dispensasResponse = await fetch(`/api/solicitudes-dispensa?alumnoId=${session.user.id}&matriculaId=${matricula.id}`, {
         credentials: 'include',
       });
@@ -241,8 +236,7 @@ export default function SolicitarDispensa() {
       }
       
       const result = await response.json();
-      
-      // Registrar la documentación como un enlace
+        // Register the documentation as a link
       const docData = {
         solicitudDispensaId: result.id,
         url: enlaceDocumentacion,
@@ -272,19 +266,18 @@ export default function SolicitarDispensa() {
       }
       
       setSuccess(true);
-      
-      // Redirección a dashboard después de un tiempo
+        // Redirect to dashboard after a delay
       setTimeout(() => {
         router.push('/alumno/dashboard');
       }, 2000);
     } catch (error) {
-      console.error('Error detallado completo:', error);
+      console.error('Complete detailed error:', error);
       
-      let errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      let errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
-      // Dar un mensaje más amigable para ciertos errores comunes
+      // Give a more friendly message for certain common errors
       if (errorMessage.includes('estado de dispensa especificado no existe')) {
-        errorMessage = 'El sistema no tiene configurados los estados de dispensa correctamente. Por favor, contacte con el administrador y mencione este error.';
+        errorMessage = 'The system does not have the exemption states properly configured. Please contact the administrator and mention this error.';
       }
       
       setError(`Error al enviar la dispensa: ${errorMessage}`);

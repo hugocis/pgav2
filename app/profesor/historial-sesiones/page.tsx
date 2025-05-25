@@ -227,24 +227,20 @@ export default function HistorialSesiones() {  const { data: session } = useSess
               }
               const asistenciasData = await asistenciasResponse.json();
               
-              console.log(`Asistencias encontradas: ${asistenciasData.length}`);
-                // Comprobar solicitudes de justificación (manera segura)
+              // Check for justification requests (safe way)
               const conSolicitudes = asistenciasData.filter((a: Asistencia) => 
                 Array.isArray(a.solicitudesJustificacion) && a.solicitudesJustificacion.length > 0);              
               const conSolicitudesPendientes = asistenciasData.filter((a: Asistencia) => 
                 Array.isArray(a.solicitudesJustificacion) && 
                 a.solicitudesJustificacion.some((s: {estadoJustificacionId: string}) => s.estadoJustificacionId === 'pendiente'));
                 
-              console.log(`Con solicitudes: ${conSolicitudes.length}`);
-              console.log(`Con solicitudes pendientes: ${conSolicitudesPendientes.length}`);
-
-              // Comprobar si hay alumnos con datos incompletos y registrarlo en consola
+              // Check if there are students with incomplete data and log it
               const alumnosIncompletos = asistenciasData.filter((a: Asistencia) => !a.alumno || !a.alumno.name);
               if (alumnosIncompletos.length > 0) {
-                console.warn(`Sesión ${sesion.id} tiene ${alumnosIncompletos.length} alumnos con datos incompletos:`, alumnosIncompletos);
+                console.warn(`Session ${sesion.id} has ${alumnosIncompletos.length} students with incomplete data:`, alumnosIncompletos);
               }
 
-              // Calcular estadísticas de asistencia
+              // Calculate attendance statistics
               const total = asistenciasData.length;
               const asisten = asistenciasData.filter((a: Asistencia) => a.estado === 'Asiste').length;
               const noAsisten = asistenciasData.filter((a: Asistencia) => a.estado === 'No Asiste').length;
@@ -344,18 +340,15 @@ export default function HistorialSesiones() {  const { data: session } = useSess
     try {
       const asistenciasResponse = await fetch(`/api/asistencias-alumno?sesionClaseId=${sesion.id}`, {
         credentials: 'include'
-      });
-
-      if (asistenciasResponse.ok) {
+      });      if (asistenciasResponse.ok) {
         const asistenciasData = await asistenciasResponse.json();
-        console.log("Asistencias cargadas para detalle:", asistenciasData);
 
-        // Actualizar la sesión con los datos frescos
+        // Update session with fresh data
         const sesionActualizada = { ...sesion, asistencias: asistenciasData };
         setSesionSeleccionada(sesionActualizada);
       } else {
-        // Si hay error, usar los datos que ya tenemos
-        console.error("Error al cargar asistencias frescas para detalle");
+        // If there's an error, use the data we already have
+        console.error("Error loading fresh attendance data for detail view");
         setSesionSeleccionada(sesion);
       }
     } catch (error) {
@@ -383,19 +376,16 @@ export default function HistorialSesiones() {  const { data: session } = useSess
     try {
       const asistenciasResponse = await fetch(`/api/asistencias-alumno?sesionClaseId=${sesionId}`, {
         credentials: 'include'
-      });
-
-      if (asistenciasResponse.ok) {
+      });      if (asistenciasResponse.ok) {
         const asistenciasData = await asistenciasResponse.json();
-        console.log("Datos de asistencias cargados:", asistenciasData);
 
-        // Actualizar la sesión con las asistencias actualizadas
+        // Update session with updated attendance data
         const sesionActualizada = { ...sesion, asistencias: asistenciasData };
         setSesionParaEditar(sesionActualizada);
         setAsistenciasEdicion(asistenciasData || []);
       } else {
-        // Si hay error, usar los datos que ya tenemos
-        console.error("Error al refrescar asistencias, usando datos existentes.");
+        // If there's an error, use the data we already have
+        console.error("Error refreshing attendance data, using existing data.");
         setSesionParaEditar(sesion);
         setAsistenciasEdicion(sesion.asistencias || []);
       }
@@ -436,11 +426,8 @@ export default function HistorialSesiones() {  const { data: session } = useSess
       // Hacer las peticiones para actualizar cada asistencia modificada
       const promesasActualizacion = Object.entries(estadosModificados).map(async ([asistenciaId, nuevoEstado]) => {
         const asistencia = asistenciasEdicion.find(a => a.id === asistenciaId);        // Solo actualizar si el estado ha cambiado
-        const estadoActual = asistencia?.estado || asistencia?.estadoAsistencia?.denominacion || 'Sin registro';
-        if (asistencia && estadoActual !== nuevoEstado) {
-          console.log(`Actualizando asistencia ${asistenciaId} - Estado actual: ${estadoActual}, Nuevo estado: ${nuevoEstado}`);
-
-          // Consultar los estados de asistencia para obtener el ID correspondiente
+        const estadoActual = asistencia?.estado || asistencia?.estadoAsistencia?.denominacion || 'Sin registro';        if (asistencia && estadoActual !== nuevoEstado) {
+          // Query attendance states to get the corresponding ID
           const estadosResponse = await fetch(`/api/estados-asistencia`, {
             credentials: 'include'
           });
@@ -490,15 +477,13 @@ export default function HistorialSesiones() {  const { data: session } = useSess
           };
         }
         return null;
-      });
+      });      const resultados = await Promise.all(promesasActualizacion);
 
-      const resultados = await Promise.all(promesasActualizacion);
-      console.log("Resultados de actualizaciones:", resultados);
-
-      // Verificar que todas las actualizaciones se realizaron correctamente
+      // Verify that all updates were successful
       if (resultados.every(r => r === null || r !== undefined)) {
-        // Mostrar mensaje de éxito
-        setError(null);        // Inmediatamente actualizar la UI con los datos actualizados
+        // Show success message
+        setError(null);        
+        // Immediately update the UI with the updated data
         const nuevasAsistencias: Asistencia[] = [...asistenciasEdicion].map(asistencia => {
           const nuevoEstado = estadosModificados[asistencia.id];
           if (nuevoEstado && asistencia.estado !== nuevoEstado) {
@@ -555,28 +540,24 @@ export default function HistorialSesiones() {  const { data: session } = useSess
                   'Pragma': 'no-cache',
                   'Cache-Control': 'no-cache'
                 }
-              });
-
-              if (asistenciasResponse.ok) {
+              });              if (asistenciasResponse.ok) {
                 const asistenciasActualizadas = await asistenciasResponse.json();
-                console.log("Asistencias actualizadas recibidas:", asistenciasActualizadas);                // Verificar si hay datos de alumnos completos
+                // Check if there are students with incomplete data
                 const datosIncompletos = asistenciasActualizadas.filter((a: Asistencia) => !a.alumno && !a.user);
-                if (datosIncompletos.length > 0) {
-                  console.warn(`Se encontraron ${datosIncompletos.length} registros con datos incompletos:`, datosIncompletos);
+                if (datosIncompletos.length > 0) {console.warn(`Found ${datosIncompletos.length} records with incomplete data:`, datosIncompletos);
                 }
 
-                // Actualizar la sesión con los datos frescos
-                const sesionCompletaActualizada = { ...sesionActualizada, asistencias: asistenciasActualizadas };                // Actualizar la lista de sesiones
+                // Update session with fresh data
+                const sesionCompletaActualizada = { ...sesionActualizada, asistencias: asistenciasActualizadas };                // Update the sessions list
                 const nuevasSesiones = sesiones.map(s =>
                   s.id === sesionParaEditar.id ? sesionCompletaActualizada as SesionClase : s
                 );
                 setSesiones(nuevasSesiones);
-                  // Actualizar la sesionSeleccionada si está visible el modal de detalles
+                  // Update selectedSession if the details modal is visible
                 if (modalVisible && sesionSeleccionada && sesionSeleccionada.id === sesionParaEditar.id) {
-                  setSesionSeleccionada(sesionCompletaActualizada as SesionClase);
-                }
+                  setSesionSeleccionada(sesionCompletaActualizada as SesionClase);                }
                 
-                // Recalcular estadísticas
+                // Recalculate statistics
                 if (sesionCompletaActualizada.asistencias) {
                   const total = sesionCompletaActualizada.asistencias.length;
                   const asisten = sesionCompletaActualizada.asistencias.filter((a: Asistencia) => a.estado === 'Asiste').length;
@@ -599,10 +580,9 @@ export default function HistorialSesiones() {  const { data: session } = useSess
                 }
               }
             }
-          }
-        } catch (error) {
-          console.error("Error al refrescar datos después de guardar:", error);
-          // Si falla el refresco, usamos los datos que tenemos
+          }        } catch (error) {
+          console.error("Error refreshing data after saving:", error);
+          // If refresh fails, use the data we have
           const sesionActualizada = { ...sesionParaEditar, asistencias: nuevasAsistencias };
           const nuevasSesiones = sesiones.map(s =>
             s.id === sesionParaEditar.id ? sesionActualizada : s
@@ -1413,7 +1393,7 @@ export default function HistorialSesiones() {  const { data: session } = useSess
                   {guardandoCambios ? (<>
                     <div className="animate-spin mr-2 h-4 w-4 text-white">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 108-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                     </div>

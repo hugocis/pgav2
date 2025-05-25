@@ -91,10 +91,9 @@ export default function Justifications() {
   
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        setIsLoading(true);
+      try {        setIsLoading(true);
         
-        // Construir parámetros de consulta basados en los filtros
+        // Build query parameters based on filters
         const queryParams = new URLSearchParams();
         if (filter.status !== 'all') queryParams.append('status', filter.status);
         if (filter.dateFrom) queryParams.append('dateFrom', filter.dateFrom);
@@ -223,14 +222,14 @@ export default function Justifications() {
       result = result.filter(req => new Date(req.date) <= new Date(filter.dateTo));
     }
     
-    // Filtrar por código de asignatura
+    // Filter by subject code
     if (filter.subjectCode) {
       result = result.filter(req => 
         req.subjectCode.toLowerCase().includes(filter.subjectCode.toLowerCase())
       );
     }
     
-    // Filtrar por término de búsqueda
+    // Filter by search term
     if (filter.searchTerm) {
       const term = filter.searchTerm.toLowerCase();
       result = result.filter(req => 
@@ -243,7 +242,7 @@ export default function Justifications() {
     
     setFilteredJustifications(result);
   }, [filter, justifications]);
-    // Función para manejar clics fuera del modal
+    // Function to handle clicks outside the modal
   const handleClickOutside = (event: React.MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) {
       setShowDetailModal(false);
@@ -346,7 +345,7 @@ export default function Justifications() {
       let responseData;      try {
         // Intentar obtener el cuerpo de la respuesta para un mejor manejo de errores
         responseData = await response.json();
-        console.log('Respuesta de la API:', responseData);
+
       } catch (parseError) {
         // Si hay error al parsear JSON, continuamos con responseData undefined
         console.error('Error al parsear respuesta:', parseError);
@@ -416,15 +415,9 @@ export default function Justifications() {
                 resolvedBy: session?.user?.name || 'Manager'
               }
             : req
-        )
-      );
-        // Registrar la actualización exitosa en la consola para seguimiento
-      console.log('Estado actualizado exitosamente:', {
-        id: selectedJustification.id,
-        nuevoEstado: resolution.status,
-        justificacionesActualizadas: updatedJustifications.length,
-        filtradas: filteredJustifications.length
-      });
+        )      );
+        // Log successful update
+      // Status updated successfully
       
       // Mostrar notificación de éxito
       setNotification({
@@ -474,7 +467,7 @@ export default function Justifications() {
                 // Si no hay filtros, usar los datos frescos
                 return freshData;
               });
-              console.log('Datos recargados exitosamente desde API después de la actualización');
+              // Data successfully reloaded from API after update
             }
           } catch (error) {
             console.error('Error al recargar datos después de actualizar:', error);

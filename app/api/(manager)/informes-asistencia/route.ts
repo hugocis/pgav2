@@ -2,19 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/authOptions';
+import { de } from 'date-fns/locale';
 
 export async function GET(req: NextRequest) {
   try {
     // Verificar autenticación y rol
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.roles.includes('Manager')) {
+    const session = await getServerSession(authOptions);    if (!session || !session.user?.roles.includes('Manager')) {
       return NextResponse.json(
-        { error: 'No autorizado' },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-
-    console.log("Manager accediendo a informes-asistencia", session.user.id);
 
     // Obtener las carreras asignadas al manager
     const managerCarreras = await prisma.managerCarrera.findMany({
@@ -33,7 +31,7 @@ export async function GET(req: NextRequest) {
     });
     
     const carreraIds = managerCarreras.map(mc => mc.carreraId);
-    console.log("Carreras asignadas:", carreraIds.length, managerCarreras.map(mc => mc.carrera?.denominacion));
+
     
     // Si no tiene carreras asignadas, devolver datos vacíos
     if (carreraIds.length === 0) {
@@ -63,19 +61,6 @@ export async function GET(req: NextRequest) {
     const maxAttendanceRate = searchParams.get('maxAttendanceRate') ? 
       parseFloat(searchParams.get('maxAttendanceRate')!) : 100;
 
-    console.log("Filtros aplicados:", { 
-      academicYear, 
-      department, 
-      subjectCode, 
-      course, 
-      semester, 
-      studentId, 
-      dateFromStr, 
-      dateToStr,
-      minAttendanceRate,
-      maxAttendanceRate
-    });
-
     // Convertir fechas si están presentes
     const dateFrom = dateFromStr ? new Date(dateFromStr) : undefined;
     const dateTo = dateToStr ? new Date(dateToStr) : undefined;    // Obtener todos los cursos académicos
@@ -100,19 +85,15 @@ export async function GET(req: NextRequest) {
     // Buscar el ID de la carrera si se proporciona por nombre
     let departmentCarreraId: string | undefined = undefined;
     if (department && department !== 'Todos') {
-      const carrera = departments.find(d => d.denominacion === department);
-      if (carrera) {
+      const carrera = departments.find(d => d.denominacion === department);      if (carrera) {
         departmentCarreraId = carrera.id;
-        console.log("Filtro por departamento encontrado:", department, "->", departmentCarreraId);
       }
     }
 
     // Encontrar el curso académico si se proporciona por nombre
     let acadYearId: string | undefined = undefined;    if (academicYear && academicYear !== 'Todos') {
-      const curso = academicYears.find(y => y.denominacion === academicYear);
-      if (curso) {
+      const curso = academicYears.find(y => y.denominacion === academicYear);      if (curso) {
         acadYearId = curso.id;
-        console.log("Filtro por año académico encontrado:", academicYear, "->", acadYearId);
       }
     }
     
@@ -156,11 +137,7 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { Denominacion: 'asc' }
     });
-    
-    console.log("Asignaturas encontradas:", subjects.length);
-    
-    if (subjects.length === 0) {
-      console.log("No se encontraron asignaturas con los filtros aplicados");
+      if (subjects.length === 0) {
       return NextResponse.json({
         academicYears: academicYears.map(year => ({
           id: year.id,
@@ -275,10 +252,7 @@ export async function GET(req: NextRequest) {
           id: true
         }
       });
-      
-      const asignaturaIds = asignaturasConDocencia.map(asig => asig.id);
-      
-      console.log(`Carrera ${dept.denominacion}: ${asignaturaIds.length} asignaturas con docencia y sesiones`);
+        const asignaturaIds = asignaturasConDocencia.map(asig => asig.id);
       
       if (asignaturaIds.length === 0) {
         // Si no hay asignaturas con docencia y sesiones en esta carrera, devolver 0%
@@ -325,9 +299,7 @@ export async function GET(req: NextRequest) {
 
     // Si no hay estadísticas de departamentos disponibles, asegurar un array vacío
     if (!departmentStats || departmentStats.length === 0) {
-      console.log("No hay estadísticas de departamentos disponibles, creando array vacío");
-      
-      // Crear estadísticas vacías para cada departamento
+      // No department statistics available, create empty array
       const emptyStats = departments.map(dept => ({
         id: dept.id,
         name: dept.denominacion,
@@ -397,9 +369,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error('Error en informes-asistencia:', error);
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+    return NextResponse.json(response);  } catch (error) {
+    console.error('Error in attendance reports:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

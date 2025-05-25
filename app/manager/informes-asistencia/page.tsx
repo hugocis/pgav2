@@ -128,17 +128,11 @@ export default function AttendanceReports() {
         if (!response.ok) {
           throw new Error(`Error al obtener datos: ${response.status} ${response.statusText}`);
         }
-        
-        const data = await response.json();
-          console.log("Datos recibidos de la API:", data);
+          const data = await response.json();
         
         // Actualizar los datos de asistencia
-        if (data.attendanceData) {
-          setAttendanceData(data.attendanceData);
-          setFilteredData(data.attendanceData);
-          console.log(`Datos de asistencia establecidos: ${data.attendanceData.length} registros`);
-        } else {
-          console.log("No se encontraron datos de asistencia en la respuesta");
+        if (data.attendanceData) {          setAttendanceData(data.attendanceData);
+          setFilteredData(data.attendanceData);        } else {
           setAttendanceData([]);
           setFilteredData([]);
         }
@@ -156,16 +150,12 @@ export default function AttendanceReports() {
           const deptNames = data.departments.map((dept: Department) => dept.name);
           if (!deptNames.includes('Todos')) {
             deptNames.unshift('Todos');
-          }
-          setDepartments(deptNames);
-          console.log(`Departamentos establecidos: ${deptNames.length - 1} departamentos`);
+          }          setDepartments(deptNames);
         }
         
         if (data.subjects && data.subjects.length > 0) {
           // Agregar 'Todos' al inicio y extraer los nombres de las asignaturas
-          const subjectList = ['Todos', ...data.subjects.map((subj: Subject) => subj.Denominacion)];
-          setSubjects(subjectList);
-          console.log(`Asignaturas establecidas: ${subjectList.length - 1} asignaturas`);
+          const subjectList = ['Todos', ...data.subjects.map((subj: Subject) => subj.Denominacion)];          setSubjects(subjectList);
         }
         
         if (data.courses) {
@@ -187,14 +177,13 @@ export default function AttendanceReports() {
           // Actualizar la tasa de asistencia media
         if (data.averageAttendanceRate !== undefined) {
           console.log(`Tasa media de asistencia recibida: ${data.averageAttendanceRate}%`);
-          setAverageAttendanceRate(data.averageAttendanceRate);
-        } else {
-          console.log("No se recibió tasa media de asistencia");          // Si no hay tasa media en la API pero tenemos departmentStats, la calculamos nosotros
+          setAverageAttendanceRate(data.averageAttendanceRate);        } else {
+          // If there's no average rate in the API but we have departmentStats, we calculate it ourselves
           if (data.departmentStats && Array.isArray(data.departmentStats) && data.departmentStats.length > 0) {
             const statsWithData = data.departmentStats.filter((dept: DepartmentStat) => dept.value > 0);
             if (statsWithData.length > 0) {
               const avgRate = statsWithData.reduce((sum: number, dept: DepartmentStat) => sum + dept.value, 0) / statsWithData.length;
-              console.log(`Tasa media calculada localmente: ${avgRate.toFixed(1)}%`);
+
               setAverageAttendanceRate(Number(avgRate.toFixed(1)));
             } else {
               setAverageAttendanceRate(0);
@@ -205,9 +194,8 @@ export default function AttendanceReports() {
         }
         
         setError(null);
-      } catch (error) {
-        console.error('Error al cargar datos de asistencia:', error);
-        setError('No se pudieron cargar los datos de asistencia. Por favor, intente nuevamente más tarde.');
+      } catch (error) {        console.error('Error loading attendance data:', error);
+        setError('Could not load attendance data. Please try again later.');
         
         // No mostrar datos de ejemplo en caso de error, mostrar array vacío
         setAttendanceData([]);
@@ -857,10 +845,8 @@ export default function AttendanceReports() {
                             {(() => {
                               const highAttendance = departmentStats.filter(d => d.value >= 80).length;
                               const mediumAttendance = departmentStats.filter(d => d.value >= 60 && d.value < 80).length;
-                              const lowAttendance = departmentStats.filter(d => d.value < 60 && d.value > 0).length;
-                              const noData = departmentStats.filter(d => d.value === 0).length;
+                              const lowAttendance = departmentStats.filter(d => d.value < 60 && d.value > 0).length;                              const noData = departmentStats.filter(d => d.value === 0).length;
                               const total = departmentStats.length;
-                                console.log(`Distribución de asistencia: Alta=${highAttendance}, Media=${mediumAttendance}, Baja=${lowAttendance}, Sin Datos=${noData}, Total=${total}`);
                               
                               // Porcentajes más simples para gráfico de pastel
                               const highPercent = (highAttendance / total) * 100;

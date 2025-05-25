@@ -64,7 +64,7 @@ export default function AsistenciaAlumnos() {
   const [selectedAlumno, setSelectedAlumno] = useState<AlumnoDetalle | null>(null);
   const [isLoadingAlumnoDetalle, setIsLoadingAlumnoDetalle] = useState(false);
   
-  // Estados para paginación
+  // States for pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [totalPages, setTotalPages] = useState<number>(1);
@@ -107,7 +107,7 @@ export default function AsistenciaAlumnos() {
 
     // Llamada real a la API para obtener los alumnos por carrera y curso
     const fetchAlumnos = async () => {      try {
-        // Cuando hay búsqueda activa, no usar paginación para buscar en todos los resultados
+        // When search is active, don't use pagination to search across all results
         const urlParams = searchTerm 
           ? `carreraCursoId=${selectedCarreraCurso}`
           : `carreraCursoId=${selectedCarreraCurso}&page=${currentPage}&pageSize=${pageSize}`;
@@ -127,7 +127,7 @@ export default function AsistenciaAlumnos() {
         // Extraer los datos de alumnos de la respuesta paginada
         const data = responseData.data || [];
         
-        // Guardar información de paginación
+        // Save pagination information
         setTotalPages(responseData.pagination?.totalPages || 1);
         setTotalAlumnos(responseData.pagination?.total || data.length);
 
@@ -434,7 +434,7 @@ export default function AsistenciaAlumnos() {
                     onClick={() => {
                       // Aplicar filtros
                       if (selectedCarreraCurso) {
-                        setCurrentPage(1); // Volver a la primera página al filtrar
+                        setCurrentPage(1); // Return to first page when filtering
                       }
                     }}
                   >
