@@ -29,7 +29,7 @@ const mockSession = {
 };
 
 // Ejemplo de test categorizado como usabilidad
-describeUsability('Componente Navbar', () => {
+describe('Componente Navbar', () => {
   it('debe renderizar elementos de navegación principales', () => {
     // Wrapping en SessionProvider para evitar el error de useSession
     render(
