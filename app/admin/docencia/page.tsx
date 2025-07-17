@@ -331,7 +331,7 @@ export default function AdminDocencia() {
         return;
       }
         const newDocenciaData = {
-        asignaturaId: parseInt(newAsignaturaRef.current?.value),
+        asignaturaId: newAsignaturaRef.current?.value,
         profesorId: newProfesorRef.current?.value,
         profesorTitularId: newProfesorTitularRef.current?.value || null,
         mostrar: newMostrarRef.current?.checked || false

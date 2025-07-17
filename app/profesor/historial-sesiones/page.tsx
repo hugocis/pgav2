@@ -238,15 +238,21 @@ export default function HistorialSesiones() {  const { data: session } = useSess
               const alumnosIncompletos = asistenciasData.filter((a: Asistencia) => !a.alumno || !a.alumno.name);
               if (alumnosIncompletos.length > 0) {
                 console.warn(`Session ${sesion.id} has ${alumnosIncompletos.length} students with incomplete data:`, alumnosIncompletos);
-              }
-
-              // Calculate attendance statistics
+              }              // Calculate attendance statistics
               const total = asistenciasData.length;
               const asisten = asistenciasData.filter((a: Asistencia) => a.estado === 'Asiste').length;
               const noAsisten = asistenciasData.filter((a: Asistencia) => a.estado === 'No Asiste').length;
               const parcial = asistenciasData.filter((a: Asistencia) => a.estado === '50%').length;
               const otros = total - asisten - noAsisten - parcial;
-              const porcentajeAsistencia = total > 0 ? (asisten + parcial * 0.5) / total * 100 : 0;
+              
+              // Fix percentage calculation - ensure it's correctly calculated as a percentage between 0-100
+              let porcentajeAsistencia = 0;
+              if (total > 0) {
+                const asistenciaPonderada = asisten + (parcial * 0.5);
+                porcentajeAsistencia = (asistenciaPonderada / total) * 100;
+                // Debug log for percentage calculation
+                console.log(`Sesión ${sesion.id}, Grupo ${sesion.grupo?.denominacion}: Total=${total}, Asisten=${asisten}, Parcial=${parcial}, Ponderada=${asistenciaPonderada}, Porcentaje=${porcentajeAsistencia}`);
+              }
 
               // Guardar estadísticas sin invocar el setter dentro del useEffect
               return { 
@@ -767,15 +773,38 @@ export default function HistorialSesiones() {  const { data: session } = useSess
                         <FaCalendarAlt className="h-5 w-5 text-blue-700" />
                       </div>
                     </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200 shadow-sm">
+                  </div>                  <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-green-600 uppercase font-semibold">Media Asistencia</p>
                         <p className="text-2xl font-bold text-gray-800">
                           {sortedSesiones.length > 0
-                            ? (Object.values(estadisticas).reduce((sum, stats) => sum + stats.porcentajeAsistencia, 0) / sortedSesiones.length).toFixed(1)
+                            ? (() => {
+                                // Calcula la media como el promedio simple de los porcentajes
+                                let totalPorcentajes = 0;
+                                let sesionesValidas = 0;
+                                
+                                // Calcular la suma y contar sesiones válidas
+                                sortedSesiones.forEach(sesion => {
+                                  const porcentaje = estadisticas[sesion.id]?.porcentajeAsistencia;
+                                  if (porcentaje !== undefined) {
+                                    totalPorcentajes += porcentaje;
+                                    sesionesValidas++;
+                                  }
+                                });
+                                
+                                // Calcular la media solo si hay sesiones válidas
+                                const media = sesionesValidas > 0 ? totalPorcentajes / sesionesValidas : 0;
+                                
+                                console.log(
+                                  'Cálculo de media:', 
+                                  `Total porcentajes: ${totalPorcentajes}`, 
+                                  `Sesiones válidas: ${sesionesValidas}`, 
+                                  `Media: ${media.toFixed(1)}%`
+                                );
+                                
+                                return media.toFixed(1);
+                              })()
                             : "0"}%
                         </p>
                       </div>

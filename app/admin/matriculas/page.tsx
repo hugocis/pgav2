@@ -242,7 +242,7 @@ export default function AdminMatriculas() {
       const updatedData = {
         asignatura: {
           connect: {
-            id: parseInt(asignaturaRef.current?.value || selectedMatricula.asignaturaId.toString())
+            id: asignaturaRef.current?.value || selectedMatricula.asignaturaId.toString()
           }
         },
         alumno: {
@@ -312,7 +312,7 @@ export default function AdminMatriculas() {
       }
       
       const newMatriculaData = {
-        asignaturaId: parseInt(newAsignaturaRef.current?.value),
+        asignaturaId: newAsignaturaRef.current?.value,
         alumno_id: newAlumnoRef.current?.value,
         mostrar: newMostrarRef.current?.checked || false
       };

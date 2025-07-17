@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     // Verificar que la asignatura existe
     const asignatura = await prisma.asignatura.findUnique({
-      where: { id: asignaturaId }
+      where: { id: asignaturaId.toString() }
     });
 
     if (!asignatura) {

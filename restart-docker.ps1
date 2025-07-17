@@ -1,6 +1,6 @@
 # Este script reinicia los contenedores Docker con la nueva configuración
 
-$dockerComposeFile = "c:\Users\Hugo\Desktop\PFG-v2\pga\docker-compose.yml"
+$dockerComposeFile = Join-Path $PSScriptRoot "docker-compose.yml"
 
 Write-Host "[INFO] Verificando que Docker está en ejecución..." -ForegroundColor Cyan
 try {
