@@ -23,7 +23,7 @@ interface Matricula {
     surname2: string | null;
     email: string;
   };  asignatura: {
-    id: number;
+    id: string;
     CodAsignatura: string;
     Denominacion: string;
     carrera: {
@@ -34,10 +34,10 @@ interface Matricula {
 }
 
 interface Asignatura {
-  id: number;
+  id: string;
   CodAsignatura: string;
   Denominacion: string;
-  carreraId: number;
+  carreraId: string;
 }
 
 interface User {
@@ -125,6 +125,7 @@ export default function AdminMatriculas() {
         }
         
         const data = await response.json();
+        console.log('Asignaturas cargadas:', data);
         setAsignaturas(data);
       } catch (error) {
         console.error('Error al cargar las asignaturas:', error);
@@ -297,6 +298,7 @@ export default function AdminMatriculas() {
   };
 
   const handleCreateMatricula = async () => {
+    console.log('Intentando crear matrícula...');
     setIsCreating(true);
     setCreateMessage(null);
     
@@ -316,6 +318,8 @@ export default function AdminMatriculas() {
         alumno_id: newAlumnoRef.current?.value,
         mostrar: newMostrarRef.current?.checked || false
       };
+      
+      console.log('Datos enviados al crear matrícula:', newMatriculaData);
       
       const response = await fetch('/api/matriculas', {
         method: 'POST',
@@ -341,9 +345,10 @@ export default function AdminMatriculas() {
       } else {
         const errorData = await response.json();
         setCreateMessage({ 
-          text: errorData.message || 'Error al crear la matrícula', 
+          text: errorData.error || errorData.message || 'Error al crear la matrícula', 
           type: 'error' 
         });
+        console.error('Error de respuesta:', errorData);
       }
     } catch (error) {
       console.error('Error al crear la matrícula:', error);

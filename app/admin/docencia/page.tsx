@@ -488,7 +488,8 @@ export default function AdminDocencia() {
           ) : (
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-200">                 
+                 <thead className="bg-gray-50">
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asignatura</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profesor</th>
@@ -497,7 +498,8 @@ export default function AdminDocencia() {
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mostrar</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">                    {filteredDocencias.length === 0 ? (
+                  <tbody className="bg-white divide-y divide-gray-200">                    
+                  {filteredDocencias.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
                           No se encontraron docencias con los criterios de búsqueda.
@@ -507,7 +509,8 @@ export default function AdminDocencia() {
                         <tr key={docencia.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleRowClick(docencia)}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {docencia.asignatura ? `${docencia.asignatura.Denominacion} (${docencia.asignatura.CodAsignatura})` : 'No disponible'}
-                          </td>                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          </td>                          
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {docencia.user ? 
                               `${docencia.user.name || ''} ${docencia.user.surname1 || ''} ${docencia.user.surname2 || ''}`.trim() : 
                               'Sin asignar'}

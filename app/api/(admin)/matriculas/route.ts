@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
 
     // Verificar que la asignatura existe
     const asignatura = await prisma.asignatura.findUnique({
-      where: { id: asignaturaId.toString() }
+      where: { id: asignaturaId }
     });
 
     if (!asignatura) {
@@ -230,8 +230,9 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error("Error al crear matrícula:", error);
+    const errorMessage = error instanceof Error ? error.message : "Error desconocido al crear matrícula";
     return NextResponse.json(
-      { error: "Error al crear matrícula" },
+      { error: errorMessage },
       { status: 500 }
     );
   }

@@ -8,19 +8,19 @@ import { FaPlus, FaEdit, FaTrash, FaSearch, FaFilter, FaBookOpen, FaChevronLeft,
 
 // Interfaces para tipado
 interface Asignatura {
-  id: number;
+  id: string;
   CodAsignatura: string;
   Denominacion: string;
   Curso: number;
   Cuatrimestre: number;
-  carreraId: number;
+  carreraId: string;
   carrera: {
-    id: number;
+    id: string;
     denominacion: string;
   };
-  cursoAcademicoId: number;
+  cursoAcademicoId: string;
   cursoAcademico: {
-    id: number;
+    id: string;
     denominacion: string;
   };
   profesorId: string | null;
@@ -36,12 +36,12 @@ interface Asignatura {
 }
 
 interface CursoAcademico {
-  id: number;
+  id: string;
   denominacion: string;
 }
 
 interface Carrera {
-  id: number;
+  id: string;
   denominacion: string;
 }
 
@@ -194,11 +194,11 @@ export default function AdminAsignaturas() {
     }
 
     if (selectedCarrera) {
-      result = result.filter(asignatura => asignatura.carreraId === parseInt(selectedCarrera));
+      result = result.filter(asignatura => asignatura.carreraId.toString() === selectedCarrera);
     }
 
     if (selectedCursoAcademico) {
-      result = result.filter(asignatura => asignatura.cursoAcademicoId === parseInt(selectedCursoAcademico));
+      result = result.filter(asignatura => asignatura.cursoAcademicoId.toString() === selectedCursoAcademico);
     }
 
     setFilteredAsignaturas(result);
@@ -236,7 +236,7 @@ export default function AdminAsignaturas() {
     }
   };
 
-  const handleDeleteAsignatura = async (id: number) => {
+  const handleDeleteAsignatura = async (id: string) => {
     if (!confirm('¿Estás seguro de que deseas eliminar esta asignatura? Esta acción no se puede deshacer.')) {
       return;
     }
@@ -278,16 +278,16 @@ export default function AdminAsignaturas() {
     try {
       const updatedData = {
         Denominacion: denominacionRef.current?.value || selectedAsignatura.Denominacion,
-        Curso: cursoRef.current?.value || selectedAsignatura.Curso.toString(), // Enviando como string para evitar error de tipo
-        Cuatrimestre: cuatrimestreRef.current?.value || selectedAsignatura.Cuatrimestre.toString(), // Enviando como string para evitar error de tipo
+        Curso: cursoRef.current?.value || selectedAsignatura.Curso.toString(), 
+        Cuatrimestre: cuatrimestreRef.current?.value || selectedAsignatura.Cuatrimestre.toString(), 
         carrera: {
           connect: {
-            id: parseInt(carreraRef.current?.value || selectedAsignatura.carreraId.toString())
+            id: carreraRef.current?.value || selectedAsignatura.carreraId.toString()
           }
         },
         cursoAcademico: {
           connect: {
-            id: parseInt(cursoAcademicoRef.current?.value || selectedAsignatura.cursoAcademicoId.toString())
+            id: cursoAcademicoRef.current?.value || selectedAsignatura.cursoAcademicoId.toString()
           }
         }
       };
@@ -354,8 +354,8 @@ export default function AdminAsignaturas() {
         Denominacion: newDenominacionRef.current?.value,
         Curso: newCursoRef.current?.value || '1', // Enviando como string para evitar error de tipo
         Cuatrimestre: newCuatrimestreRef.current?.value || '1', // Enviando como string para evitar error de tipo
-        carreraId: parseInt(newCarreraRef.current?.value || '1'),
-        cursoAcademicoId: parseInt(newCursoAcademicoRef.current?.value || '1'),
+        carreraId: newCarreraRef.current?.value || '1',
+        cursoAcademicoId: newCursoAcademicoRef.current?.value || '1',
         profesorId: newProfesorRef.current?.value || null // Añadiendo profesorId
       };
       
