@@ -274,6 +274,9 @@ export default function AlumnoDashboard() {
 
           // Procesamos los datos recibidos
           if (Array.isArray(data)) {
+            // Limpiar las faltas justificables al inicio para evitar duplicados
+            setFaltasJustificables([]);
+            
             // Obtenemos estadísticas para cada matrícula
             const matriculasEnriquecidas = await Promise.all(data.map(async (matricula: Matricula) => {
               try {
@@ -290,7 +293,9 @@ export default function AlumnoDashboard() {
 
                 let totalSesiones = 0;
                 let asistencias = 0;
-                let faltas = 0;                // Filtrar solo grupos a los que pertenece el alumno
+                let faltas = 0;
+                
+                console.log(`Procesando asignatura: ${matricula.asignatura.Denominacion} (${matricula.asignatura.id})`);                // Filtrar solo grupos a los que pertenece el alumno
                 const gruposDelAlumnoEnAsignatura = gruposData.grupos.filter(
                   (grupo: Grupo) => gruposDelAlumno.has(grupo.id)
                 );                // Procesar solo los grupos a los que pertenece el alumno
@@ -302,8 +307,15 @@ export default function AlumnoDashboard() {
 
                   if (sesionesResponse.ok) {
                     const sesiones = await sesionesResponse.json();
-                    totalSesiones += sesiones.length;                    // Obtener asistencias del alumno en estas sesiones
-                    await Promise.all(sesiones.map(async (sesion: SesionClase) => {                      // Incluir explícitamente la solicitud de incluir justificaciones                      // Usamos un timestamp para evitar la caché del navegador y obtener datos frescos
+                    // Filtrar las sesiones para asegurarse que pertenecen a esta asignatura específica
+                    const sesionesFiltradas = sesiones.filter((sesion: SesionClase) => 
+                      sesion.grupo && sesion.grupo.asignaturaId === matricula.asignatura.id
+                    );
+                    totalSesiones += sesionesFiltradas.length;                    
+                    // Obtener asistencias del alumno en estas sesiones
+                    await Promise.all(sesionesFiltradas.map(async (sesion: SesionClase) => {                      
+                      // Incluir explícitamente la solicitud de incluir justificaciones                      
+                      // Usamos un timestamp para evitar la caché del navegador y obtener datos frescos
                       const timestamp = new Date().getTime();
                       const asistenciaResponse = await fetch(
                         `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}&includeJustificaciones=true&_ts=${timestamp}`,

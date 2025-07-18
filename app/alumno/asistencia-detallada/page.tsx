@@ -76,6 +76,7 @@ interface Matricula {
   asistencias?: number;
   faltas?: number;
   porcentajeAsistencia?: number;
+  sePasoListaAlgunaVez?: boolean;
 }
 
 interface AsistenciaAlumno {
@@ -175,12 +176,23 @@ const renderActiveShape = (props: ActiveShapeProps) => {
   const ey = my;
   const textAnchor = cos >= 0 ? 'start' : 'end';
 
-  // Si el nombre del payload es 'Sin sesiones', mostramos un mensaje diferente
-  if (payload.name === 'Sin sesiones') {
+  // Si el nombre del payload es un mensaje especial, mostramos un mensaje diferente
+  if (payload.name === 'Sin sesiones' || payload.name === 'Sin datos' || payload.name === 'No registrada') {
+    let mensaje = "Sin sesiones registradas";
+    
+    if (payload.name === 'No registrada') {
+      mensaje = "Asistencia no registrada";
+    } else if (payload.name === 'Sin datos') {
+      mensaje = "No hay datos disponibles";
+    }
+    
     return (
       <g>
         <text x={cx} y={cy} textAnchor="middle" fill="#475569" fontSize="16" fontWeight="500">
-          Sin sesiones registradas
+          {mensaje}
+        </text>
+        <text x={cx} y={cy + 24} textAnchor="middle" fill="#64748B" fontSize="14">
+          {payload.name === 'No registrada' ? 'No se ha pasado lista' : ''}
         </text>
         <Sector
           cx={cx}
@@ -314,14 +326,14 @@ const StatCard = ({
     transition={{ duration: 0.5 }}
   >    <div className="flex items-start justify-between">
       <div>
-        <div className={`text-2xl font-bold ${textColor}`}>
+        <div className={`text-2xl font-bold ${value === "N/A" ? "text-gray-500" : textColor}`}>
           {typeof value === 'number' ? 
             (Number.isInteger(value) ? value : value.toFixed(1)) : 
             value}
         </div>
         <div className={`text-sm ${textColor} opacity-90`}>{title}</div>
       </div>
-      <div className={`${textColor} opacity-80 text-xl`}>
+      <div className={`${value === "N/A" ? "text-gray-400" : textColor} opacity-80 text-xl`}>
         <Icon />
       </div>
     </div>
@@ -512,12 +524,25 @@ export default function AsistenciaDetallada() {
 
         console.log('Total sesiones encontradas para estadísticas:', todasLasSesiones.length);
 
-        let totalSesiones = todasLasSesiones.length;
+        // Guardar los IDs de los grupos de la asignatura actual para filtrar asistencias
+        const gruposAsignaturaActualIds = gruposFiltrados.map((grupo: Grupo) => grupo.id);
+        console.log('IDs de grupos de la asignatura actual para filtrado en estadísticas:', gruposAsignaturaActualIds);
+        
+        // Filtrar las sesiones para asegurar que pertenecen a la asignatura actual
+        const todasLasSesionesFiltradas = todasLasSesiones.filter((sesion: SesionClase) => {
+          // Verificar que la sesión pertenece a un grupo de la asignatura actual
+          return gruposAsignaturaActualIds.includes(sesion.grupoId);
+        });
+
+        console.log('Total sesiones filtradas para estadísticas:', todasLasSesionesFiltradas.length);
+
+        // Inicializamos las variables para conteo
         let asistencias = 0;
         let faltas = 0;
-
-        if (totalSesiones === 0) {
-          console.warn('No se encontraron sesiones para los grupos del alumno');
+        let sesionesValidas = 0; // Variable para contar solo sesiones con registros válidos
+        
+        if (todasLasSesionesFiltradas.length === 0) {
+          console.warn('No se encontraron sesiones para los grupos del alumno en esta asignatura');
           return {
             ...matricula,
             totalSesiones: 0,
@@ -527,7 +552,7 @@ export default function AsistenciaDetallada() {
           };
         }
         // Obtener asistencias para todas las sesiones en paralelo
-        const asistenciasPromesas = todasLasSesiones.map(async (sesion: SesionClase) => {
+        const asistenciasPromesas = todasLasSesionesFiltradas.map(async (sesion: SesionClase) => {
           const timestamp = new Date().getTime();
           const asistenciaResponse = await fetch(
             `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}&includeJustificaciones=true&_ts=${timestamp}`,
@@ -550,7 +575,9 @@ export default function AsistenciaDetallada() {
 
         const asistenciasResultados = await Promise.all(asistenciasPromesas);        // Para Debug - Loguear cada asistencia para verificar cálculos
         console.log('Detalle de cada asistencia:', asistenciasResultados.map(a => {
-          if (!a) return { tipo: 'Sin registro', estado: 'Falta' };          const estado = a.estado || (a.estadoAsistencia && a.estadoAsistencia.denominacion);
+          if (!a) return { tipo: 'Sin registro', estado: 'Falta' };
+          
+          const estado = a.estado || (a.estadoAsistencia && a.estadoAsistencia.denominacion);
           const tieneJustificacionAprobada = a.SolicitudJustificacion && 
             a.SolicitudJustificacion.some((s: {
               id: string;
@@ -580,7 +607,11 @@ export default function AsistenciaDetallada() {
         // Contar asistencias y faltas con soporte para diversos tipos de asistencia
         for (const asistencia of asistenciasResultados) {
           if (asistencia) {
-            const estado = asistencia.estado || (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);            // Verificar si la falta está justificada (tiene una solicitud de justificación aprobada)
+            // Si hay asistencia, contamos esta sesión como válida
+            sesionesValidas++;
+            
+            const estado = asistencia.estado || (asistencia.estadoAsistencia && asistencia.estadoAsistencia.denominacion);
+            // Verificar si la falta está justificada (tiene una solicitud de justificación aprobada)
             const tieneJustificacionAprobada = asistencia.SolicitudJustificacion && 
               asistencia.SolicitudJustificacion.some((s: {
                 id: string;
@@ -599,7 +630,9 @@ export default function AsistenciaDetallada() {
               // Contar como asistencia si está justificada
               asistencias++;
               continue;
-            }            switch (estado) {
+            }
+            
+            switch (estado) {
               case 'Asiste':
                 asistencias++;
                 break;
@@ -622,13 +655,13 @@ export default function AsistenciaDetallada() {
               case 'Erasmus T':
               case 'Erasmus NT':
                 // No se cuentan como falta ni asistencia
-                // Reducimos el total de sesiones para este caso
-                totalSesiones--;
+                // Reducimos el total de sesiones válidas para este caso
+                sesionesValidas--;
                 break;
               case 'Dispensado':
                 // No se cuenta como falta
-                // Reducimos el total de sesiones para este caso
-                totalSesiones--;
+                // Reducimos el total de sesiones válidas para este caso
+                sesionesValidas--;
                 break;
               case 'No Asiste':
               default:
@@ -636,21 +669,32 @@ export default function AsistenciaDetallada() {
                 break;
             }
           } else {
-            // Si no hay registro, se considera falta
-            faltas++;
+            // Si no hay registro, NO lo contamos como una sesión válida
+            // Ya que probablemente sea un registro vacío o incompleto
+            console.log("Encontrada una sesión sin registro de asistencia - no se contabiliza");
           }
-        }        // Calcular porcentaje de asistencia
-        const porcentajeAsistencia = totalSesiones > 0
-          ? Math.round((asistencias / totalSesiones) * 100)
-          : 0;
-            // Log final de cálculos para depuración
+        }
+        
+        // Verificar si realmente se ha pasado lista alguna vez
+        const sePasoListaAlgunaVez = sesionesValidas > 0;
+        
+        // Calcular porcentaje de asistencia solo si se pasó lista alguna vez
+        const porcentajeAsistencia = sePasoListaAlgunaVez
+          ? Math.round((asistencias / sesionesValidas) * 100)
+          : -1; // Usamos -1 como valor especial para indicar "N/A"
+        
+        // Log final de cálculos para depuración
         console.log('Cálculo final de asistencia:', {
-          totalSesiones,
+          totalSesionesEncontradas: todasLasSesionesFiltradas.length,
+          sesionesValidas,
           asistencias,
           faltas,
           porcentajeAsistencia,
+          sePasoListaAlgunaVez,
           desglose: 'Cada sesión tiene un valor de 1. Si es 50%, cuenta como 0.5 asistencia y 0.5 falta (salvo que esté justificada, entonces cuenta como 1 completo)',
-          explicacionCalculo: `Porcentaje calculado: (${asistencias} asistencias / ${totalSesiones} sesiones) * 100 = ${porcentajeAsistencia}%`,
+          explicacionCalculo: sePasoListaAlgunaVez 
+            ? `Porcentaje calculado: (${asistencias} asistencias / ${sesionesValidas} sesiones válidas) * 100 = ${porcentajeAsistencia}%` 
+            : "No se ha pasado lista en esta asignatura",
           detalleTiposContabilizados: {
             'Asiste': 'Cuenta como 1 asistencia',
             'No Asiste Justificada': 'Cuenta como 1 asistencia (añadido en este fix)',
@@ -662,19 +706,21 @@ export default function AsistenciaDetallada() {
         });
 
         console.log('Estadísticas calculadas para la matrícula:', {
-          totalSesiones,
+          sesionesValidas,
           asistencias,
           faltas,
-          porcentajeAsistencia
+          porcentajeAsistencia: sePasoListaAlgunaVez ? porcentajeAsistencia : "N/A",
+          sePasoListaAlgunaVez
         });
 
-        // Asegurarse de que los valores sean números válidos
+        // Asegurarse de que los valores sean números válidos y establecer un flag para indicar si se pasó lista
         return {
           ...matricula,
-          totalSesiones: Number.isFinite(totalSesiones) ? totalSesiones : 0,
+          totalSesiones: Number.isFinite(sesionesValidas) ? sesionesValidas : 0,
           asistencias: Number.isFinite(asistencias) ? asistencias : 0,
           faltas: Number.isFinite(faltas) ? faltas : 0,
-          porcentajeAsistencia
+          porcentajeAsistencia,
+          sePasoListaAlgunaVez // Añadir este flag para facilitar la verificación en el componente
         };
       } catch (error) {
         console.error(`Error al obtener estadísticas para matrícula ${matricula.id}:`, error);
@@ -691,6 +737,10 @@ export default function AsistenciaDetallada() {
       try {
         console.log('Cargando sesiones y asistencias para la matrícula:', matricula.id);
 
+        // Inicializar arrays vacíos para evitar datos antiguos
+        setSesionesAlumno([]);
+        setFaltasJustificables([]);
+        
         // Obtener todos los grupos de la asignatura seleccionada
         const timestamp = new Date().getTime();
         const gruposResponse = await fetch(`/api/grupos?asignaturaId=${matricula.asignatura.id}&_ts=${timestamp}`, {
@@ -735,15 +785,27 @@ export default function AsistenciaDetallada() {
         const todasLasSesiones = sesionesResultados.flat();
 
         console.log('Total sesiones encontradas para cargar asistencias detalladas:', todasLasSesiones.length);
+        
+        // Guardar los IDs de los grupos de la asignatura actual para filtrar sesiones
+        const gruposAsignaturaActualIds = gruposDelAlumnoFiltrados.map((grupo: Grupo) => grupo.id);
+        console.log('IDs de grupos de la asignatura actual para filtrado de sesiones:', gruposAsignaturaActualIds);
+        
+        // Filtrar las sesiones para asegurar que pertenecen a los grupos de la asignatura actual
+        const todasLasSesionesFiltradas = todasLasSesiones.filter((sesion: SesionClase) => {
+          // Verificar que la sesión pertenece a un grupo de la asignatura actual
+          return gruposAsignaturaActualIds.includes(sesion.grupoId);
+        });
 
-        if (todasLasSesiones.length === 0) {
-          console.warn('No se encontraron sesiones para los grupos del alumno');
+        console.log('Total sesiones filtradas para cargar asistencias detalladas:', todasLasSesionesFiltradas.length);
+
+        if (todasLasSesionesFiltradas.length === 0) {
+          console.warn('No se encontraron sesiones para los grupos del alumno en esta asignatura');
           setSesionesAlumno([]);
           setFaltasJustificables([]);
           return;
         }
-        // Obtener asistencias para todas las sesiones en paralelo con timestamp para evitar caché
-        const asistenciasPromesas = todasLasSesiones.map(async (sesion: SesionClase) => {
+        // Obtener asistencias para todas las sesiones filtradas en paralelo con timestamp para evitar caché
+        const asistenciasPromesas = todasLasSesionesFiltradas.map(async (sesion: SesionClase) => {
           const ts = new Date().getTime();
           const asistenciaResponse = await fetch(
             `/api/asistencias-alumno?sesionClaseId=${sesion.id}&alumnoId=${session.user.id}&includeJustificaciones=true&_ts=${ts}`,
@@ -760,17 +822,41 @@ export default function AsistenciaDetallada() {
 
         const asistenciasResultados = await Promise.all(asistenciasPromesas);
 
-        // Aplanar todas las asistencias
+        // Ya tenemos los IDs de los grupos de la asignatura actual para filtrar asistencias
+        
+        // Aplanar todas las asistencias y filtrarlas para asegurar que pertenecen a la asignatura actual
         for (const asistencias of asistenciasResultados) {
           if (Array.isArray(asistencias) && asistencias.length > 0) {
-            todasLasAsistencias.push(...asistencias);
+            // Filtramos para asegurar que la asistencia pertenece a un grupo de la asignatura actual
+            const asistenciasFiltradas = asistencias.filter(asistencia => {
+              // Verificar si la sesión de clase pertenece a un grupo de la asignatura actual
+              const perteneceAGrupoActual = asistencia.sesionClase?.grupo && 
+                gruposAsignaturaActualIds.includes(asistencia.sesionClase.grupo.id);
+              
+              // Verificar si la sesión pertenece a la asignatura correcta
+              const perteneceAAsignaturaActual = asistencia.sesionClase?.grupo?.asignaturaId === matricula.asignaturaId;
+              
+              // Verificar que el objeto de asistencia es válido (tiene datos necesarios)
+              const esAsistenciaValida = asistencia.id && asistencia.fecha && asistencia.sesionClase && 
+                                         asistencia.sesionClase.grupo;
+              
+              // Solo incluir asistencias válidas que pertenecen a grupos de la asignatura actual
+              return perteneceAGrupoActual && perteneceAAsignaturaActual && esAsistenciaValida;
+            });
+            
+            todasLasAsistencias.push(...asistenciasFiltradas);
           }
         }
 
-        console.log('Total asistencias encontradas para la vista detallada:', todasLasAsistencias.length);
+        console.log('Total asistencias encontradas para la vista detallada (filtradas por asignatura):', todasLasAsistencias.length);
 
         setSesionesAlumno(todasLasAsistencias);        // Filtrar faltas que se pueden justificar
         const faltas = todasLasAsistencias.filter(a => {
+          // Verificar que el registro de asistencia es válido
+          const esRegistroValido = a && a.id && a.fecha && a.sesionClase && a.sesionClase.grupo;
+          
+          if (!esRegistroValido) return false;
+          
           // Comprobar si es una falta (No Asiste o 50%)
           const esFalta = a.estado === 'No Asiste' || 
                         a.estadoAsistencia?.denominacion === 'No Asiste' || 
@@ -789,8 +875,16 @@ export default function AsistenciaDetallada() {
                                    s.estadoJustificacion?.denominacion === 'Rechazado' ||
                                    s.estadoJustificacion?.denominacion === 'No Justificado');
           
-          // Solo incluir faltas que no estén ya justificadas
-          return esFalta && !tieneJustificacionAprobada && sinJustificacion;
+          // Verificar que pertenece a un grupo de la asignatura actual
+          const perteneceAGrupoActual = a.sesionClase?.grupo && 
+                                      gruposAsignaturaActualIds.includes(a.sesionClase.grupo.id);
+          
+          // Verificar que pertenece a la asignatura actual
+          const perteneceAAsignaturaActual = a.sesionClase?.grupo?.asignaturaId === matricula.asignaturaId;
+          
+          // Solo incluir faltas válidas que no estén ya justificadas y que pertenezcan a la asignatura actual
+          return esFalta && !tieneJustificacionAprobada && sinJustificacion && 
+                 perteneceAGrupoActual && perteneceAAsignaturaActual;
         });
 
         console.log('Faltas justificables encontradas:', faltas.length);
@@ -944,7 +1038,7 @@ export default function AsistenciaDetallada() {
                     >
                       <p className="text-xs text-gray-500 uppercase mb-2 tracking-wider">Porcentaje de asistencia</p>
                       <div className="flex items-center gap-3">
-                        <div className={`text-2xl font-bold ${matricula.totalSesiones && matricula.totalSesiones > 0
+                        <div className={`text-2xl font-bold ${matricula.sePasoListaAlgunaVez 
                           ? (matricula.porcentajeAsistencia !== undefined
                             ? matricula.porcentajeAsistencia >= 80
                               ? 'text-green-600'
@@ -954,27 +1048,25 @@ export default function AsistenciaDetallada() {
                             : 'text-gray-800')
                           : 'text-gray-500'
                           }`}>
-                          {matricula.totalSesiones && matricula.totalSesiones > 0
+                          {matricula.sePasoListaAlgunaVez
                             ? `${matricula.porcentajeAsistencia || 0}%`
-                            : "N/A"}
+                            : "No registrada"}
                         </div>
                         <div className="w-full max-w-[200px] bg-gray-200 rounded-full h-3">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{
-                              width: `${(matricula.totalSesiones && matricula.totalSesiones > 0) ? (matricula.porcentajeAsistencia || 0) : 0}%`
+                              width: `${(matricula.sePasoListaAlgunaVez && matricula.porcentajeAsistencia && matricula.porcentajeAsistencia >= 0) ? matricula.porcentajeAsistencia : 0}%`
                             }}
                             transition={{ duration: 0.8, delay: 0.5 }}
-                            className={`h-3 rounded-full ${matricula.totalSesiones && matricula.totalSesiones > 0
-                              ? (matricula.porcentajeAsistencia !== undefined
-                                ? matricula.porcentajeAsistencia >= 80
-                                  ? 'bg-gradient-to-r from-green-400 to-green-600'
-                                  : matricula.porcentajeAsistencia >= 50
-                                    ? 'bg-gradient-to-r from-yellow-300 to-yellow-500'
-                                    : 'bg-gradient-to-r from-red-400 to-red-600'
-                                : 'bg-gray-300')
+                            className={`h-3 rounded-full ${matricula.sePasoListaAlgunaVez && matricula.porcentajeAsistencia !== undefined
+                              ? (matricula.porcentajeAsistencia >= 80
+                                ? 'bg-gradient-to-r from-green-400 to-green-600'
+                                : matricula.porcentajeAsistencia >= 50
+                                  ? 'bg-gradient-to-r from-yellow-300 to-yellow-500'
+                                  : 'bg-gradient-to-r from-red-400 to-red-600')
                               : 'bg-gray-300'
-                              }`}
+                            }`}
                           ></motion.div>
                         </div>
                       </div>
@@ -1036,7 +1128,7 @@ export default function AsistenciaDetallada() {
                               activeShape={(props: unknown) => renderActiveShape(props as ActiveShapeProps)}
                               data={
                                 // Asegurarse de que haya sesiones para mostrar y al menos una asistencia o falta
-                                (matricula.totalSesiones && matricula.totalSesiones > 0)
+                                (matricula.sePasoListaAlgunaVez)
                                   ? (() => {                                      // Calculamos los diferentes tipos de asistencia para el gráfico
                                       const asistenciasPorTipo = {
                                         asistencias: 0,
@@ -1108,7 +1200,7 @@ export default function AsistenciaDetallada() {
                                       
                                       return chartData.length > 0 ? chartData : [{ name: 'Sin datos', value: 1, fill: '#E2E8F0' }];
                                     })()
-                                  : [{ name: 'Sin sesiones', value: 1, fill: '#E2E8F0' }]
+                                  : [{ name: 'No registrada', value: 1, fill: '#E2E8F0' }]
                               }
                               cx="50%"
                               cy="50%"
@@ -1227,30 +1319,30 @@ export default function AsistenciaDetallada() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                           <StatCard
                             title="Asistencias registradas"
-                            value={matricula.asistencias || 0}
-                            bgColor="bg-gradient-to-br from-green-50 to-green-100"
-                            textColor="text-green-800"
+                            value={matricula.sePasoListaAlgunaVez ? (matricula.asistencias || 0) : "N/A"}
+                            bgColor="bg-gradient-to-br from-indigo-50 to-indigo-100"
+                            textColor="text-indigo-800"
                             icon={FaCheck}
                           />
                           <StatCard
                             title="Faltas"
-                            value={matricula.faltas || 0}
-                            bgColor="bg-gradient-to-br from-red-50 to-red-100"
-                            textColor="text-red-800"
+                            value={matricula.sePasoListaAlgunaVez ? (matricula.faltas || 0) : "N/A"}
+                            bgColor="bg-gradient-to-br from-pink-50 to-pink-100"
+                            textColor="text-pink-800"
                             icon={FaTimes}
                           />
                           <StatCard
                             title="Total de sesiones"
-                            value={matricula.totalSesiones || 0}
-                            bgColor="bg-gradient-to-br from-blue-50 to-blue-100"
-                            textColor="text-blue-800"
+                            value={matricula.sePasoListaAlgunaVez ? (matricula.totalSesiones || 0) : "N/A"}
+                            bgColor="bg-gradient-to-br from-cyan-50 to-cyan-100"
+                            textColor="text-cyan-800"
                             icon={FaClock}
                           />
                           <StatCard
                             title="Faltas justificables"
-                            value={faltasJustificables.length}
-                            bgColor="bg-gradient-to-br from-yellow-50 to-yellow-100"
-                            textColor="text-yellow-800"
+                            value={matricula.sePasoListaAlgunaVez ? faltasJustificables.length : "N/A"}
+                            bgColor="bg-gradient-to-br from-amber-50 to-amber-100"
+                            textColor="text-amber-800"
                             icon={FaFileAlt}
                           />
                         </div>
