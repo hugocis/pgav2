@@ -141,9 +141,28 @@ export async function GET() {
           denominacion: 'Pendiente' // Solo cuenta las que estén marcadas como "Pendiente"
         }
       }
-    });    // 7. Firmas docentes pendientes (simularemos esto ya que no tenemos un modelo directo para firmas)
-    // En una implementación real esto dependería de la estructura de datos para firmas de docentes
-    const pendingSignatures = 0; // Valor actualizado, sin notificaciones pendientes
+    });    // 7. Conteo de sesiones del día actual que todavía no tienen firmas
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const pendingSignatures = await prisma.sesionClase.count({
+      where: {
+        fecha: {
+          gte: today,
+          lt: tomorrow
+        },
+        FirmaDocente: null, // Sesiones que no tienen firma registrada
+        grupo: {
+          asignatura: {
+            carreraId: {
+              in: carreraIds // Filtrar solo por las carreras asignadas al manager
+            }
+          }
+        }
+      }
+    });
 
     // 8. Dispensas académicas recientes
     const recentDispensations = await prisma.solicitudDispensa.findMany({

@@ -90,13 +90,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Crear la nueva sesión de clase
-    const nuevaSesionClase = await prisma.sesionClase.create({
-      data: {
-        fecha: new Date(fecha),
-        grupoId: grupoId,
-        docenteId
-      }
+    // Crear la nueva sesión de clase y su firma docente en una transacción
+    const nuevaSesionClase = await prisma.$transaction(async (tx) => {
+      // Crear la sesión de clase
+      const sesion = await tx.sesionClase.create({
+        data: {
+          fecha: new Date(fecha),
+          grupoId: grupoId,
+          docenteId
+        }
+      });
+      
+      // Crear automáticamente la firma docente al crear la sesión
+      await tx.firmaDocente.create({
+        data: {
+          sesionClaseId: sesion.id,
+          fechaFirma: new Date(), // Se registra la firma en el momento actual
+          observaciones: 'Firma automática al pasar lista'
+        }
+      });
+      
+      return sesion;
     });
 
     await logActivity({
@@ -104,7 +118,7 @@ export async function POST(request: NextRequest) {
       action: 'create',
       entityType: 'sesionClase',
       entityId: nuevaSesionClase.id,
-      details: `Creación de sesión de clase para el grupo ${grupoExistente.denominacion} el día ${new Date(fecha).toLocaleDateString()}`
+      details: `Creación de sesión de clase y firma docente para el grupo ${grupoExistente.denominacion} el día ${new Date(fecha).toLocaleDateString()}`
     });
 
 

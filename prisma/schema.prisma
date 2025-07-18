@@ -380,6 +380,7 @@ model SesionClase {
   updatedAt DateTime @updatedAt
 
   AsistenciaAlumno AsistenciaAlumno[]
+  FirmaDocente     FirmaDocente?
 }
 
 model EstadoAsistencia {
@@ -557,4 +558,18 @@ model PecCarreraCurso {
   updatedAt DateTime @updatedAt
 
   @@unique([pecId, carreraId, curso]) // Un PEC no puede estar asignado dos veces a la misma combinación de carrera y curso
+}
+
+// Modelo para firmas de docentes en clases
+model FirmaDocente {
+  id              String   @id @default(uuid())
+  fechaFirma      DateTime @default(now()) // Fecha y hora de la firma
+  observaciones   String?  // Observaciones opcionales
+
+  // Relación con la sesión de clase (una sesión tiene una firma)
+  sesionClaseId   String   @unique // Relación uno a uno con SesionClase
+  sesionClase     SesionClase @relation(fields: [sesionClaseId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
