@@ -94,16 +94,43 @@ export default function AdminDocencia() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-    // Referencias para los campos del formulario
-  const asignaturaRef = useRef<HTMLSelectElement>(null);
-  const profesorRef = useRef<HTMLSelectElement>(null);
-  const profesorTitularRef = useRef<HTMLSelectElement>(null);
+  
+  // Estados para búsquedas en crear docencia
+  const [newAsignaturaSearch, setNewAsignaturaSearch] = useState('');
+  const [filteredAsignaturas, setFilteredAsignaturas] = useState<Asignatura[]>([]);
+  const [showNewAsignaturaDropdown, setShowNewAsignaturaDropdown] = useState(false);
+  
+  const [newProfesorSearch, setNewProfesorSearch] = useState('');
+  const [filteredProfesores, setFilteredProfesores] = useState<User[]>([]);
+  const [showNewProfesorDropdown, setShowNewProfesorDropdown] = useState(false);
+  
+  const [newProfesorTitularSearch, setNewProfesorTitularSearch] = useState('');
+  const [filteredProfesoresTitulares, setFilteredProfesoresTitulares] = useState<User[]>([]);
+  const [showNewProfesorTitularDropdown, setShowNewProfesorTitularDropdown] = useState(false);
+  
+  // Estados para búsquedas en editar docencia
+  const [asignaturaSearch, setAsignaturaSearch] = useState('');
+  const [filteredAsignaturasEdit, setFilteredAsignaturasEdit] = useState<Asignatura[]>([]);
+  const [showAsignaturaDropdown, setShowAsignaturaDropdown] = useState(false);
+  
+  const [profesorSearch, setProfesorSearch] = useState('');
+  const [filteredProfesoresEdit, setFilteredProfesoresEdit] = useState<User[]>([]);
+  const [showProfesorDropdown, setShowProfesorDropdown] = useState(false);
+  
+  const [profesorTitularSearch, setProfesorTitularSearch] = useState('');
+  const [filteredProfesoresTitularesEdit, setFilteredProfesoresTitularesEdit] = useState<User[]>([]);
+  const [showProfesorTitularDropdown, setShowProfesorTitularDropdown] = useState(false);
+  
+  // Referencias para los campos del formulario
+  const asignaturaRef = useRef<HTMLInputElement>(null);
+  const profesorRef = useRef<HTMLInputElement>(null);
+  const profesorTitularRef = useRef<HTMLInputElement>(null);
   const mostrarRef = useRef<HTMLInputElement>(null);
   
   // Referencias para los campos del formulario de creación
-  const newAsignaturaRef = useRef<HTMLSelectElement>(null);
-  const newProfesorRef = useRef<HTMLSelectElement>(null);
-  const newProfesorTitularRef = useRef<HTMLSelectElement>(null);
+  const newAsignaturaRef = useRef<HTMLInputElement>(null);
+  const newProfesorRef = useRef<HTMLInputElement>(null);
+  const newProfesorTitularRef = useRef<HTMLInputElement>(null);
   const newMostrarRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const fetchDocencias = async () => {
@@ -238,12 +265,39 @@ export default function AdminDocencia() {
 
   const handleRowClick = (docencia: Docencia) => {
     setSelectedDocencia(docencia);
+    
+    // Inicializar los campos de búsqueda con los valores actuales
+    const asignatura = asignaturas.find(a => a.id === docencia.asignaturaId);
+    if (asignatura) {
+      setAsignaturaSearch(`${asignatura.CodAsignatura} - ${asignatura.Denominacion}`);
+    }
+    
+    const profesor = profesores.find(p => p.id === docencia.profesorId);
+    if (profesor) {
+      setProfesorSearch(`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim());
+    }
+    
+    const profesorTitular = profesores.find(p => p.id === docencia.profesorTitularId);
+    if (profesorTitular) {
+      setProfesorTitularSearch(`${profesorTitular.name || ''} ${profesorTitular.surname1 || ''} ${profesorTitular.surname2 || ''}`.trim());
+    } else {
+      setProfesorTitularSearch('');
+    }
+    
     setIsDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setSelectedDocencia(null);
+    
+    // Limpiar los campos de búsqueda
+    setAsignaturaSearch('');
+    setProfesorSearch('');
+    setProfesorTitularSearch('');
+    setShowAsignaturaDropdown(false);
+    setShowProfesorDropdown(false);
+    setShowProfesorTitularDropdown(false);
   };
   const handleUpdateDocencia = async () => {
     if (!selectedDocencia) return;
@@ -380,6 +434,14 @@ export default function AdminDocencia() {
   const handleCloseCreateDialog = () => {
     setIsCreateDialogOpen(false);
     setCreateMessage(null);
+    
+    // Limpiar los campos de búsqueda
+    setNewAsignaturaSearch('');
+    setNewProfesorSearch('');
+    setNewProfesorTitularSearch('');
+    setShowNewAsignaturaDropdown(false);
+    setShowNewProfesorDropdown(false);
+    setShowNewProfesorTitularDropdown(false);
   };
 
   // Función para manejar clics fuera de los diálogos
@@ -393,6 +455,52 @@ export default function AdminDocencia() {
       }
     }
   };
+  
+  // Cerrar los dropdowns cuando se hace clic fuera de ellos
+  useEffect(() => {
+    const handleDocumentClick = (event: MouseEvent) => {
+      // Cerrar dropdowns en crear docencia
+      if (showNewAsignaturaDropdown && 
+          !((event.target as Element).closest('[data-search="new-asignatura"]'))) {
+        setShowNewAsignaturaDropdown(false);
+      }
+      
+      if (showNewProfesorDropdown && 
+          !((event.target as Element).closest('[data-search="new-profesor"]'))) {
+        setShowNewProfesorDropdown(false);
+      }
+      
+      if (showNewProfesorTitularDropdown && 
+          !((event.target as Element).closest('[data-search="new-profesor-titular"]'))) {
+        setShowNewProfesorTitularDropdown(false);
+      }
+      
+      // Cerrar dropdowns en editar docencia
+      if (showAsignaturaDropdown && 
+          !((event.target as Element).closest('[data-search="edit-asignatura"]'))) {
+        setShowAsignaturaDropdown(false);
+      }
+      
+      if (showProfesorDropdown && 
+          !((event.target as Element).closest('[data-search="edit-profesor"]'))) {
+        setShowProfesorDropdown(false);
+      }
+      
+      if (showProfesorTitularDropdown && 
+          !((event.target as Element).closest('[data-search="edit-profesor-titular"]'))) {
+        setShowProfesorTitularDropdown(false);
+      }
+    };
+    
+    document.addEventListener('click', handleDocumentClick);
+    
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+    };
+  }, [
+    showNewAsignaturaDropdown, showNewProfesorDropdown, showNewProfesorTitularDropdown,
+    showAsignaturaDropdown, showProfesorDropdown, showProfesorTitularDropdown
+  ]);
 
   return (
     <DashboardContainer roleName="Admin">
@@ -617,48 +725,173 @@ export default function AdminDocencia() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Asignatura</label>
-                  <select
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    defaultValue={selectedDocencia.asignaturaId}
-                    ref={asignaturaRef}
-                  >
-                    {asignaturas.map(asignatura => (
-                      <option key={asignatura.id} value={asignatura.id}>
-                        {asignatura.CodAsignatura} - {asignatura.Denominacion}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative" data-search="edit-asignatura">
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Buscar asignatura..."
+                      value={asignaturaSearch || ''}
+                      onChange={(e) => {
+                        setAsignaturaSearch(e.target.value);
+                        if (e.target.value) {
+                          const filtered = asignaturas.filter(a => 
+                            `${a.CodAsignatura} - ${a.Denominacion}`.toLowerCase().includes(e.target.value.toLowerCase())
+                          );
+                          setFilteredAsignaturasEdit(filtered);
+                          setShowAsignaturaDropdown(true);
+                        } else {
+                          setShowAsignaturaDropdown(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (asignaturaSearch) {
+                          setShowAsignaturaDropdown(true);
+                        }
+                      }}
+                    />
+                    {showAsignaturaDropdown && filteredAsignaturasEdit.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                        {filteredAsignaturasEdit.map(asignatura => (
+                          <div
+                            key={asignatura.id}
+                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100"
+                            onClick={() => {
+                              if (asignaturaRef.current) {
+                                asignaturaRef.current.value = asignatura.id.toString();
+                              }
+                              setAsignaturaSearch(`${asignatura.CodAsignatura} - ${asignatura.Denominacion}`);
+                              setShowAsignaturaDropdown(false);
+                            }}
+                          >
+                            {asignatura.CodAsignatura} - {asignatura.Denominacion}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="hidden"
+                      defaultValue={selectedDocencia.asignaturaId.toString()}
+                      ref={asignaturaRef}
+                    />
+                  </div>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Profesor</label>
-                  <select
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    defaultValue={selectedDocencia.profesorId}
-                    ref={profesorRef}
-                  >
-                    {profesores.map(profesor => (
-                      <option key={profesor.id} value={profesor.id}>
-                        {`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim()}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative" data-search="edit-profesor">
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Buscar profesor..."
+                      value={profesorSearch || ''}
+                      onChange={(e) => {
+                        setProfesorSearch(e.target.value);
+                        if (e.target.value) {
+                          const filtered = profesores.filter(p => 
+                            `${p.name || ''} ${p.surname1 || ''} ${p.surname2 || ''}`.trim().toLowerCase().includes(e.target.value.toLowerCase())
+                          );
+                          setFilteredProfesoresEdit(filtered);
+                          setShowProfesorDropdown(true);
+                        } else {
+                          setShowProfesorDropdown(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (profesorSearch) {
+                          setShowProfesorDropdown(true);
+                        }
+                      }}
+                    />
+                    {showProfesorDropdown && filteredProfesoresEdit.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                        {filteredProfesoresEdit.map(profesor => (
+                          <div
+                            key={profesor.id}
+                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100"
+                            onClick={() => {
+                              if (profesorRef.current) {
+                                profesorRef.current.value = profesor.id;
+                              }
+                              setProfesorSearch(`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim());
+                              setShowProfesorDropdown(false);
+                            }}
+                          >
+                            {`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim()}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="hidden"
+                      defaultValue={selectedDocencia.profesorId}
+                      ref={profesorRef}
+                    />
+                  </div>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Profesor Titular</label>
-                  <select
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    defaultValue={selectedDocencia.profesorTitularId || ""}
-                    ref={profesorTitularRef}
-                  >
-                    <option value="">Sin profesor titular</option>
-                    {profesores.map(profesor => (
-                      <option key={profesor.id} value={profesor.id}>
-                        {`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim()}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative" data-search="edit-profesor-titular">
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Buscar profesor titular (opcional)..."
+                      value={profesorTitularSearch || ''}
+                      onChange={(e) => {
+                        setProfesorTitularSearch(e.target.value);
+                        if (e.target.value) {
+                          const filtered = profesores.filter(p => 
+                            `${p.name || ''} ${p.surname1 || ''} ${p.surname2 || ''}`.trim().toLowerCase().includes(e.target.value.toLowerCase())
+                          );
+                          setFilteredProfesoresTitularesEdit(filtered);
+                          setShowProfesorTitularDropdown(true);
+                        } else {
+                          setShowProfesorTitularDropdown(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (profesorTitularSearch) {
+                          setShowProfesorTitularDropdown(true);
+                        }
+                      }}
+                    />
+                    {showProfesorTitularDropdown && filteredProfesoresTitularesEdit.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                        <div
+                          className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100 text-gray-500"
+                          onClick={() => {
+                            if (profesorTitularRef.current) {
+                              profesorTitularRef.current.value = "";
+                            }
+                            setProfesorTitularSearch("");
+                            setShowProfesorTitularDropdown(false);
+                          }}
+                        >
+                          Sin profesor titular
+                        </div>
+                        {filteredProfesoresTitularesEdit.map(profesor => (
+                          <div
+                            key={profesor.id}
+                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100"
+                            onClick={() => {
+                              if (profesorTitularRef.current) {
+                                profesorTitularRef.current.value = profesor.id;
+                              }
+                              setProfesorTitularSearch(`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim());
+                              setShowProfesorTitularDropdown(false);
+                            }}
+                          >
+                            {`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim()}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="hidden"
+                      defaultValue={selectedDocencia.profesorTitularId || ""}
+                      ref={profesorTitularRef}
+                    />
+                  </div>
                 </div>
                 
                 <div>
@@ -757,49 +990,170 @@ export default function AdminDocencia() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Asignatura *</label>
-                  <select
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    ref={newAsignaturaRef}
-                    required
-                  >
-                    <option value="">Seleccione una asignatura</option>
-                    {asignaturas.map(asignatura => (
-                      <option key={asignatura.id} value={asignatura.id}>
-                        {asignatura.CodAsignatura} - {asignatura.Denominacion}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative" data-search="new-asignatura">
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Buscar asignatura..."
+                      value={newAsignaturaSearch || ''}
+                      onChange={(e) => {
+                        setNewAsignaturaSearch(e.target.value);
+                        if (e.target.value) {
+                          const filtered = asignaturas.filter(a => 
+                            `${a.CodAsignatura} - ${a.Denominacion}`.toLowerCase().includes(e.target.value.toLowerCase())
+                          );
+                          setFilteredAsignaturas(filtered);
+                          setShowNewAsignaturaDropdown(true);
+                        } else {
+                          setShowNewAsignaturaDropdown(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (newAsignaturaSearch) {
+                          setShowNewAsignaturaDropdown(true);
+                        }
+                      }}
+                    />
+                    {showNewAsignaturaDropdown && filteredAsignaturas.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                        {filteredAsignaturas.map(asignatura => (
+                          <div
+                            key={asignatura.id}
+                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100"
+                            onClick={() => {
+                              if (newAsignaturaRef.current) {
+                                newAsignaturaRef.current.value = asignatura.id.toString();
+                              }
+                              setNewAsignaturaSearch(`${asignatura.CodAsignatura} - ${asignatura.Denominacion}`);
+                              setShowNewAsignaturaDropdown(false);
+                            }}
+                          >
+                            {asignatura.CodAsignatura} - {asignatura.Denominacion}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="hidden"
+                      ref={newAsignaturaRef}
+                    />
+                  </div>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Profesor *</label>
-                  <select
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    ref={newProfesorRef}
-                    required
-                  >
-                    <option value="">Seleccione un profesor</option>
-                    {profesores.map(profesor => (
-                      <option key={profesor.id} value={profesor.id}>
-                        {`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim()}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative" data-search="new-profesor">
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Buscar profesor..."
+                      value={newProfesorSearch || ''}
+                      onChange={(e) => {
+                        setNewProfesorSearch(e.target.value);
+                        if (e.target.value) {
+                          const filtered = profesores.filter(p => 
+                            `${p.name || ''} ${p.surname1 || ''} ${p.surname2 || ''}`.trim().toLowerCase().includes(e.target.value.toLowerCase())
+                          );
+                          setFilteredProfesores(filtered);
+                          setShowNewProfesorDropdown(true);
+                        } else {
+                          setShowNewProfesorDropdown(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (newProfesorSearch) {
+                          setShowNewProfesorDropdown(true);
+                        }
+                      }}
+                    />
+                    {showNewProfesorDropdown && filteredProfesores.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                        {filteredProfesores.map(profesor => (
+                          <div
+                            key={profesor.id}
+                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100"
+                            onClick={() => {
+                              if (newProfesorRef.current) {
+                                newProfesorRef.current.value = profesor.id;
+                              }
+                              setNewProfesorSearch(`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim());
+                              setShowNewProfesorDropdown(false);
+                            }}
+                          >
+                            {`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim()}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="hidden"
+                      ref={newProfesorRef}
+                    />
+                  </div>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Profesor Titular</label>
-                  <select
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    ref={newProfesorTitularRef}
-                  >
-                    <option value="">Sin profesor titular</option>
-                    {profesores.map(profesor => (
-                      <option key={profesor.id} value={profesor.id}>
-                        {`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim()}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative" data-search="new-profesor-titular">
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Buscar profesor titular (opcional)..."
+                      value={newProfesorTitularSearch || ''}
+                      onChange={(e) => {
+                        setNewProfesorTitularSearch(e.target.value);
+                        if (e.target.value) {
+                          const filtered = profesores.filter(p => 
+                            `${p.name || ''} ${p.surname1 || ''} ${p.surname2 || ''}`.trim().toLowerCase().includes(e.target.value.toLowerCase())
+                          );
+                          setFilteredProfesoresTitulares(filtered);
+                          setShowNewProfesorTitularDropdown(true);
+                        } else {
+                          setShowNewProfesorTitularDropdown(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (newProfesorTitularSearch) {
+                          setShowNewProfesorTitularDropdown(true);
+                        }
+                      }}
+                    />
+                    {showNewProfesorTitularDropdown && filteredProfesoresTitulares.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                        <div
+                          className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100 text-gray-500"
+                          onClick={() => {
+                            if (newProfesorTitularRef.current) {
+                              newProfesorTitularRef.current.value = "";
+                            }
+                            setNewProfesorTitularSearch("");
+                            setShowNewProfesorTitularDropdown(false);
+                          }}
+                        >
+                          Sin profesor titular
+                        </div>
+                        {filteredProfesoresTitulares.map(profesor => (
+                          <div
+                            key={profesor.id}
+                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100"
+                            onClick={() => {
+                              if (newProfesorTitularRef.current) {
+                                newProfesorTitularRef.current.value = profesor.id;
+                              }
+                              setNewProfesorTitularSearch(`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim());
+                              setShowNewProfesorTitularDropdown(false);
+                            }}
+                          >
+                            {`${profesor.name || ''} ${profesor.surname1 || ''} ${profesor.surname2 || ''}`.trim()}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="hidden"
+                      ref={newProfesorTitularRef}
+                    />
+                  </div>
                 </div>
                 
                 <div>

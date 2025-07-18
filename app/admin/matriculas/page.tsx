@@ -82,14 +82,32 @@ export default function AdminMatriculas() {
   const [createMessage, setCreateMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [newMostrarChecked, setNewMostrarChecked] = useState(false);
   
+  // Estados para búsquedas en crear matrícula
+  const [newAsignaturaSearch, setNewAsignaturaSearch] = useState('');
+  const [filteredAsignaturas, setFilteredAsignaturas] = useState<Asignatura[]>([]);
+  const [showNewAsignaturaDropdown, setShowNewAsignaturaDropdown] = useState(false);
+  
+  const [newAlumnoSearch, setNewAlumnoSearch] = useState('');
+  const [filteredAlumnos, setFilteredAlumnos] = useState<User[]>([]);
+  const [showNewAlumnoDropdown, setShowNewAlumnoDropdown] = useState(false);
+  
+  // Estados para búsquedas en editar matrícula
+  const [asignaturaSearch, setAsignaturaSearch] = useState('');
+  const [filteredAsignaturasEdit, setFilteredAsignaturasEdit] = useState<Asignatura[]>([]);
+  const [showAsignaturaDropdown, setShowAsignaturaDropdown] = useState(false);
+  
+  const [alumnoSearch, setAlumnoSearch] = useState('');
+  const [filteredAlumnosEdit, setFilteredAlumnosEdit] = useState<User[]>([]);
+  const [showAlumnoDropdown, setShowAlumnoDropdown] = useState(false);
+  
   // Referencias para los campos del formulario
-  const asignaturaRef = useRef<HTMLSelectElement>(null);
-  const alumnoRef = useRef<HTMLSelectElement>(null);
+  const asignaturaRef = useRef<HTMLInputElement>(null);
+  const alumnoRef = useRef<HTMLInputElement>(null);
   const mostrarRef = useRef<HTMLInputElement>(null);
   
   // Referencias para los campos del formulario de creación
-  const newAsignaturaRef = useRef<HTMLSelectElement>(null);
-  const newAlumnoRef = useRef<HTMLSelectElement>(null);
+  const newAsignaturaRef = useRef<HTMLInputElement>(null);
+  const newAlumnoRef = useRef<HTMLInputElement>(null);
   const newMostrarRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -225,12 +243,30 @@ export default function AdminMatriculas() {
 
   const handleRowClick = (matricula: Matricula) => {
     setSelectedMatricula(matricula);
+    
+    // Inicializar los campos de búsqueda con los valores actuales
+    const asignatura = asignaturas.find(a => a.id === matricula.asignaturaId.toString());
+    if (asignatura) {
+      setAsignaturaSearch(`${asignatura.CodAsignatura} - ${asignatura.Denominacion}`);
+    }
+    
+    const alumno = alumnos.find(a => a.id === matricula.alumno_id);
+    if (alumno) {
+      setAlumnoSearch(`${alumno.name || ''} ${alumno.surname1 || ''} ${alumno.surname2 || ''}`.trim());
+    }
+    
     setIsDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setSelectedMatricula(null);
+    
+    // Limpiar campos de búsqueda
+    setAsignaturaSearch('');
+    setAlumnoSearch('');
+    setShowAsignaturaDropdown(false);
+    setShowAlumnoDropdown(false);
   };
 
   const handleUpdateMatricula = async () => {
@@ -364,7 +400,49 @@ export default function AdminMatriculas() {
     setIsCreateDialogOpen(false);
     setCreateMessage(null);
     setNewMostrarChecked(false);
+    
+    // Limpiar campos de búsqueda
+    setNewAsignaturaSearch('');
+    setNewAlumnoSearch('');
+    setShowNewAsignaturaDropdown(false);
+    setShowNewAlumnoDropdown(false);
   };
+  
+  // Cerrar los dropdowns cuando se hace clic fuera de ellos
+  useEffect(() => {
+    const handleDocumentClick = (event: MouseEvent) => {
+      // Cerrar dropdowns en crear matrícula
+      if (showNewAsignaturaDropdown && 
+          !((event.target as Element).closest('[data-search="new-asignatura"]'))) {
+        setShowNewAsignaturaDropdown(false);
+      }
+      
+      if (showNewAlumnoDropdown && 
+          !((event.target as Element).closest('[data-search="new-alumno"]'))) {
+        setShowNewAlumnoDropdown(false);
+      }
+      
+      // Cerrar dropdowns en editar matrícula
+      if (showAsignaturaDropdown && 
+          !((event.target as Element).closest('[data-search="edit-asignatura"]'))) {
+        setShowAsignaturaDropdown(false);
+      }
+      
+      if (showAlumnoDropdown && 
+          !((event.target as Element).closest('[data-search="edit-alumno"]'))) {
+        setShowAlumnoDropdown(false);
+      }
+    };
+    
+    document.addEventListener('click', handleDocumentClick);
+    
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+    };
+  }, [
+    showNewAsignaturaDropdown, showNewAlumnoDropdown,
+    showAsignaturaDropdown, showAlumnoDropdown
+  ]);
 
   return (
     <DashboardContainer roleName="Admin">
@@ -579,31 +657,107 @@ export default function AdminMatriculas() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Alumno</label>
-                  <select
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    defaultValue={selectedMatricula.alumno_id}
-                    ref={alumnoRef}
-                  >
-                    {alumnos.map(alumno => (
-                      <option key={alumno.id} value={alumno.id}>
-                        {`${alumno.name || ''} ${alumno.surname1 || ''} ${alumno.surname2 || ''}`.trim()}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative" data-search="edit-alumno">
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Buscar alumno..."
+                      value={alumnoSearch || ''}
+                      onChange={(e) => {
+                        setAlumnoSearch(e.target.value);
+                        if (e.target.value) {
+                          const filtered = alumnos.filter(a => 
+                            `${a.name || ''} ${a.surname1 || ''} ${a.surname2 || ''}`.trim().toLowerCase().includes(e.target.value.toLowerCase())
+                          );
+                          setFilteredAlumnosEdit(filtered);
+                          setShowAlumnoDropdown(true);
+                        } else {
+                          setShowAlumnoDropdown(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (alumnoSearch) {
+                          setShowAlumnoDropdown(true);
+                        }
+                      }}
+                    />
+                    {showAlumnoDropdown && filteredAlumnosEdit.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                        {filteredAlumnosEdit.map(alumno => (
+                          <div
+                            key={alumno.id}
+                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100"
+                            onClick={() => {
+                              if (alumnoRef.current) {
+                                alumnoRef.current.value = alumno.id;
+                              }
+                              setAlumnoSearch(`${alumno.name || ''} ${alumno.surname1 || ''} ${alumno.surname2 || ''}`.trim());
+                              setShowAlumnoDropdown(false);
+                            }}
+                          >
+                            {`${alumno.name || ''} ${alumno.surname1 || ''} ${alumno.surname2 || ''}`.trim()}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="hidden"
+                      defaultValue={selectedMatricula.alumno_id}
+                      ref={alumnoRef}
+                    />
+                  </div>
                 </div>
-                  <div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Asignatura</label>
-                  <select
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    defaultValue={selectedMatricula.asignaturaId}
-                    ref={asignaturaRef}
-                  >
-                    {asignaturas.map(asignatura => (
-                      <option key={asignatura.id} value={asignatura.id}>
-                        {asignatura.CodAsignatura} - {asignatura.Denominacion}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative" data-search="edit-asignatura">
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Buscar asignatura..."
+                      value={asignaturaSearch || ''}
+                      onChange={(e) => {
+                        setAsignaturaSearch(e.target.value);
+                        if (e.target.value) {
+                          const filtered = asignaturas.filter(a => 
+                            `${a.CodAsignatura} - ${a.Denominacion}`.toLowerCase().includes(e.target.value.toLowerCase())
+                          );
+                          setFilteredAsignaturasEdit(filtered);
+                          setShowAsignaturaDropdown(true);
+                        } else {
+                          setShowAsignaturaDropdown(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (asignaturaSearch) {
+                          setShowAsignaturaDropdown(true);
+                        }
+                      }}
+                    />
+                    {showAsignaturaDropdown && filteredAsignaturasEdit.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                        {filteredAsignaturasEdit.map(asignatura => (
+                          <div
+                            key={asignatura.id}
+                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100"
+                            onClick={() => {
+                              if (asignaturaRef.current) {
+                                asignaturaRef.current.value = asignatura.id;
+                              }
+                              setAsignaturaSearch(`${asignatura.CodAsignatura} - ${asignatura.Denominacion}`);
+                              setShowAsignaturaDropdown(false);
+                            }}
+                          >
+                            {asignatura.CodAsignatura} - {asignatura.Denominacion}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="hidden"
+                      defaultValue={selectedMatricula.asignaturaId.toString()}
+                      ref={asignaturaRef}
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -697,34 +851,106 @@ export default function AdminMatriculas() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Alumno *</label>
-                  <select
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    ref={newAlumnoRef}
-                    required
-                  >
-                    <option value="">Seleccione un alumno</option>
-                    {alumnos.map(alumno => (
-                      <option key={alumno.id} value={alumno.id}>
-                        {`${alumno.name || ''} ${alumno.surname1 || ''} ${alumno.surname2 || ''}`.trim()}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative" data-search="new-alumno">
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Buscar alumno..."
+                      value={newAlumnoSearch || ''}
+                      onChange={(e) => {
+                        setNewAlumnoSearch(e.target.value);
+                        if (e.target.value) {
+                          const filtered = alumnos.filter(a => 
+                            `${a.name || ''} ${a.surname1 || ''} ${a.surname2 || ''}`.trim().toLowerCase().includes(e.target.value.toLowerCase())
+                          );
+                          setFilteredAlumnos(filtered);
+                          setShowNewAlumnoDropdown(true);
+                        } else {
+                          setShowNewAlumnoDropdown(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (newAlumnoSearch) {
+                          setShowNewAlumnoDropdown(true);
+                        }
+                      }}
+                    />
+                    {showNewAlumnoDropdown && filteredAlumnos.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                        {filteredAlumnos.map(alumno => (
+                          <div
+                            key={alumno.id}
+                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100"
+                            onClick={() => {
+                              if (newAlumnoRef.current) {
+                                newAlumnoRef.current.value = alumno.id;
+                              }
+                              setNewAlumnoSearch(`${alumno.name || ''} ${alumno.surname1 || ''} ${alumno.surname2 || ''}`.trim());
+                              setShowNewAlumnoDropdown(false);
+                            }}
+                          >
+                            {`${alumno.name || ''} ${alumno.surname1 || ''} ${alumno.surname2 || ''}`.trim()}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="hidden"
+                      ref={newAlumnoRef}
+                    />
+                  </div>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Asignatura *</label>
-                  <select
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    ref={newAsignaturaRef}
-                    required
-                  >
-                    <option value="">Seleccione una asignatura</option>
-                    {asignaturas.map(asignatura => (
-                      <option key={asignatura.id} value={asignatura.id}>
-                        {asignatura.CodAsignatura} - {asignatura.Denominacion}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative" data-search="new-asignatura">
+                    <input
+                      type="text"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Buscar asignatura..."
+                      value={newAsignaturaSearch || ''}
+                      onChange={(e) => {
+                        setNewAsignaturaSearch(e.target.value);
+                        if (e.target.value) {
+                          const filtered = asignaturas.filter(a => 
+                            `${a.CodAsignatura} - ${a.Denominacion}`.toLowerCase().includes(e.target.value.toLowerCase())
+                          );
+                          setFilteredAsignaturas(filtered);
+                          setShowNewAsignaturaDropdown(true);
+                        } else {
+                          setShowNewAsignaturaDropdown(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (newAsignaturaSearch) {
+                          setShowNewAsignaturaDropdown(true);
+                        }
+                      }}
+                    />
+                    {showNewAsignaturaDropdown && filteredAsignaturas.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm">
+                        {filteredAsignaturas.map(asignatura => (
+                          <div
+                            key={asignatura.id}
+                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100"
+                            onClick={() => {
+                              if (newAsignaturaRef.current) {
+                                newAsignaturaRef.current.value = asignatura.id;
+                              }
+                              setNewAsignaturaSearch(`${asignatura.CodAsignatura} - ${asignatura.Denominacion}`);
+                              setShowNewAsignaturaDropdown(false);
+                            }}
+                          >
+                            {asignatura.CodAsignatura} - {asignatura.Denominacion}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="hidden"
+                      ref={newAsignaturaRef}
+                    />
+                  </div>
                 </div>                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Visibilidad</label>
                   <div className="flex items-center space-x-3">
