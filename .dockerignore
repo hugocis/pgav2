@@ -12,7 +12,6 @@ out
 .env.development.local
 .env.test.local
 .env.production.local
-# No excluímos el .env.production ya que necesitamos acceder a él durante la construcción
 Dockerfile
 docker-compose.yml
 .dockerignore
