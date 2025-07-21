@@ -19,7 +19,8 @@ import {
   FaCalendarAlt,
   FaGraduationCap,
   FaUniversity,
-  FaBook
+  FaBook,
+  FaDatabase
 } from 'react-icons/fa';
 
 type RoleInfo = {
@@ -70,6 +71,7 @@ const adminNavItems = [
   { name: 'Docencia', path: '/admin/docencia', icon: <FaBook className="w-4 h-4" /> },
   { name: 'Usuarios', path: '/admin/users', icon: <FaUsers className="w-4 h-4" /> },
   { name: 'Configuración', path: '/admin/configuracion-carreras', icon: <FaUniversity className="w-4 h-4" /> },
+  { name: 'Sistema de Backup', path: '/admin/backup', icon: <FaDatabase className="w-4 h-4" /> },
 ];
 
 export default function Navbar() {

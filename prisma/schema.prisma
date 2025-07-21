@@ -164,6 +164,8 @@ model User {
   // Nuevas relaciones
   ManagerCarrera         ManagerCarrera[]
   PecCarreraCurso        PecCarreraCurso[]
+  // Relación con backups ejecutados
+  BackupsEjecutados      BackupSystem[]
 }
 
 model Role {
@@ -572,4 +574,27 @@ model FirmaDocente {
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// Modelo para gestión de backups del sistema
+model BackupSystem {
+  id                String   @id @default(uuid())
+  tipoBackup        String   // 'INCREMENTAL' | 'COMPLETO'
+  fechaInicio       DateTime @default(now())
+  fechaFin          DateTime?
+  estado            String   @default("EN_PROGRESO") // 'EN_PROGRESO' | 'COMPLETADO' | 'FALLIDO'
+  archivoPath       String?  // Ruta del archivo de backup generado
+  tamaño            BigInt?  // Tamaño del archivo en bytes
+  observaciones     String?  // Observaciones o errores si los hay
+  ultimoBackup      DateTime? // Fecha del último backup para incrementales
+  
+  // Usuario que ejecutó el backup
+  ejecutadoPorId    String?
+  ejecutadoPor      User?    @relation(fields: [ejecutadoPorId], references: [id], onDelete: SetNull)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tipoBackup])
+  @@index([fechaInicio])
 }
