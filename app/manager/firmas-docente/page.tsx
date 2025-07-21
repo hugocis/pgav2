@@ -99,7 +99,7 @@ export default function FirmasDocente() {
     setError(null);
     
     try {
-      let url = `/api/(manager)/firmas-docente?fecha=${fechaSeleccionada}&incluirProgramadas=true`;
+      let url = `/firmas-docente?fecha=${fechaSeleccionada}&incluirProgramadas=true`;
       
       // Añadir filtro por carrera si está seleccionada
       if (carrera) {
@@ -234,7 +234,7 @@ export default function FirmasDocente() {
       }));
       
       // Enviar datos al endpoint de generación de PDF
-      const response = await fetch('/api/(manager)/generar-pdf', {
+      const response = await fetch('/api/generar-pdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -301,7 +301,7 @@ export default function FirmasDocente() {
       }));
       
       // Enviar datos al endpoint de generación de Excel
-      const response = await fetch('/api/(manager)/generar-excel', {
+      const response = await fetch('/api/generar-excel', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
