@@ -149,6 +149,93 @@ export async function PUT(
 }
 
 // DELETE /api/matriculas/[id]
+// PATCH /api/matriculas/[id]
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    
+    console.log("PATCH - Datos recibidos:", body);
+    
+    const matriculaExistente = await prisma.matricula.findUnique({
+      where: { id }
+    });
+
+    if (!matriculaExistente) {
+      return NextResponse.json(
+        { error: "Matrícula no encontrada" },
+        { status: 404 }
+      );
+    }
+
+    // Extraer los datos de la solicitud
+    let alumnoId = matriculaExistente.alumno_id;
+    let asignaturaId = matriculaExistente.asignaturaId;
+    let mostrar = matriculaExistente.mostrar;
+
+    // Si se proporciona un objeto asignatura con conexión, usar su id
+    if (body.asignatura && body.asignatura.connect && body.asignatura.connect.id) {
+      asignaturaId = body.asignatura.connect.id;
+    }
+
+    // Si se proporciona un objeto alumno con conexión, usar su id
+    if (body.alumno && body.alumno.connect && body.alumno.connect.id) {
+      alumnoId = body.alumno.connect.id;
+    }
+
+    // Si se proporciona un valor mostrar explícito, usarlo
+    if (body.mostrar !== undefined) {
+      mostrar = body.mostrar;
+    }
+
+    // Actualizar la matrícula
+    const matriculaActualizada = await prisma.matricula.update({
+      where: { id },
+      data: {
+        alumno_id: alumnoId,
+        asignaturaId,
+        mostrar
+      },
+      include: {
+        asignatura: {
+          include: {
+            carrera: true
+          }
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            surname1: true,
+            surname2: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    await logActivity({
+      req,
+      action: 'update',
+      entityType: 'matricula',
+      entityId: id,
+      details: `Matrícula actualizada para alumno ${matriculaActualizada.user.name || 'N/A'} ${matriculaActualizada.user.surname1 || ''}, visibilidad: ${mostrar ? 'visible' : 'oculta'}`,
+      prevValue: matriculaExistente
+    });
+
+    return NextResponse.json(matriculaActualizada, { status: 200 });
+  } catch (error) {
+    console.error("Error al actualizar matrícula (PATCH):", error);
+    return NextResponse.json(
+      { error: "Error al actualizar matrícula" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

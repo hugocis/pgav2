@@ -64,6 +64,20 @@ interface EstadoAsistencia {
   denominacion: string;
 }
 
+// Definición de estilos CSS para la animación de "shake" cuando se intenta cambiar un alumno dispensado
+const shakeAnimation = `
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-5px); }
+  100% { transform: translateX(0); }
+}
+.shake {
+  animation: shake 0.4s ease-in-out;
+}
+`;
+
 export default function PasarClase() {
   const { data: session } = useSession({
     required: true,
@@ -259,31 +273,79 @@ export default function PasarClase() {
   }, [fechasConSesion]);
     // Load students and session dates when a group is selected
   useEffect(() => {
-    if (!grupoSeleccionado) return;
+    if (!grupoSeleccionado || !asignatura?.id) return;
     
     const fetchData = async () => {
       setIsLoading(true);
       
-      try {        // Load students from the group
-        const alumnosResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupoSeleccionado}&skipPagination=true`, {
+      try {
+        // Obtener el grupo seleccionado con su información de asignatura
+        const grupoResponse = await fetch(`/api/grupos/${grupoSeleccionado}`, {
           credentials: 'include'
         });
         
-        if (!alumnosResponse.ok) {
-          throw new Error('Could not load students from the group');
+        if (!grupoResponse.ok) {
+          throw new Error('No se pudo cargar la información del grupo');
         }
-          const responseData = await alumnosResponse.json();
+        
+        const grupoData = await grupoResponse.json();
+        const grupoAsignaturaId = grupoData.asignaturaId;
+        
+        // Cargar alumnos asignados al grupo
+        const alumnosGrupoResponse = await fetch(`/api/alumnos-grupo?grupoId=${grupoSeleccionado}&skipPagination=true`, {
+          credentials: 'include'
+        });
+        
+        if (!alumnosGrupoResponse.ok) {
+          throw new Error('No se pudieron cargar los alumnos del grupo');
+        }
+        
+        const alumnosGrupoData = await alumnosGrupoResponse.json();
         
         // Handle both direct array response and data property response
-        let alumnosData;
-        if (Array.isArray(responseData)) {
-          alumnosData = responseData;
-        } else if (responseData && responseData.data && Array.isArray(responseData.data)) {
-          alumnosData = responseData.data;
+        let alumnosGrupoList;
+        if (Array.isArray(alumnosGrupoData)) {
+          alumnosGrupoList = alumnosGrupoData;
+        } else if (alumnosGrupoData && alumnosGrupoData.data && Array.isArray(alumnosGrupoData.data)) {
+          alumnosGrupoList = alumnosGrupoData.data;
         } else {
-          alumnosData = [];
-          console.error('Formato de respuesta inesperado para alumnos-grupo:', responseData);
+          alumnosGrupoList = [];
+          console.error('Formato de respuesta inesperado para alumnos-grupo:', alumnosGrupoData);
         }
+        
+        // Cargar también todos los alumnos matriculados en la asignatura
+        const matriculasResponse = await fetch(`/api/matriculas?asignaturaId=${grupoAsignaturaId}&porAsignatura=true&mostrar=true`, {
+          credentials: 'include'
+        });
+        
+        if (!matriculasResponse.ok) {
+          throw new Error('No se pudieron cargar los alumnos matriculados en la asignatura');
+        }
+        
+        const matriculasData = await matriculasResponse.json();
+        
+        // Combinar alumnos de grupo con alumnos matriculados que no están en el grupo
+        const alumnosGrupoMap = new Map();
+        alumnosGrupoList.forEach((alumno: AlumnoGrupo) => {
+          if (alumno.user) {
+            alumnosGrupoMap.set(alumno.alumno_Id, alumno);
+          }
+        });
+        
+        // Añadir alumnos matriculados que no están ya en el grupo
+        matriculasData.forEach((matricula: any) => {
+          if (!alumnosGrupoMap.has(matricula.alumno_id) && matricula.user) {
+            alumnosGrupoMap.set(matricula.alumno_id, {
+              id: `matricula-${matricula.id}`, // ID único para este alumno (solo matriculado)
+              alumno_Id: matricula.alumno_id,
+              grupoId: grupoSeleccionado, // Asignarle el grupo actual para que aparezca
+              user: matricula.user
+            });
+          }
+        });
+        
+        // Convertir de nuevo a array
+        const alumnosData = Array.from(alumnosGrupoMap.values());
         
         // Ordenar los alumnos por apellido y nombre
         alumnosData.sort((a: AlumnoGrupo, b: AlumnoGrupo) => {
@@ -292,13 +354,50 @@ export default function PasarClase() {
           return apellidoA.localeCompare(apellidoB) || (a.user?.name || '').localeCompare(b.user?.name || '');
         });
         
+        console.log(`Total alumnos cargados: ${alumnosData.length} (${alumnosGrupoList.length} del grupo + ${alumnosData.length - alumnosGrupoList.length} solo matriculados)`);
+        
         setAlumnosGrupo(alumnosData);
         
         // Inicializar todas las asistencias con "Asiste" por defecto
         const asistenciasIniciales = new Map<string, string>();
-        alumnosData.forEach((alumnoGrupo: AlumnoGrupo) => {
-          asistenciasIniciales.set(alumnoGrupo.alumno_Id, 'Asiste');
-        });
+        
+        // Para cada alumno, verificar si tiene dispensas aprobadas para esta asignatura
+        // Usamos el ID de asignatura obtenido anteriormente
+        if (grupoAsignaturaId) {
+          // Para cada alumno en el grupo
+          for (const alumnoGrupo of alumnosData) {
+            const alumnoId = alumnoGrupo.alumno_Id;
+            
+            try {
+              // Buscar si el alumno tiene una dispensa aprobada para esta asignatura
+              const dispensaResponse = await fetch(`/api/solicitudes-dispensa?alumnoId=${alumnoId}&asignaturaId=${grupoAsignaturaId}&status=Aprobada`, {
+                credentials: 'include'
+              });
+              
+              if (dispensaResponse.ok) {
+                const dispensasData = await dispensaResponse.json();
+                
+                // Si el alumno tiene una dispensa aprobada, marcarlo como dispensado
+                if (Array.isArray(dispensasData) && dispensasData.length > 0) {
+                  asistenciasIniciales.set(alumnoId, 'Dispensado');
+                  console.log(`Alumno ${alumnoId} tiene dispensa aprobada para la asignatura ${asignaturaId}`);
+                } else {
+                  asistenciasIniciales.set(alumnoId, 'Asiste');
+                }
+              } else {
+                asistenciasIniciales.set(alumnoId, 'Asiste');
+              }
+            } catch (error) {
+              console.error('Error al verificar dispensas del alumno:', error);
+              asistenciasIniciales.set(alumnoId, 'Asiste');
+            }
+          }
+        } else {
+          // Si no hay asignatura, inicializar todos como Asiste
+          alumnosData.forEach((alumnoGrupo: AlumnoGrupo) => {
+            asistenciasIniciales.set(alumnoGrupo.alumno_Id, 'Asiste');
+          });
+        }
         
         setAsistencias(asistenciasIniciales);
         
@@ -342,6 +441,21 @@ export default function PasarClase() {
     : alumnosGrupo;
   // Change attendance status on click
   const cambiarEstadoAsistencia = (alumnoId: string) => {
+    const estadoActual = asistencias.get(alumnoId) || 'Asiste';
+    
+    // Si el alumno está dispensado, no permitir cambios
+    if (estadoActual === 'Dispensado') {
+      // Mostrar un pequeño efecto visual para indicar que no se puede cambiar
+      const element = document.getElementById(`alumno-${alumnoId}`);
+      if (element) {
+        element.classList.add('shake');
+        setTimeout(() => {
+          element.classList.remove('shake');
+        }, 500);
+      }
+      return;
+    }
+    
     // Create a small "click" effect
     const element = document.getElementById(`alumno-${alumnoId}`);
     if (element) {
@@ -351,7 +465,6 @@ export default function PasarClase() {
       }, 150);
     }
     
-    const estadoActual = asistencias.get(alumnoId) || 'Asiste';
     const indexActual = estadosPermitidos.indexOf(estadoActual);
     const indexSiguiente = (indexActual + 1) % estadosPermitidos.length;
     const nuevoEstado = estadosPermitidos[indexSiguiente];
@@ -459,17 +572,17 @@ export default function PasarClase() {
 
   return (
     <DashboardContainer roleName="Profesor">
+      <style dangerouslySetInnerHTML={{ __html: shakeAnimation }} />
       <div className="bg-gray-100 min-h-full pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           {/* Panel de encabezado */}
           <div className="mb-8 bg-white rounded-xl shadow-md overflow-hidden border border-blue-50">
-            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#2563EB] px-6 py-8 text-white">
+            <div className="relative bg-gradient-to-r from-[#0D3C68] to-[#1a5590] px-6 py-5 text-white">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">                <div>
                   <div className="flex items-center">
                     <Link 
                       href="/profesor/dashboard" 
-                      className="mr-4 text-white hover:text-blue-200 transition bg-blue-800 hover:bg-blue-700 p-3 rounded-full shadow-md"
-                    >
+                      className="mr-4 text-white hover:text-blue-200 transition bg-blue-800 hover:bg-blue-700 p-3 rounded-full shadow-md">
                       <FaArrowLeft />
                     </Link>
                     <div>
@@ -715,6 +828,17 @@ export default function PasarClase() {
                             <FaPercentage className="text-yellow-600 text-xs" />
                           </div>;
                           break;
+                        case 'Dispensado':
+                          bgColor = 'bg-purple-50 hover:bg-purple-50'; // No cambiar al hover
+                          textColor = 'text-purple-800';
+                          borderColor = 'border-purple-200';
+                          gradientColors = 'from-purple-50 to-purple-100';
+                          iconComponent = <div className="absolute top-3 right-3 w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                            </svg>
+                          </div>;
+                          break;
                         default:
                           bgColor = 'bg-gray-50 hover:bg-gray-100';
                           textColor = 'text-gray-800';
@@ -819,6 +943,18 @@ export default function PasarClase() {
                               50%
                             </span>
                             <span className="text-xs mt-2 text-gray-600">Asistencia parcial</span>
+                          </div>
+                          
+                          <div className="bg-white p-4 rounded-lg shadow-sm border border-purple-100 flex flex-col items-center">
+                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mb-2">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                            <span className="px-4 py-1.5 text-sm font-medium rounded-lg bg-purple-50 text-purple-800 border border-purple-200">
+                              Dispensado
+                            </span>
+                            <span className="text-xs mt-2 text-gray-600">Dispensa aprobada</span>
                           </div>
                         </div>
                       </div>

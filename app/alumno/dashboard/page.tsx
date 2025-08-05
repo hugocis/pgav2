@@ -538,7 +538,7 @@ export default function AlumnoDashboard() {
 
     if (!configCarrera) return false;
 
-    // Verificar si las dispensas están activadas y si estamos en el período permitido
+    // Verificar primero si las dispensas están activadas
     if (!configCarrera.SolDispensa) return false;
 
     // Verificar si ya existe una solicitud pendiente para esta matrícula
@@ -554,15 +554,19 @@ export default function AlumnoDashboard() {
     if (tieneSolicitudPendiente) return false;
 
     // Verificar si estamos en el periodo permitido para solicitudes
+    // Solo si ambas fechas (inicio y fin) están definidas
     if (configCarrera.FechaInicioDispensa && configCarrera.FechaFinDispensa) {
       const ahora = new Date();
       const inicio = new Date(configCarrera.FechaInicioDispensa);
       const fin = new Date(configCarrera.FechaFinDispensa);
 
+      // Verificar si estamos dentro del rango de fechas
       return ahora >= inicio && ahora <= fin;
     }
 
-    return configCarrera.SolDispensa;
+    // Si no hay fechas definidas o solo una está definida, pero SolDispensa es true,
+    // entonces las dispensas están disponibles en cualquier momento
+    return true;
   };
 
   return (

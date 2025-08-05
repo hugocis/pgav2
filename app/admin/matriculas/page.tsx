@@ -276,18 +276,30 @@ export default function AdminMatriculas() {
     setUpdateMessage(null);
     
     try {
+      // Asegurarnos de tener los datos correctos
+      const asignaturaId = asignaturaRef.current?.value || selectedMatricula.asignaturaId.toString();
+      const alumnoId = alumnoRef.current?.value || selectedMatricula.alumno_id;
+      const mostrarValue = mostrarRef.current?.checked !== undefined ? mostrarRef.current.checked : selectedMatricula.mostrar;
+      
+      console.log("Actualizando matrícula con datos:", {
+        matriculaId: selectedMatricula.id,
+        asignaturaId,
+        alumnoId,
+        mostrar: mostrarValue
+      });
+      
       const updatedData = {
         asignatura: {
           connect: {
-            id: asignaturaRef.current?.value || selectedMatricula.asignaturaId.toString()
+            id: asignaturaId
           }
         },
         alumno: {
           connect: {
-            id: alumnoRef.current?.value || selectedMatricula.alumno_id
+            id: alumnoId
           }
         },
-        mostrar: mostrarRef.current?.checked || selectedMatricula.mostrar
+        mostrar: mostrarValue
       };
       
       const response = await fetch(`/api/matriculas/${selectedMatricula.id}`, {
@@ -300,32 +312,72 @@ export default function AdminMatriculas() {
       });
 
       if (response.ok) {
-        // Actualizar la matrícula en el estado local
-        const updatedMatricula = await response.json();
-        setMatriculas(matriculas.map(m => 
-          m.id === selectedMatricula.id ? { ...m, ...updatedMatricula } : m
-        ));
-        setFilteredMatriculas(filteredMatriculas.map(m => 
-          m.id === selectedMatricula.id ? { ...m, ...updatedMatricula } : m
-        ));
-        
-        setUpdateMessage({ text: 'Matrícula actualizada correctamente', type: 'success' });
-        
-        // Esperar 1.5 segundos antes de cerrar el diálogo
-        setTimeout(() => {
-          handleCloseDialog();
-        }, 1500);
+        // Intentar parsear la respuesta como JSON
+        try {
+          const responseText = await response.text();
+          
+          // Verificar si la respuesta es un JSON válido
+          let updatedMatricula;
+          if (responseText.trim()) {
+            updatedMatricula = JSON.parse(responseText);
+          } else {
+            // Si la respuesta está vacía, usar los datos actualizados
+            updatedMatricula = {
+              ...selectedMatricula,
+              mostrar: mostrarValue,
+              asignaturaId,
+              alumno_id: alumnoId
+            };
+          }
+          
+          // Actualizar la matrícula en el estado local
+          setMatriculas(matriculas.map(m => 
+            m.id === selectedMatricula.id ? { ...m, ...updatedMatricula } : m
+          ));
+          setFilteredMatriculas(filteredMatriculas.map(m => 
+            m.id === selectedMatricula.id ? { ...m, ...updatedMatricula } : m
+          ));
+          
+          setUpdateMessage({ text: 'Matrícula actualizada correctamente', type: 'success' });
+          
+          // Esperar 1.5 segundos antes de cerrar el diálogo
+          setTimeout(() => {
+            handleCloseDialog();
+          }, 1500);
+        } catch (jsonError) {
+          console.error('Error al parsear la respuesta JSON:', jsonError);
+          setUpdateMessage({ 
+            text: 'Error al procesar la respuesta del servidor', 
+            type: 'error' 
+          });
+        }
       } else {
-        const errorData = await response.json();
-        setUpdateMessage({ 
-          text: errorData.message || 'Error al actualizar la matrícula', 
-          type: 'error' 
-        });
+        try {
+          const responseText = await response.text();
+          let errorMessage = 'Error al actualizar la matrícula';
+          
+          // Intentar parsear el mensaje de error si existe
+          if (responseText.trim()) {
+            try {
+              const errorData = JSON.parse(responseText);
+              errorMessage = errorData.error || errorData.message || errorMessage;
+            } catch (e) {
+              errorMessage = responseText || errorMessage;
+            }
+          }
+          
+          setUpdateMessage({ text: errorMessage, type: 'error' });
+        } catch (textError) {
+          setUpdateMessage({ 
+            text: `Error de servidor: ${response.status}`,
+            type: 'error' 
+          });
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al actualizar la matrícula:', error);
       setUpdateMessage({ 
-        text: 'Error de conexión al actualizar la matrícula', 
+        text: `Error de conexión al actualizar la matrícula: ${error?.message || 'Error desconocido'}`, 
         type: 'error' 
       });
     } finally {
@@ -462,8 +514,7 @@ export default function AdminMatriculas() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => history.back()}
-                    className="bg-white/10 hover:bg-white/20 transition-colors duration-200 rounded-lg px-3 py-2 flex items-center"
-                  >
+                    className="bg-white/10 hover:bg-white/20 transition-colors duration-200 rounded-lg px-3 py-2 flex items-center">
                     <FaChevronLeft className="mr-2" /> Volver
                   </button>
                   <div className="bg-white/10 rounded-full p-3">

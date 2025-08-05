@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
       data: {
         alumno_id,
         asignaturaId,
-        mostrar: mostrar ?? false
+        mostrar: mostrar ?? true // Por defecto mostrar = true para asegurar visibilidad
       },
       include: {
         asignatura: true,
@@ -215,6 +215,44 @@ export async function POST(req: NextRequest) {
         }
       }
     });
+
+    // Buscar los grupos de la asignatura para asignar al alumno
+    const grupos = await prisma.grupo.findMany({
+      where: {
+        asignaturaId: asignaturaId
+      }
+    });
+
+    // Si hay grupos en la asignatura, asignar el alumno al primer grupo
+    if (grupos && grupos.length > 0) {
+      // Asignar al alumno al primer grupo (en un caso real, podría ser necesario asignarlo a todos los grupos)
+      const grupoAsignar = grupos[0];
+      
+      try {
+        // Verificar si ya existe una asignación para este alumno en este grupo
+        const existingAsignacion = await prisma.alumnoGrupo.findFirst({
+          where: {
+            alumno_Id: alumno_id,
+            grupoId: grupoAsignar.id
+          }
+        });
+
+        if (!existingAsignacion) {
+          // Crear el registro de alumno-grupo
+          await prisma.alumnoGrupo.create({
+            data: {
+              alumno_Id: alumno_id,
+              grupoId: grupoAsignar.id
+            }
+          });
+          
+          console.log(`Alumno ${alumno_id} asignado automáticamente al grupo ${grupoAsignar.id}`);
+        }
+      } catch (groupError) {
+        console.error("Error al asignar alumno al grupo:", groupError);
+        // No devolvemos error aquí para no interrumpir la creación de la matrícula
+      }
+    }
 
     await logActivity({
       req,

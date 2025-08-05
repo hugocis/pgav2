@@ -102,6 +102,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
+    console.log("Creando asignación alumno-grupo con datos:", data);
 
     // Verificar que los campos requeridos estén presentes
     if (!data.alumno_Id || !data.grupoId) {
