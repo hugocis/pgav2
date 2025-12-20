@@ -223,11 +223,33 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Si hay grupos en la asignatura, asignar el alumno al primer grupo
-    if (grupos && grupos.length > 0) {
-      // Asignar al alumno al primer grupo (en un caso real, podría ser necesario asignarlo a todos los grupos)
-      const grupoAsignar = grupos[0];
-      
+    // Si no hay grupos en la asignatura, crear un grupo predeterminado
+    let grupoAsignar;
+    if (!grupos || grupos.length === 0) {
+      try {
+        console.log("No se encontraron grupos para la asignatura. Creando grupo predeterminado.");
+        
+        // Crear un grupo predeterminado para la asignatura
+        grupoAsignar = await prisma.grupo.create({
+          data: {
+            denominacion: "Grupo A",
+            asignaturaId: asignaturaId,
+            profesorId: asignatura.profesorId // Usamos el profesor asignado a la asignatura
+          }
+        });
+        
+        console.log(`Grupo predeterminado creado con ID: ${grupoAsignar.id}`);
+      } catch (createGroupError) {
+        console.error("Error al crear grupo predeterminado:", createGroupError);
+        // No interrumpimos la creación de la matrícula
+      }
+    } else {
+      // Usar el primer grupo existente
+      grupoAsignar = grupos[0];
+    }
+
+    // Si tenemos un grupo (existente o recién creado), asignar el alumno
+    if (grupoAsignar) {
       try {
         // Verificar si ya existe una asignación para este alumno en este grupo
         const existingAsignacion = await prisma.alumnoGrupo.findFirst({
@@ -252,6 +274,8 @@ export async function POST(req: NextRequest) {
         console.error("Error al asignar alumno al grupo:", groupError);
         // No devolvemos error aquí para no interrumpir la creación de la matrícula
       }
+    } else {
+      console.warn("No se pudo crear ni encontrar un grupo para asignar al alumno");
     }
 
     await logActivity({
@@ -377,7 +401,7 @@ export async function PUT(req: NextRequest) {
         }
 
         // Crear nueva matrícula
-        await prisma.matricula.create({
+        const nuevaMatricula = await prisma.matricula.create({
           data: {
             alumno_id: alumno.id,
             asignaturaId: asignatura.id,
@@ -385,14 +409,64 @@ export async function PUT(req: NextRequest) {
           }
         });
 
+        // Buscar o crear un grupo para esta asignatura y asignar al alumno
+        try {
+          // Buscar grupos existentes
+          const grupos = await prisma.grupo.findMany({
+            where: {
+              asignaturaId: asignatura.id
+            }
+          });
+
+          // Si no hay grupos, crear uno predeterminado
+          let grupoAsignar;
+          if (!grupos || grupos.length === 0) {
+            console.log(`Creando grupo predeterminado para asignatura ${asignatura.id}`);
+            grupoAsignar = await prisma.grupo.create({
+              data: {
+                denominacion: "Grupo A",
+                asignaturaId: asignatura.id,
+                profesorId: asignatura.profesorId
+              }
+            });
+          } else {
+            // Usar el primer grupo existente
+            grupoAsignar = grupos[0];
+          }
+
+          // Asignar al alumno al grupo
+          if (grupoAsignar) {
+            // Verificar que no existe ya la asignación
+            const existingAsignacion = await prisma.alumnoGrupo.findFirst({
+              where: {
+                alumno_Id: alumno.id,
+                grupoId: grupoAsignar.id
+              }
+            });
+
+            if (!existingAsignacion) {
+              await prisma.alumnoGrupo.create({
+                data: {
+                  alumno_Id: alumno.id,
+                  grupoId: grupoAsignar.id
+                }
+              });
+              console.log(`Alumno ${alumno.id} asignado al grupo ${grupoAsignar.id} durante importación masiva`);
+            }
+          }
+        } catch (groupError) {
+          console.error(`Error al asignar alumno al grupo durante importación masiva:`, groupError);
+          // No interrumpimos el proceso de importación masiva
+        }
+
         await logActivity({
           req,
           action: 'create',
           entityType: 'matricula',
-          details: `Importación masiva de ${resultados.creados} matrículas desde expediente.`,
+          entityId: nuevaMatricula.id,
+          details: `Importación masiva de matrículas desde expediente - Matrícula #${resultados.creados + 1}`,
           prevValue: resultados
         });
-
 
         resultados.creados++;
 

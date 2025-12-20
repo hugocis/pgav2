@@ -8,7 +8,6 @@ import {
   FaArrowLeft, 
   FaCalendarAlt, 
   FaCheck, 
-  FaChalkboardTeacher, 
   FaClipboardList, 
   FaFileSignature, 
   FaSearch,
@@ -134,7 +133,7 @@ export default function FirmasDocente() {
         try {
           const errorData = await response.json();
           errorText = errorData.error || 'Error desconocido';
-        } catch (e) {
+        } catch {
           errorText = `Error HTTP ${response.status}: ${response.statusText}`;
         }
         throw new Error(errorText);

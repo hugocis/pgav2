@@ -20,7 +20,6 @@ import {
   FaTachometerAlt,
   FaComment,
   FaBook,
-  FaBarcode,
   FaFile,
   FaDownload,
   FaFilePdf,
@@ -125,7 +124,19 @@ export default function AcademicDispensations() {
   });
   
   // Función para convertir el formato de la API a SolicitudDispensa
-  const mapApiResponseToSolicitudDispensa = (data: any): SolicitudDispensa => {
+  const mapApiResponseToSolicitudDispensa = (data: {
+    id: number;
+    studentId: string;
+    requestDate: string;
+    resolutionDate?: string;
+    reason: string;
+    resolution?: string;
+    comments?: string;
+    studentName?: string;
+    studentEmail?: string;
+    subjectCode?: string;
+    subject?: string;
+  }): SolicitudDispensa => {
     return {
       id: data.id,
       alumnoId: data.studentId,
@@ -359,7 +370,7 @@ export default function AcademicDispensations() {
       }
       
       // Obtener la solicitud actualizada
-      const responseData = await response.json();
+      await response.json();
       
       // Como la API podría devolver un formato diferente, adaptamos:
       const updatedRequest = { 

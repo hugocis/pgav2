@@ -217,6 +217,71 @@ export async function PATCH(
       }
     });
 
+    // Verificar si hay cambios en alumnoId o asignaturaId
+    if (alumnoId !== matriculaExistente.alumno_id || asignaturaId !== matriculaExistente.asignaturaId) {
+      try {
+        // Buscar los grupos de la asignatura para asignar al alumno
+        const grupos = await prisma.grupo.findMany({
+          where: {
+            asignaturaId: asignaturaId
+          }
+        });
+
+        // Si no hay grupos en la asignatura, crear un grupo predeterminado
+        let grupoAsignar;
+        if (!grupos || grupos.length === 0) {
+          console.log("No se encontraron grupos para la asignatura. Creando grupo predeterminado.");
+          
+          // Obtener el profesor de la asignatura
+          const asignatura = await prisma.asignatura.findUnique({
+            where: { id: asignaturaId }
+          });
+          
+          if (asignatura) {
+            // Crear un grupo predeterminado para la asignatura
+            grupoAsignar = await prisma.grupo.create({
+              data: {
+                denominacion: "Grupo A",
+                asignaturaId: asignaturaId,
+                profesorId: asignatura.profesorId
+              }
+            });
+            
+            console.log(`Grupo predeterminado creado con ID: ${grupoAsignar.id}`);
+          }
+        } else {
+          // Usar el primer grupo existente
+          grupoAsignar = grupos[0];
+        }
+
+        // Si tenemos un grupo (existente o recién creado), asignar el alumno
+        if (grupoAsignar) {
+          // Verificar si ya existe una asignación para este alumno en este grupo
+          const existingAsignacion = await prisma.alumnoGrupo.findFirst({
+            where: {
+              alumno_Id: alumnoId,
+              grupoId: grupoAsignar.id
+            }
+          });
+
+          if (!existingAsignacion) {
+            // Crear el registro de alumno-grupo
+            await prisma.alumnoGrupo.create({
+              data: {
+                alumno_Id: alumnoId,
+                grupoId: grupoAsignar.id
+              }
+            });
+            
+            console.log(`Alumno ${alumnoId} asignado automáticamente al grupo ${grupoAsignar.id} durante actualización`);
+          }
+        }
+      } catch (groupError) {
+        console.error("Error al asignar alumno al grupo durante actualización:", groupError);
+        // No interrumpimos la actualización de la matrícula
+      }
+    }
+
     await logActivity({
       req,
       action: 'update',

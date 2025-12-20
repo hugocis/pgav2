@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
     const carreraId = searchParams.get('carreraId');
     const docenteId = searchParams.get('docenteId');
     const firmadas = searchParams.get('firmadas');
-    const incluirProgramadas = searchParams.get('incluirProgramadas') === 'true';
 
     // Obtener fecha para filtrar
     let fechaInicio: Date;
@@ -48,7 +47,12 @@ export async function GET(request: NextRequest) {
     const nombreDia = nombresDias[diaSemana];
     
     // Filtros para las sesiones existentes
-    let where: any = {
+    const where: {
+      fecha?: { gte: Date; lte: Date };
+      grupo?: { asignatura: { carreraId: string } };
+      docenteId?: string;
+      FirmaDocente?: { isNot: null } | null;
+    } = {
       fecha: {
         gte: fechaInicio,
         lte: fechaFin
@@ -251,7 +255,7 @@ export async function GET(request: NextRequest) {
     
     // Agregar cualquier sesión existente que no haya sido mapeada
     // (pueden haber sesiones en horarios no programados)
-    for (const [_, sesion] of mapaSesionesExistentes) {
+    for (const sesion of mapaSesionesExistentes.values()) {
       if (sesion.FirmaDocente) {
         sesion.estadoFirma = 'firmada';
       } else {
@@ -312,7 +316,7 @@ export async function PUT(req: NextRequest) {
 
     // Obtener datos del cuerpo de la solicitud
     const body = await req.json();
-    const { id, status, comments } = body;
+    const { id, comments } = body;
 
     if (!id) {
       return NextResponse.json(

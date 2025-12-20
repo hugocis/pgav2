@@ -127,10 +127,49 @@ export default function ProfesorGrupos() {
           throw new Error('Could not load groups');
         }
         
-        const gruposData = await gruposResponse.json();        // Filter only groups where the teacher is the owner
+        const gruposData = await gruposResponse.json();
+        
+        // Verificar si hay grupos disponibles para la asignatura
+        if (!gruposData || !gruposData.grupos || gruposData.grupos.length === 0) {
+          // Si no hay grupos, crear uno predeterminado
+          console.log("No hay grupos disponibles para esta asignatura. Creando grupo predeterminado...");
+          
+          try {
+            const createResponse = await fetch('/api/grupos', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              body: JSON.stringify({
+                denominacion: "Grupo A",
+                asignaturaId,
+                profesorId: session.user.id
+              }),
+            });
+            
+            if (!createResponse.ok) {
+              throw new Error('No se pudo crear el grupo predeterminado');
+            }
+            
+            const nuevoGrupo = await createResponse.json();
+            gruposData.grupos = [nuevoGrupo.grupo];
+            console.log("Grupo predeterminado creado:", nuevoGrupo.grupo);
+          } catch (error) {
+            console.error("Error al crear grupo predeterminado:", error);
+          }
+        }
+        
+        // Filter only groups where the teacher is the owner
         let gruposFiltrados = [];
         if (gruposData && gruposData.grupos && Array.isArray(gruposData.grupos)) {
           gruposFiltrados = gruposData.grupos.filter((grupo: Grupo) => grupo.profesorId === session.user.id);
+          
+          // Si no hay grupos del profesor, mostrar todos los grupos de la asignatura
+          if (gruposFiltrados.length === 0) {
+            gruposFiltrados = gruposData.grupos;
+            console.log("No se encontraron grupos del profesor, mostrando todos los grupos de la asignatura");
+          }
         } else {
           console.error('Incorrect groups response format:', gruposData);
         }
@@ -210,19 +249,73 @@ export default function ProfesorGrupos() {
           const apellidoB = b.surname1 || '';
           return apellidoA.localeCompare(apellidoB) || a.name.localeCompare(b.name);
         });
+          // Verificar si hay alumnos matriculados que no están en ningún grupo
+          if (alumnosMatriculados.length > 0 && gruposFiltrados.length > 0) {
+            const alumnosEnGrupo = new Set();
+            alumnosGrupoProfesor.forEach(ag => {
+              if (ag && ag.alumno_Id) {
+                alumnosEnGrupo.add(ag.alumno_Id);
+              }
+            });
+            
+            const alumnosSinGrupo = alumnosMatriculados.filter(a => !alumnosEnGrupo.has(a.id));
+            
+            if (alumnosSinGrupo.length > 0) {
+              console.log(`Hay ${alumnosSinGrupo.length} alumnos matriculados que no están en ningún grupo. Asignándolos...`);
+              setDebugInfo(prev => prev + `| Alumnos sin grupo: ${alumnosSinGrupo.length}`);
+              
+              // Asignar automáticamente al primer grupo disponible
+              const grupoDefault = gruposFiltrados[0];
+              
+              const promesasAsignacion = alumnosSinGrupo.map(async (alumno) => {
+                try {
+                  const response = await fetch('/api/alumnos-grupo', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      alumno_Id: alumno.id,
+                      grupoId: grupoDefault.id
+                    }),
+                  });
+                  
+                  if (response.ok) {
+                    const nuevoAlumnoGrupo = await response.json();
+                    return nuevoAlumnoGrupo;
+                  }
+                  return null;
+                } catch (error) {
+                  console.error(`Error al asignar alumno ${alumno.id} al grupo ${grupoDefault.id}:`, error);
+                  return null;
+                }
+              });
+              
+              const nuevasAsignaciones = await Promise.all(promesasAsignacion);
+              const asignacionesValidas = nuevasAsignaciones.filter(a => a !== null);
+              
+              if (asignacionesValidas.length > 0) {
+                // Actualizar la lista de alumnos-grupo con las nuevas asignaciones
+                setTodosLosAlumnosGrupo([...alumnosGrupoProfesor, ...asignacionesValidas]);
+                setDebugInfo(prev => prev + `| Nuevas asignaciones creadas: ${asignacionesValidas.length}`);
+              }
+            }
+          }
+          
           setAlumnosAsignatura(alumnosMatriculados);
-        setDebugInfo(prev => prev + `| Students loaded: ${alumnosMatriculados.length}`);
+          setDebugInfo(prev => prev + `| Students loaded: ${alumnosMatriculados.length}`);
         
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Error loading data:', error);
-        setError(`Error loading data: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        setIsLoading(false);
-      }
+          setIsLoading(false);
+        } catch (error) {
+          console.error('Error loading data:', error);
+          setError(`Error loading data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          setIsLoading(false);
+        }
     };
     
     fetchAsignaturaData();
-  }, [asignaturaId, session?.user?.id]);
+  }, [asignaturaId, session?.user?.id, alumnosAsignatura.length]);
 
   const handleCrearGrupo = async () => {
     if (!nuevoGrupoNombre.trim() || !asignaturaId || !session?.user?.id) {

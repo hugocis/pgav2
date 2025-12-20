@@ -333,7 +333,11 @@ export default function PasarClase() {
         });
         
         // Añadir alumnos matriculados que no están ya en el grupo
-        matriculasData.forEach((matricula: any) => {
+        matriculasData.forEach((matricula: {
+          id: number;
+          alumno_id: string;
+          user: { id: string; name: string | null; surname1: string | null; surname2: string | null; email: string };
+        }) => {
           if (!alumnosGrupoMap.has(matricula.alumno_id) && matricula.user) {
             alumnosGrupoMap.set(matricula.alumno_id, {
               id: `matricula-${matricula.id}`, // ID único para este alumno (solo matriculado)
@@ -429,7 +433,7 @@ export default function PasarClase() {
     };
     
     fetchData();
-  }, [grupoSeleccionado]);
+  }, [grupoSeleccionado, asignatura?.id, asignaturaId]);
   // Filter students by search term
   const alumnosFiltrados = searchTerm
     ? alumnosGrupo.filter(alumnoGrupo => 

@@ -190,17 +190,61 @@ export default function ProfesorAlumnos() {
         }
         
         const gruposData = await gruposResponse.json();
-        // Filtrar solo los grupos donde el profesor es el dueño
-        const gruposFiltrados = gruposData.grupos.filter((grupo: Grupo) => 
-          grupo.profesorId === session.user.id
-        );
         
+        // Verificar si hay grupos disponibles para la asignatura
+        if (!gruposData || !gruposData.grupos || gruposData.grupos.length === 0) {
+          // Si no hay grupos, crear uno predeterminado
+          console.log("No hay grupos disponibles para esta asignatura. Creando grupo predeterminado...");
+          
+          try {
+            const createResponse = await fetch('/api/grupos', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              body: JSON.stringify({
+                denominacion: "Grupo A",
+                asignaturaId,
+                profesorId: session.user.id
+              }),
+            });
+            
+            if (!createResponse.ok) {
+              throw new Error('No se pudo crear el grupo predeterminado');
+            }
+            
+            const nuevoGrupo = await createResponse.json();
+            gruposData.grupos = [nuevoGrupo.grupo];
+            console.log("Grupo predeterminado creado:", nuevoGrupo.grupo);
+          } catch (error) {
+            console.error("Error al crear grupo predeterminado:", error);
+          }
+        }
+        
+        // Filtrar solo los grupos donde el profesor es el dueño
+        let gruposFiltrados = [];
+        if (gruposData && gruposData.grupos && Array.isArray(gruposData.grupos)) {
+          gruposFiltrados = gruposData.grupos.filter((grupo: Grupo) => 
+            grupo.profesorId === session.user.id
+          );
+        }
+        
+        // Si después de filtrar no hay grupos del profesor, usar todos los grupos
+        // Esto permite que vea alumnos de grupos que no ha creado él mismo
+        if (!gruposFiltrados || gruposFiltrados.length === 0) {
+          gruposFiltrados = gruposData.grupos || [];
+        }
+        
+        console.log(`Grupos cargados: ${gruposFiltrados.length} grupos para la asignatura`);
         setGrupos(gruposFiltrados);
         
         // Cargar los estados de asistencia disponibles
         const estadosAsistenciaResponse = await fetch('/api/estados-asistencia', {
           credentials: 'include'
-        });        if (estadosAsistenciaResponse.ok) {
+        });
+        
+        if (estadosAsistenciaResponse.ok) {
           // Cargar estados de asistencia - solo para futuro uso
           await estadosAsistenciaResponse.json();
         }
@@ -217,12 +261,31 @@ export default function ProfesorAlumnos() {
     };
 
     fetchData();
-  }, [asignaturaId, session?.user]);
+  }, [asignaturaId, session?.user, cargarDatosAlumnos]);
 
   // Función para cargar datos de alumnos y estadísticas de asistencia
   const cargarDatosAlumnos = async (grupos: Grupo[]) => {
     try {
-      // Primero, cargar todos los alumnos-grupo
+      // Verificar si hay grupos disponibles
+      if (!grupos || grupos.length === 0) {
+        console.error("No hay grupos disponibles para cargar alumnos");
+        return;
+      }
+      
+      // Primero, cargar todos los alumnos matriculados en la asignatura
+      const matriculadosResponse = await fetch(`/api/alumnos-asignatura?asignaturaId=${asignaturaId}`, {
+        credentials: 'include'
+      });
+      
+      let alumnosMatriculados: Alumno[] = [];
+      if (matriculadosResponse.ok) {
+        alumnosMatriculados = await matriculadosResponse.json();
+        console.log(`Alumnos matriculados en la asignatura: ${alumnosMatriculados.length}`);
+      } else {
+        console.error("Error al cargar alumnos matriculados");
+      }
+      
+      // Cargar todos los alumnos-grupo
       const todosAlumnosGrupo: AlumnoGrupo[] = [];
       
       for (const grupo of grupos) {
@@ -237,6 +300,45 @@ export default function ProfesorAlumnos() {
         
         const alumnosGrupo = await alumnosGrupoResponse.json();
         todosAlumnosGrupo.push(...alumnosGrupo);
+      }
+      
+      console.log(`Total de relaciones alumno-grupo encontradas: ${todosAlumnosGrupo.length}`);
+      
+      // Verificar si hay alumnos matriculados que no están en ningún grupo
+      if (alumnosMatriculados.length > 0 && grupos.length > 0) {
+        const alumnosEnGrupo = new Set(todosAlumnosGrupo.map(ag => ag.alumno_Id));
+        const alumnosSinGrupo = alumnosMatriculados.filter(a => !alumnosEnGrupo.has(a.id));
+        
+        if (alumnosSinGrupo.length > 0) {
+          console.log(`Hay ${alumnosSinGrupo.length} alumnos matriculados que no están en ningún grupo. Asignándolos...`);
+          
+          // Asignar automáticamente al primer grupo disponible
+          const grupoDefault = grupos[0];
+          
+          for (const alumno of alumnosSinGrupo) {
+            try {
+              const response = await fetch('/api/alumnos-grupo', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                  alumno_Id: alumno.id,
+                  grupoId: grupoDefault.id
+                }),
+              });
+              
+              if (response.ok) {
+                const nuevoAlumnoGrupo = await response.json();
+                todosAlumnosGrupo.push(nuevoAlumnoGrupo);
+                console.log(`Alumno ${alumno.name} ${alumno.surname1} asignado automáticamente al grupo ${grupoDefault.denominacion}`);
+              }
+            } catch (error) {
+              console.error(`Error al asignar alumno ${alumno.id} al grupo ${grupoDefault.id}:`, error);
+            }
+          }
+        }
       }
       
       // Crear un map para almacenar a qué grupos pertenece cada alumno

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/authOptions';
-import { de } from 'date-fns/locale';
 
 export async function GET(req: NextRequest) {
   try {

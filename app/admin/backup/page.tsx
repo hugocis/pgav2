@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import DashboardContainer from '@/components/DashboardContainer';
 import { 
-  FaPlay, 
   FaClock, 
   FaCheckCircle, 
   FaTimesCircle,
@@ -57,53 +56,6 @@ interface BackupResponse {
     ultimoIncremental: BackupRecord | null;
   };
 }
-
-const getEstadoIcon = (estado: string) => {
-  switch (estado) {
-    case 'COMPLETADO':
-      return <FaCheckCircle className="text-green-500" />;
-    case 'FALLIDO':
-      return <FaTimesCircle className="text-red-500" />;
-    case 'EN_PROGRESO':
-      return <FaClock className="text-yellow-500 animate-spin" />;
-    default:
-      return <FaClock className="text-gray-500" />;
-  }
-};
-
-const getEstadoBadge = (estado: string) => {
-  const baseClasses = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium";
-  switch (estado) {
-    case 'COMPLETADO':
-      return `${baseClasses} bg-green-100 text-green-800 border border-green-200`;
-    case 'FALLIDO':
-      return `${baseClasses} bg-red-100 text-red-800 border border-red-200`;
-    case 'EN_PROGRESO':
-      return `${baseClasses} bg-yellow-100 text-yellow-800 border border-yellow-200`;
-    default:
-      return `${baseClasses} bg-gray-100 text-gray-800 border border-gray-200`;
-  }
-};
-
-const formatFileSize = (bytes: string | null): string => {
-  if (!bytes) return 'N/A';
-  const size = parseInt(bytes);
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let unitIndex = 0;
-  let fileSize = size;
-  
-  while (fileSize >= 1024 && unitIndex < units.length - 1) {
-    fileSize /= 1024;
-    unitIndex++;
-  }
-  
-  return `${fileSize.toFixed(1)} ${units[unitIndex]}`;
-};
-
-const formatUserName = (user: BackupRecord['ejecutadoPor']) => {
-  if (!user) return 'Sistema';
-  return `${user.name || ''} ${user.surname1 || ''} ${user.surname2 || ''}`.trim() || user.email;
-};
 
 export default function BackupPage() {
   const { status } = useSession({
@@ -186,7 +138,7 @@ export default function BackupPage() {
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
   };
 
-  const formatUserName = (user: any): string => {
+  const formatUserName = (user: BackupRecord['ejecutadoPor'] | { nombre?: string; apellidos?: string; email?: string } | null): string => {
     if (user?.nombre && user?.apellidos) {
       return `${user.nombre} ${user.apellidos}`;
     }

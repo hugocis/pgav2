@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json();
-    const { titulo, datos, estadisticas } = data;
+    const { datos, estadisticas } = data;
     
     // Crear un nuevo libro de Excel
     const workbook = XLSX.utils.book_new();

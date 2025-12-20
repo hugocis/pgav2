@@ -228,9 +228,9 @@ export default function HistorialSesiones() {  const { data: session } = useSess
               const asistenciasData = await asistenciasResponse.json();
               
               // Check for justification requests (safe way)
-              const conSolicitudes = asistenciasData.filter((a: Asistencia) => 
+              asistenciasData.filter((a: Asistencia) => 
                 Array.isArray(a.solicitudesJustificacion) && a.solicitudesJustificacion.length > 0);              
-              const conSolicitudesPendientes = asistenciasData.filter((a: Asistencia) => 
+              asistenciasData.filter((a: Asistencia) => 
                 Array.isArray(a.solicitudesJustificacion) && 
                 a.solicitudesJustificacion.some((s: {estadoJustificacionId: string}) => s.estadoJustificacionId === 'pendiente'));
                 

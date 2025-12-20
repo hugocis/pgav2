@@ -44,7 +44,6 @@ export default function ManagerCarreraSelector({
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCarreraId, setSelectedCarreraId] = useState<string>(carreraSeleccionada || "");
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [isDialogMode, setIsDialogMode] = useState<boolean>(isOpen !== undefined);
 
   // Usar cualquiera de las funciones de cierre que esté disponible
   const handleCloseDialog = () => {
@@ -64,7 +63,7 @@ export default function ManagerCarreraSelector({
       setCarreras(carrerasData);
 
       // En modo diálogo, cargar carreras asignadas al manager
-      if (isDialogMode && userId) {
+      if (isOpen !== undefined && userId) {
         const assignedResponse = await fetch(`/api/manager-carreras?managerId=${userId}`);
         const assignedData = await assignedResponse.json();
         setAssignedCarreras(assignedData);
@@ -75,14 +74,14 @@ export default function ManagerCarreraSelector({
     } finally {
       setIsLoading(false);
     }
-  }, [userId, isDialogMode]);
+  }, [userId, isOpen]);
 
   // Cargar datos al montar o al abrir el diálogo
   useEffect(() => {
-    if (!isDialogMode || (isDialogMode && isOpen)) {
+    if (isOpen === undefined || (isOpen !== undefined && isOpen)) {
       loadData();
     }
-  }, [isDialogMode, isOpen, loadData]);
+  }, [isOpen, loadData]);
   
   // Actualizar selectedCarreraId cuando cambia carreraSeleccionada desde las props
   useEffect(() => {
@@ -169,6 +168,7 @@ export default function ManagerCarreraSelector({
     }
   };
   // Si es modo diálogo pero no está abierto, no renderizar nada
+  const isDialogMode = isOpen !== undefined;
   if (isDialogMode && !isOpen) return null;
 
   // Función para manejar clics fuera del diálogo

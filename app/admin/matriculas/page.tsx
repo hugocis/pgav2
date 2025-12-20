@@ -361,23 +361,23 @@ export default function AdminMatriculas() {
             try {
               const errorData = JSON.parse(responseText);
               errorMessage = errorData.error || errorData.message || errorMessage;
-            } catch (e) {
+            } catch {
               errorMessage = responseText || errorMessage;
             }
           }
           
           setUpdateMessage({ text: errorMessage, type: 'error' });
-        } catch (textError) {
+        } catch {
           setUpdateMessage({ 
             text: `Error de servidor: ${response.status}`,
             type: 'error' 
           });
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al actualizar la matrícula:', error);
       setUpdateMessage({ 
-        text: `Error de conexión al actualizar la matrícula: ${error?.message || 'Error desconocido'}`, 
+        text: `Error de conexión al actualizar la matrícula: ${error instanceof Error ? error.message : 'Error desconocido'}`, 
         type: 'error' 
       });
     } finally {

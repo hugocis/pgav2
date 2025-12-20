@@ -110,7 +110,7 @@ async function executeAutomaticBackup(backupId: string, tipoBackup: string) {
       pgDumpCommand = `pg_dump -h ${dbHost} -p ${dbPort} -U ${dbUser} -d ${dbName} -f "${filepath}" --verbose --clean --if-exists --create`;
     } else {
       // Backup incremental: solo datos modificados desde el último backup
-      const ultimoBackup = await prisma.backupSystem.findFirst({
+      await prisma.backupSystem.findFirst({
         where: {
           estado: 'COMPLETADO',
           fechaFin: { not: null }
@@ -126,7 +126,7 @@ async function executeAutomaticBackup(backupId: string, tipoBackup: string) {
     const env = { ...process.env, PGPASSWORD: dbPassword };
 
     // Ejecutar comando de backup
-    const { stdout, stderr } = await execAsync(pgDumpCommand, { 
+    await execAsync(pgDumpCommand, { 
       env,
       timeout: 30 * 60 * 1000 // 30 minutos de timeout
     });

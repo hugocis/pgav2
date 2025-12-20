@@ -112,9 +112,9 @@ export async function GET(request: NextRequest) {
 }
 
 // POST: Crear nuevo backup
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const authResult = await verifyAdminAccess(request);
+    const authResult = await verifyAdminAccess(new NextRequest(new URL('http://localhost')));
     if ('error' in authResult) {
       return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
@@ -201,15 +201,13 @@ async function executeBackup(backupId: string, tipoBackup: string) {
       pgDumpCommand = `pg_dump -h ${dbHost} -p ${dbPort} -U ${dbUser} -d ${dbName} -f "${filepath}" --verbose --clean --if-exists --create`;
     } else {
       // Backup incremental: solo datos modificados desde el último backup
-      const ultimoBackup = await prisma.backupSystem.findFirst({
+      await prisma.backupSystem.findFirst({
         where: {
           estado: 'COMPLETADO',
           fechaFin: { not: null }
         },
         orderBy: { fechaFin: 'desc' }
       });
-
-      const fechaDesde = ultimoBackup?.fechaFin || new Date(Date.now() - 24 * 60 * 60 * 1000); // últimas 24 horas si no hay backup previo
       
       // Para el incremental, usamos pg_dump con una consulta WHERE basada en fechas
       // Esto es una simplificación, en un entorno real necesitarías un sistema más sofisticado
@@ -220,7 +218,7 @@ async function executeBackup(backupId: string, tipoBackup: string) {
     const env = { ...process.env, PGPASSWORD: dbPassword };
 
     // Ejecutar comando de backup
-    const { stdout, stderr } = await execAsync(pgDumpCommand, { env });
+    await execAsync(pgDumpCommand, { env });
 
     // Obtener tamaño del archivo
     const stats = await fs.stat(filepath);

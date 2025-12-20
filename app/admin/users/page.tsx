@@ -351,7 +351,7 @@ export default function AdminUsers() {
             try {
             // Capture errors specifically when reading the response
             text = await response.text();
-          } catch (readError) {
+          } catch {
             // Continue with empty text to handle the case as an empty response
           }
           
