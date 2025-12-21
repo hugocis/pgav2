@@ -143,7 +143,7 @@ async function executeAutomaticBackup(backupId: string, tipoBackup: string) {
         fechaFin: new Date(),
         archivoPath: filepath,
         tamaño,
-        observaciones: stderr ? `Backup automático completado. Advertencias: ${stderr}` : 'Backup automático completado exitosamente'
+        observaciones: 'Backup automático completado exitosamente'
       }
     });
 

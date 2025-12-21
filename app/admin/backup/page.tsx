@@ -138,11 +138,9 @@ export default function BackupPage() {
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
   };
 
-  const formatUserName = (user: BackupRecord['ejecutadoPor'] | { nombre?: string; apellidos?: string; email?: string } | null): string => {
-    if (user?.nombre && user?.apellidos) {
-      return `${user.nombre} ${user.apellidos}`;
-    }
-    return user?.email || 'Usuario desconocido';
+  const formatUserName = (user: BackupRecord['ejecutadoPor'] | null): string => {
+    if (!user) return 'Sistema';
+    return `${user.name || ''} ${user.surname1 || ''} ${user.surname2 || ''}`.trim() || user.email;
   };
 
   const getEstadoIcon = (estado: string) => {

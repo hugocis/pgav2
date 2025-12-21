@@ -136,15 +136,17 @@ export default function AcademicDispensations() {
     studentEmail?: string;
     subjectCode?: string;
     subject?: string;
+    documentationUrl?: string;
+    status?: string;
   }): SolicitudDispensa => {
     return {
-      id: data.id,
+      id: data.id.toString(),
       alumnoId: data.studentId,
       matriculaId: '',
       fechaAlegacion: data.requestDate,
-      fechaRespuesta: data.resolutionDate,
+      fechaRespuesta: data.resolutionDate ?? null,
       alegacion: data.reason,
-      respuesta: data.resolution || data.comments,
+      respuesta: data.resolution || data.comments || null,
       estadoDispensaId: '',
       user: {
         id: data.studentId,

@@ -10,7 +10,7 @@ import path from 'path';
 const execAsync = promisify(exec);
 
 // Verificar que el usuario es admin
-async function verifyAdminAccess(request: NextRequest) {
+async function verifyAdminAccess() {
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user) {
@@ -28,7 +28,7 @@ async function verifyAdminAccess(request: NextRequest) {
     }
   });
 
-  const isAdmin = user?.userRoles.some((ur: any) => ur.role.name === 'Admin');
+  const isAdmin = user?.userRoles.some((ur: { role: { name: string } }) => ur.role.name === 'Admin');
   
   if (!isAdmin) {
     return { error: 'Acceso denegado. Solo administradores.', status: 403 };
@@ -40,7 +40,7 @@ async function verifyAdminAccess(request: NextRequest) {
 // GET: Obtener historial de backups
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await verifyAdminAccess(request);
+    const authResult = await verifyAdminAccess();
     if ('error' in authResult) {
       return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
@@ -112,9 +112,9 @@ export async function GET(request: NextRequest) {
 }
 
 // POST: Crear nuevo backup
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const authResult = await verifyAdminAccess(new NextRequest(new URL('http://localhost')));
+    const authResult = await verifyAdminAccess();
     if ('error' in authResult) {
       return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
@@ -232,7 +232,7 @@ async function executeBackup(backupId: string, tipoBackup: string) {
         fechaFin: new Date(),
         archivoPath: filepath,
         tamaño,
-        observaciones: stderr ? `Advertencias: ${stderr}` : 'Completado exitosamente'
+        observaciones: 'Completado exitosamente'
       }
     });
 

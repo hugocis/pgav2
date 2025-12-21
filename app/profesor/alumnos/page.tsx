@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardContainer from '@/components/DashboardContainer';
@@ -147,124 +147,8 @@ export default function ProfesorAlumnos() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  useEffect(() => {
-    if (!asignaturaId || !session?.user) return;
-
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        // Obtener los detalles de la asignatura
-        const asignaturaResponse = await fetch(`/api/asignaturas/${asignaturaId}`, {
-          credentials: 'include'
-        });
-        
-        if (!asignaturaResponse.ok) {
-          throw new Error('No se pudo cargar la información de la asignatura');
-        }
-        
-        const asignaturaData = await asignaturaResponse.json();
-        setAsignatura(asignaturaData);
-        
-        // Verificar si el profesor tiene acceso a esta asignatura
-        if (asignaturaData.profesorId !== session.user.id) {
-          const docenciaResponse = await fetch(`/api/docencia?asignaturaId=${asignaturaId}&profesorId=${session.user.id}`, {
-            credentials: 'include'
-          });
-          
-          if (!docenciaResponse.ok || (await docenciaResponse.json()).length === 0) {
-            setError('No tienes permisos para ver esta asignatura');
-            setIsLoading(false);
-            return;
-          }
-        }
-        
-        // Cargar grupos de la asignatura
-        const gruposResponse = await fetch(`/api/grupos?asignaturaId=${asignaturaId}`, {
-          credentials: 'include'
-        });
-        
-        if (!gruposResponse.ok) {
-          throw new Error('No se pudieron cargar los grupos');
-        }
-        
-        const gruposData = await gruposResponse.json();
-        
-        // Verificar si hay grupos disponibles para la asignatura
-        if (!gruposData || !gruposData.grupos || gruposData.grupos.length === 0) {
-          // Si no hay grupos, crear uno predeterminado
-          console.log("No hay grupos disponibles para esta asignatura. Creando grupo predeterminado...");
-          
-          try {
-            const createResponse = await fetch('/api/grupos', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              credentials: 'include',
-              body: JSON.stringify({
-                denominacion: "Grupo A",
-                asignaturaId,
-                profesorId: session.user.id
-              }),
-            });
-            
-            if (!createResponse.ok) {
-              throw new Error('No se pudo crear el grupo predeterminado');
-            }
-            
-            const nuevoGrupo = await createResponse.json();
-            gruposData.grupos = [nuevoGrupo.grupo];
-            console.log("Grupo predeterminado creado:", nuevoGrupo.grupo);
-          } catch (error) {
-            console.error("Error al crear grupo predeterminado:", error);
-          }
-        }
-        
-        // Filtrar solo los grupos donde el profesor es el dueño
-        let gruposFiltrados = [];
-        if (gruposData && gruposData.grupos && Array.isArray(gruposData.grupos)) {
-          gruposFiltrados = gruposData.grupos.filter((grupo: Grupo) => 
-            grupo.profesorId === session.user.id
-          );
-        }
-        
-        // Si después de filtrar no hay grupos del profesor, usar todos los grupos
-        // Esto permite que vea alumnos de grupos que no ha creado él mismo
-        if (!gruposFiltrados || gruposFiltrados.length === 0) {
-          gruposFiltrados = gruposData.grupos || [];
-        }
-        
-        console.log(`Grupos cargados: ${gruposFiltrados.length} grupos para la asignatura`);
-        setGrupos(gruposFiltrados);
-        
-        // Cargar los estados de asistencia disponibles
-        const estadosAsistenciaResponse = await fetch('/api/estados-asistencia', {
-          credentials: 'include'
-        });
-        
-        if (estadosAsistenciaResponse.ok) {
-          // Cargar estados de asistencia - solo para futuro uso
-          await estadosAsistenciaResponse.json();
-        }
-
-        // Ahora debemos cargar todos los alumnos para cada grupo y sus asistencias
-        await cargarDatosAlumnos(gruposFiltrados);
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Error al cargar datos:', error);
-        setError(`Error al cargar los datos: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [asignaturaId, session?.user, cargarDatosAlumnos]);
-
   // Función para cargar datos de alumnos y estadísticas de asistencia
-  const cargarDatosAlumnos = async (grupos: Grupo[]) => {
+  const cargarDatosAlumnos = useCallback(async (grupos: Grupo[]) => {
     try {
       // Verificar si hay grupos disponibles
       if (!grupos || grupos.length === 0) {
@@ -460,7 +344,123 @@ export default function ProfesorAlumnos() {
       console.error('Error al cargar datos de alumnos:', error);
       throw error;
     }
-  };
+  }, [asignaturaId]);
+
+  useEffect(() => {
+    if (!asignaturaId || !session?.user) return;
+
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Obtener los detalles de la asignatura
+        const asignaturaResponse = await fetch(`/api/asignaturas/${asignaturaId}`, {
+          credentials: 'include'
+        });
+        
+        if (!asignaturaResponse.ok) {
+          throw new Error('No se pudo cargar la información de la asignatura');
+        }
+        
+        const asignaturaData = await asignaturaResponse.json();
+        setAsignatura(asignaturaData);
+        
+        // Verificar si el profesor tiene acceso a esta asignatura
+        if (asignaturaData.profesorId !== session.user.id) {
+          const docenciaResponse = await fetch(`/api/docencia?asignaturaId=${asignaturaId}&profesorId=${session.user.id}`, {
+            credentials: 'include'
+          });
+          
+          if (!docenciaResponse.ok || (await docenciaResponse.json()).length === 0) {
+            setError('No tienes permisos para ver esta asignatura');
+            setIsLoading(false);
+            return;
+          }
+        }
+        
+        // Cargar grupos de la asignatura
+        const gruposResponse = await fetch(`/api/grupos?asignaturaId=${asignaturaId}`, {
+          credentials: 'include'
+        });
+        
+        if (!gruposResponse.ok) {
+          throw new Error('No se pudieron cargar los grupos');
+        }
+        
+        const gruposData = await gruposResponse.json();
+        
+        // Verificar si hay grupos disponibles para la asignatura
+        if (!gruposData || !gruposData.grupos || gruposData.grupos.length === 0) {
+          // Si no hay grupos, crear uno predeterminado
+          console.log("No hay grupos disponibles para esta asignatura. Creando grupo predeterminado...");
+          
+          try {
+            const createResponse = await fetch('/api/grupos', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              body: JSON.stringify({
+                denominacion: "Grupo A",
+                asignaturaId,
+                profesorId: session.user.id
+              }),
+            });
+            
+            if (!createResponse.ok) {
+              throw new Error('No se pudo crear el grupo predeterminado');
+            }
+            
+            const nuevoGrupo = await createResponse.json();
+            gruposData.grupos = [nuevoGrupo.grupo];
+            console.log("Grupo predeterminado creado:", nuevoGrupo.grupo);
+          } catch (error) {
+            console.error("Error al crear grupo predeterminado:", error);
+          }
+        }
+        
+        // Filtrar solo los grupos donde el profesor es el dueño
+        let gruposFiltrados = [];
+        if (gruposData && gruposData.grupos && Array.isArray(gruposData.grupos)) {
+          gruposFiltrados = gruposData.grupos.filter((grupo: Grupo) => 
+            grupo.profesorId === session.user.id
+          );
+        }
+        
+        // Si después de filtrar no hay grupos del profesor, usar todos los grupos
+        // Esto permite que vea alumnos de grupos que no ha creado él mismo
+        if (!gruposFiltrados || gruposFiltrados.length === 0) {
+          gruposFiltrados = gruposData.grupos || [];
+        }
+        
+        console.log(`Grupos cargados: ${gruposFiltrados.length} grupos para la asignatura`);
+        setGrupos(gruposFiltrados);
+        
+        // Cargar los estados de asistencia disponibles
+        const estadosAsistenciaResponse = await fetch('/api/estados-asistencia', {
+          credentials: 'include'
+        });
+        
+        if (estadosAsistenciaResponse.ok) {
+          // Cargar estados de asistencia - solo para futuro uso
+          await estadosAsistenciaResponse.json();
+        }
+
+        // Ahora debemos cargar todos los alumnos para cada grupo y sus asistencias
+        await cargarDatosAlumnos(gruposFiltrados);
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error al cargar datos:', error);
+        setError(`Error al cargar los datos: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [asignaturaId, session?.user, cargarDatosAlumnos]);
 
   // Función para ordenar los alumnos
   const handleSort = (key: string) => {

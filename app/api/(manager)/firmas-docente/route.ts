@@ -139,6 +139,7 @@ export async function GET(request: NextRequest) {
     });
 
     // 2. Procesar los horarios y crear una lista de todas las sesiones programadas
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sesionesCompletas: any[] = [];
     
     // 3. Procesar cada horario de profesor para generar todas las sesiones programadas
